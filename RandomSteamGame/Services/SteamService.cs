@@ -22,18 +22,12 @@ public class SteamService
         _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(RandomSteamGameConstants.UserAgentComment));
     }
     
-    public async Task<OwnedGameResponse> GetOwnedGames(Int64 steamId)
+    public async Task<OwnedGames> GetOwnedGames(Int64 steamId)
     {
-        using var response = 
-            await _httpClient.GetAsync($"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json");
-        response.EnsureSuccessStatusCode();
+        var output = 
+            await _httpClient.GetFromJsonAsync<OwnedGamesResponse>($"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json");
         
-        //var test = await response.Content.ReadAsStringAsync();
-        
-        var withoutRoot = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("response").ToString();
-        var output = JsonSerializer.Deserialize<OwnedGameResponse>(withoutRoot);
-        //var output2 = await response.Content.ReadFromJsonAsync<Test>(); --- Want to do it like this.....
-        return output;
+        return output.Response;
     }
     
 }

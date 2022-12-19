@@ -2,7 +2,7 @@
 
 namespace RandomSteamGame.SteamApiContracts;
 
-public sealed class OwnedGameResponse
+public sealed class OwnedGames
 {
     [JsonPropertyName("game_count")]
     public int GameCount { get; set; }
