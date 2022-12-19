@@ -6,6 +6,5 @@
 
 //public class _320
 //{
-//    public bool success { get; set; }
-//    public Data data { get; set; }
+//   
 //}
