@@ -4,7 +4,12 @@
     ViewData["Title"] = "Home page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<form method="post" asp-page="RandomGame">
+    <div class="mb-2">
+        <label for="steamId" class="form-label">Steam ID</label>
+        <input type="text" class="form-control" name="SteamId" placeholder="Enter Steam ID" value="76561197988408972">
+    </div>
+    <div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </div>
+</form>

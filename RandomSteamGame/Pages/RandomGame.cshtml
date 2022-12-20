@@ -1,0 +1,19 @@
+﻿@page
+@model RandomSteamGame.Pages.RandomGameModel
+@{
+}
+
+<div>
+    You should play:
+    @Model.AppDetails.Data.Name
+</div>
+<div>
+    <a href="steam://run/@Model.AppDetails.Data.SteamAppid/">Run game (if Steam is installed)</a>
+</div>
+
+
+
+<form method="post">
+    @Html.HiddenFor(x => x.SteamId)
+    <button type="submit" class="btn btn-primary">Again</button>
+</form>

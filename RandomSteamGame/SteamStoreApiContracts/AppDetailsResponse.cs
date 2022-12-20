@@ -9,5 +9,5 @@ public class AppDetailsResponse
     public bool Success { get; set; }
 
     [JsonPropertyName("data")]
-    public Data? Data { get; set; }
+    public AppDetails? Data { get; set; }
 }

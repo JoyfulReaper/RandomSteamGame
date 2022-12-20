@@ -8,5 +8,5 @@ public class ReleaseDate
     public bool ComingSoon { get; set; }
 
     [JsonPropertyName("date")]
-    public string Date { get; set; }
+    public string? Date { get; set; }
 }

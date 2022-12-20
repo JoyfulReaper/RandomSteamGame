@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace RandomSteamGame.SteamStoreApiContracts;
 
-public class Data
+public class AppDetails
 {
     [JsonPropertyName("type")]
     public string Type { get; set; } = default!;
@@ -14,8 +14,9 @@ public class Data
     [JsonPropertyName("steam_appid")]
     public int SteamAppid { get; set; }
 
-    [JsonPropertyName("required_age")]
-    public int RequiredAge { get; set; }
+    // Sometime the API sends a string other times it sends an int...
+    //[JsonPropertyName("required_age")]
+    //public int RequiredAge { get; set; }
 
     [JsonPropertyName("is_free")]
     public bool IsFree { get; set; }
