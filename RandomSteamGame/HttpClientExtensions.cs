@@ -22,8 +22,9 @@ public static class HttpClientExtensions
                 Barrel.Current.Add(url, json, TimeSpan.FromDays(days));
             }
 
+            var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
             var output =
-                JsonSerializer.Deserialize<T>(json);
+                JsonSerializer.Deserialize<T>(json, options);
 
             return output!;
         }
