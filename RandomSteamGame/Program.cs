@@ -1,5 +1,9 @@
+using MonkeyCache.SQLite;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services;
+
+Barrel.ApplicationId = "RandomSteamGame";
+Barrel.Current.EmptyExpired();
 
 var builder = WebApplication.CreateBuilder(args);
 

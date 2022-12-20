@@ -20,9 +20,9 @@ public class SteamStoreService
 
     public async Task<AppDetailsResponse> GetAppData(int appId)
     {
-        using var response = await _httpClient.GetStreamAsync($"/api/appdetails?appids={appId}");
+        var jsonResponse = await _httpClient.MonkeyCacheGetJsonStringAsync($"/api/appdetails?appids={appId}");
 
-        var withoutRoot = JsonDocument.Parse(response).RootElement.GetProperty(appId.ToString());
+        var withoutRoot = JsonDocument.Parse(jsonResponse).RootElement.GetProperty(appId.ToString());
         var output = JsonSerializer.Deserialize<AppDetailsResponse>(withoutRoot);
 
         return output!;

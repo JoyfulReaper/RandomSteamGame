@@ -4,7 +4,7 @@ namespace RandomSteamGame.SteamApiContracts;
 
 public sealed class Game
 {
-    [JsonPropertyName("appId")]
+    [JsonPropertyName("appid")]
     public int AppId { get; set; }
 
     [JsonPropertyName("playtime_forever")]

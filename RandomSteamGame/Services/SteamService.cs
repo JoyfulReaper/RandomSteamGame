@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Options;
+using MonkeyCache.SQLite;
 using RandomSteamGame.Constants;
 using RandomSteamGame.Options;
 using RandomSteamGame.SteamApiContracts;
@@ -25,9 +26,9 @@ public class SteamService
     public async Task<OwnedGames> GetOwnedGames(Int64 steamId)
     {
         var output = 
-            await _httpClient.GetFromJsonAsync<OwnedGamesResponse>($"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json");
+            await _httpClient.MonkeyCacheGetAsync<OwnedGamesResponse>($"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json");
         
-        return output.Response;
+        return output!.Response;
     }
     
 }

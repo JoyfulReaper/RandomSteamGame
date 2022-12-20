@@ -7,4 +7,8 @@
     <UserSecretsId>ab4b3ebf-1493-43be-89b1-95481ea15f9e</UserSecretsId>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MonkeyCache.SQLite" Version="1.6.3" />
+  </ItemGroup>
+
 </Project>
