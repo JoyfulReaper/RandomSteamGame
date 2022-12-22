@@ -12,17 +12,38 @@
 }
 else
 {
-    <div>
-        You should play:
-        @Model.AppDetails.Data.Name
+    <div class="row">
+        <div class="cold-12 col-md-4">
+            <div>
+                You should play:
+                @Model.AppDetails.Data.Name
+            </div>
+            <div class="">
+                <a href="steam://run/@Model.AppDetails.Data.SteamAppid/">Run game (if Steam is installed)</a>
+            </div>
+            <form method="post" class="mt-2">
+                @Html.HiddenFor(x => x.SteamId)
+                <button type="submit" class="btn btn-primary">Again</button>
+            </form>
+        </div>
+        <div class="col-12 col-md-8 my-5 my-md-0">
+            @Html.Raw(Model.AppDetails.Data.AboutTheGame)
+        </div>
     </div>
-    <div>
-        <a href="steam://run/@Model.AppDetails.Data.SteamAppid/">Run game (if Steam is installed)</a>
-    </div>
+}
 
-
-    <form method="post">
-        @Html.HiddenFor(x => x.SteamId)
-        <button type="submit" class="btn btn-primary">Again</button>
-    </form>
+@section Scripts {
+    <script>
+        $(() => {
+            if ('@Model.AppDetails.Data?.Background' != '') {
+                const body = document.getElementById("body");
+                body.style.backgroundImage = "url('@Model.AppDetails.Data.Background')";
+                body.style.backgroundRepeat = "no-repeat";
+                body.style.backgroundSize = "cover";
+                body.style.backgroundAttachment = "fixed";
+                body.style.color = "white";
+                body.style.backgroundColor = "black";
+            }
+        })
+    </script>
 }

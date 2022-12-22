@@ -55,7 +55,7 @@ public class AppDetails
     public ReleaseDate ReleaseDate { get; set; } = default!;
 
     [JsonPropertyName("background")]
-    public string Background { get; set; } = default!;
+    public string? Background { get; set; } = default!;
 
     [JsonPropertyName("background_raw")]
     public string BackgroundRaw { get; set; } = default!;
