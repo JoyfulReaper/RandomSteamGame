@@ -4,10 +4,21 @@
     ViewData["Title"] = "Home page";
 }
 
+@if(Model.ErrorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @Model.ErrorMessage
+    </div>
+}
+
 <form method="post" asp-page="RandomGame">
     <div class="mb-2">
         <label for="steamId" class="form-label">Steam ID</label>
         <input type="text" class="form-control" name="SteamId" placeholder="Enter Steam ID" value="76561197988408972">
+    </div>
+    <div class="mb-2">
+        <label for="steamId" class="form-label">Custom Url</label>
+        <input type="text" class="form-control" name="CustomUrl" placeholder="Enter Custom Url" value="JoyfulReaper">
     </div>
     <div>
         <button type="submit" class="btn btn-primary">Submit</button>

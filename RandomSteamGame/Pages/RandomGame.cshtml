@@ -1,19 +1,28 @@
 ﻿@page
 @model RandomSteamGame.Pages.RandomGameModel
 @{
+    ViewData["Title"] = "Random Steam Game";
 }
 
-<div>
-    You should play:
-    @Model.AppDetails.Data.Name
-</div>
-<div>
-    <a href="steam://run/@Model.AppDetails.Data.SteamAppid/">Run game (if Steam is installed)</a>
-</div>
+@if (Model.ErrorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @Model.ErrorMessage
+    </div>
+}
+else
+{
+    <div>
+        You should play:
+        @Model.AppDetails.Data.Name
+    </div>
+    <div>
+        <a href="steam://run/@Model.AppDetails.Data.SteamAppid/">Run game (if Steam is installed)</a>
+    </div>
 
 
-
-<form method="post">
-    @Html.HiddenFor(x => x.SteamId)
-    <button type="submit" class="btn btn-primary">Again</button>
-</form>
+    <form method="post">
+        @Html.HiddenFor(x => x.SteamId)
+        <button type="submit" class="btn btn-primary">Again</button>
+    </form>
+}

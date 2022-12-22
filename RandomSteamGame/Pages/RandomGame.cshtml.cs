@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using RandomSteamGame.Exceptions;
 using RandomSteamGame.Services;
 using RandomSteamGame.SteamApiContracts;
 using RandomSteamGame.SteamStoreApiContracts;
@@ -9,7 +10,10 @@ namespace RandomSteamGame.Pages
     public class RandomGameModel : PageModel
     {
         [BindProperty]
-        public Int64 SteamId { get; set; } = default!;
+        public Int64? SteamId { get; set; }
+
+        [BindProperty]
+        public string? CustomUrl { get; set; }
 
         public AppDetailsResponse AppDetails { get; set; } = new();
         public Game Game { get; set; } = default!;
@@ -33,10 +37,32 @@ namespace RandomSteamGame.Pages
         {
         }
 
-        public async Task OnPost()
+        public async Task<IActionResult> OnPost()
         {
+            if (SteamId is null && CustomUrl is null)
+            {
+                ErrorMessage = "Please enter a Steam ID or Custom URL";
+                TempData["ErrorMessage"] = ErrorMessage;
+                return RedirectToPage("Index");
+            }
+
+            if (CustomUrl is not null && SteamId is null)
+            {
+                try
+                {
+                    SteamId = await _steamService.GetSteamIdFromVanityUrl(CustomUrl);
+                }
+                catch (VanityResolutionException)
+                {
+                    ErrorMessage = $"Could not find a Steam ID for the custom URL: '{CustomUrl}'";
+                    TempData["ErrorMessage"] = ErrorMessage;
+                    return RedirectToPage("Index");
+                }
+            }
+
+
             //76561197988408972
-            var gamesOwned = await _steamService.GetOwnedGames(SteamId);
+            var gamesOwned = await _steamService.GetOwnedGames(SteamId.Value);
 
             int attempts = 0;
             while(!AppDetails.Success)
@@ -55,6 +81,8 @@ namespace RandomSteamGame.Pages
                     _logger.LogWarning("Unable to get app details for {AppId}", Game.AppId);
                 }
             }
+
+            return Page();
         }
     }
 }

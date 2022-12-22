@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using MonkeyCache.SQLite;
 using RandomSteamGame.Constants;
+using RandomSteamGame.Exceptions;
 using RandomSteamGame.Options;
 using RandomSteamGame.SteamApiContracts;
 using System.Net.Http.Headers;
@@ -38,7 +39,7 @@ public class SteamService
 
         if(output.Response.Success != 1)
         {
-            throw new Exception("Unable to resolve vanity url");
+            throw new VanityResolutionException("Unable to resolve vanity url");
         }
 
         return Int64.Parse(output.Response.SteamId!);

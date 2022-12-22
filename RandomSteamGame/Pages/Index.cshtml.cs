@@ -6,16 +6,21 @@ namespace RandomSteamGame.Pages;
 
 public class IndexModel : PageModel
 {
+    [BindProperty(SupportsGet = true)]
+    public string? ErrorMessage { get; set; }
+
     private readonly ILogger<IndexModel> _logger;
-    private readonly SteamService _steamService;
 
     public IndexModel(ILogger<IndexModel> logger, SteamService steamService)
     {
         _logger = logger;
-        _steamService = steamService;
     }
 
     public void OnGet()
     {
+        if (TempData["ErrorMessage"] is not null)
+        {
+            ErrorMessage = TempData["ErrorMessage"]?.ToString() ?? "Unkown Error";
+        }
     }
 }
