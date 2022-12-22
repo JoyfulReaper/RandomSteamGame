@@ -24,7 +24,7 @@ namespace RandomSteamGame.Pages
         private readonly ILogger<RandomGameModel> _logger;
 
         public RandomGameModel(
-            SteamService steamService, 
+            SteamService steamService,
             SteamStoreService steamStoreService,
             ILogger<RandomGameModel> logger)
         {
@@ -60,24 +60,33 @@ namespace RandomSteamGame.Pages
                 }
             }
 
-
-            //76561197988408972
-            var gamesOwned = await _steamService.GetOwnedGames(SteamId.Value);
+            OwnedGames gamesOwned;
+            try
+            {
+                gamesOwned = await _steamService.GetOwnedGames(SteamId ?? 0);
+            }
+            catch (Exception)
+            {
+                ErrorMessage = $"An error occurred while trying to get the game list for Steam Id: {SteamId}. Please verify your Steam ID and try again. " +
+                    $"Please note, your Steam Profile must be public for this to work.";
+                return Page();
+            }
 
             int attempts = 0;
-            while(!AppDetails.Success)
+            while (!AppDetails.Success)
             {
                 Game = gamesOwned.Games[Random.Shared.Next(0, gamesOwned.GameCount - 1)];
                 AppDetails = await _steamStoreService.GetAppData(Game.AppId);
 
-                if(!AppDetails.Success)
+                if (!AppDetails.Success)
                 {
-                    // TODO: Clean this up. We don't want an infinte loop if no app data can be retreived
                     attempts++;
-                    if(attempts >= 3)
+                    if (attempts >= 3)
                     {
-                        throw new Exception("Unable to get app details");
+                        ErrorMessage = $"We were unable to find any games for you after 3 attempts. Aborting.";
+                        return Page();
                     }
+
                     _logger.LogWarning("Unable to get app details for {AppId}", Game.AppId);
                 }
             }
