@@ -20,7 +20,7 @@ public class SteamService
         _logger = logger;
     }
 
-    public async Task<Game> GetRandomGame(Int64 steamId)
+    public async Task<AppDetails> GetRandomGame(Int64 steamId)
     {
         OwnedGames gamesOwned;
         try
@@ -53,6 +53,6 @@ public class SteamService
             }
         }
 
-        return game;
+        return response.Data;
     }
 }

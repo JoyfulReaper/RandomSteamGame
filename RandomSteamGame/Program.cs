@@ -8,7 +8,6 @@ Barrel.Current.EmptyExpired();
 var builder = WebApplication.CreateBuilder(args);
 {
     builder.Services.AddRazorPages();
-    builder.Services.AddControllers();
     
     builder.Services.Configure<SteamOptions>(
         builder.Configuration.GetSection(nameof(SteamOptions)));
@@ -35,6 +34,5 @@ app.UseRouting();
 app.UseAuthorization();
 
 app.MapRazorPages();
-app.MapControllers();
 
 app.Run();

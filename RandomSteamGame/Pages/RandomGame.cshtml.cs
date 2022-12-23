@@ -2,8 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using RandomSteamGame.Exceptions;
 using RandomSteamGame.Services;
-using RandomSteamGame.SteamApiContracts;
-using RandomSteamGame.SteamStoreApiContracts;
+
 
 namespace RandomSteamGame.Pages
 {
@@ -15,8 +14,6 @@ namespace RandomSteamGame.Pages
         [BindProperty]
         public string? CustomUrl { get; set; }
 
-        public AppDetailsResponse AppDetails { get; set; } = new();
-        public Game Game { get; set; } = default!;
         public string? ErrorMessage { get; set; } = null;
 
         private readonly SteamClient _steamClient;
@@ -36,8 +33,10 @@ namespace RandomSteamGame.Pages
             _logger = logger;
         }
 
-        public void OnGet()
+        public async Task<IActionResult> OnGet(Int64 steamId)
         {
+            var details = await _steamService.GetRandomGame(steamId);
+            return new JsonResult(details);
         }
 
         public async Task<IActionResult> OnPost()
@@ -61,19 +60,6 @@ namespace RandomSteamGame.Pages
                     TempData["ErrorMessage"] = ErrorMessage;
                     return RedirectToPage("Index");
                 }
-            }
-
-            try
-            {
-                Game = await _steamService.GetRandomGame(SteamId!.Value);
-                AppDetails = await _steamStoreClient.GetAppData(Game.AppId);
-            }
-            catch (SteamServiceException ex)
-            {
-                ErrorMessage = ex.Message;
-                TempData["ErrorMessage"] = ErrorMessage;
-                
-                return RedirectToPage("Index");
             }
 
             return Page();
