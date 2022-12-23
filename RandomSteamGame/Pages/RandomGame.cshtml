@@ -1,7 +1,7 @@
 ﻿@page
 @model RandomSteamGame.Pages.RandomGameModel
 @{
-    ViewData["Title"] = "Random Steam Game";
+    //ViewData["Title"] = "Random Steam Game";
 }
 
 @if (Model.ErrorMessage is not null)
@@ -12,14 +12,16 @@
 }
 else
 {
-    <div class="row">
+    <div class="row" id="main">
         <div class="cold-12 col-md-5">
             <div class="" style="height: 190px; position: relative">
                 You should play:<br />
                 <span class="fs-2" id="gameName"></span><br />
 
                 <div class="mt-2" style="position: absolute; bottom: 0px;" id="frmRandomGame">
-                    <button type="button" class="btn btn-primary" id="btnAgain" onclick="getGame()">Choose Again</button>
+                    <button type="button" class="btn btn-primary" id="btnAgain" onclick="getGame(true, '@Url.Page("RandomGame", new {SteamId = Model.SteamId})')">
+                        Choose Again
+                    </button>
                     <a href="" class="btn btn-success" id="steamUrl">Run game</a> <br />
                 </div>
             </div>
@@ -33,42 +35,9 @@ else
 
 @section Scripts {
     <script>
-        let first = true;
-
         document.addEventListener("DOMContentLoaded", () => {
-
             const content = document.getElementById("content");
-            
-            getGame();
+            getGame(false, '@Url.Page("RandomGame", new {SteamId = Model.SteamId})');
         });
-
-        function getGame() {
-            const body = document.getElementById("body");
-            body.style.backgroundColor = "#000";
-
-            fetch('@Url.Page("RandomGame", new {SteamId = Model.SteamId})')
-                .then(response => response.json())
-                .then((data) => {
-                    document.getElementById("gameName").innerText = data.name;
-                    document.getElementById("gameNameHeader").innerText = data.name;
-                    document.getElementById("gameDescription").innerHTML = data.about_the_game;
-                    document.getElementById("steamUrl").href = "steam://run/" + data.steam_appid + "/";
-
-                    if(first) {
-                        var backgroundImage = new Image();
-                        backgroundImage.onload = function () {
-                            body.style.backgroundImage = 'url(' + data.background + ')';
-                        }
-                        backgroundImage.src = data.background;
-                    } else {
-                        body.style.backgroundImage = 'url(' + data.background + ')';
-                    }
-                    
-                    body.style.backgroundSize = "cover";
-                    body.style.backgroundRepeat = "no-repeat";
-                    body.style.backgroundAttachment = "fixed";
-                    body.style.color = "#fff";
-                });
-        }
     </script>
 }

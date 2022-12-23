@@ -1,11 +1,9 @@
 ﻿using Microsoft.Extensions.Options;
-using MonkeyCache.SQLite;
 using RandomSteamGame.Constants;
 using RandomSteamGame.Exceptions;
 using RandomSteamGame.Options;
 using RandomSteamGame.SteamApiContracts;
 using System.Net.Http.Headers;
-using System.Text.Json;
 
 namespace RandomSteamGame.Services;
 
@@ -18,6 +16,7 @@ public class SteamClient
     {
         _httpClient = httpClient;
         _steamOptions = steamOptions.Value;
+        
         _httpClient.BaseAddress = new Uri("https://api.steampowered.com");
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(RandomSteamGameConstants.UserAgent, RandomSteamGameConstants.Version));

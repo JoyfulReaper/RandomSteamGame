@@ -53,6 +53,11 @@ public class SteamService
             }
         }
 
+        if(response.Data is null)
+        {
+            throw new SteamServiceException("Response was successfull, but data was missing.");
+        }
+
         return response.Data;
     }
 }

@@ -1,7 +1,7 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    //ViewData["Title"] = "Main Page";
 }
 
 @if (Model.ErrorMessage is not null)
@@ -14,9 +14,12 @@
 <div class="row justify-content-center">
     <div class="col-12 col-md-6">
         <form method="post" asp-page="RandomGame" class="border border-1 shadow-lg p-2" id="frmSteam">
-            <div class="mb-2">
+            <div class="">
                 <label for="steamId" class="form-label">17 digit Steam ID</label>
                 <input type="text" class="form-control" name="SteamId" placeholder="Enter Steam ID" value="" id="txtSteamId">
+            </div>
+            <div class="my-3 text-center fw-bold">
+                OR
             </div>
             <div class="mb-2">
                 <label for="steamId" class="form-label">Custom Url</label>
