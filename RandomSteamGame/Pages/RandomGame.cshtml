@@ -13,20 +13,21 @@
 else
 {
     <div class="row">
-        <div class="cold-12 col-md-4">
-            <div>
-                You should play:
-                @Model.AppDetails.Data.Name
+        <div class="cold-12 col-md-5">
+            <div class="" style="height: 190px; position: relative">
+                You should play:<br />
+                <span class="fs-2">@Model.AppDetails.Data.Name</span><br />
+
+                <form method="post" class="mt-2" style="position: absolute; bottom: 0px;">
+                    @Html.HiddenFor(x => x.SteamId)
+                    @Html.HiddenFor(x => x.CustomUrl)
+                    <button type="submit" class="btn btn-primary">Choose Again</button>
+                    <a href="steam://run/@Model.AppDetails.Data.SteamAppid/" class="btn btn-success">Run game</a> <br />
+                </form>
             </div>
-            <div class="">
-                <a href="steam://run/@Model.AppDetails.Data.SteamAppid/">Run game (if Steam is installed)</a>
-            </div>
-            <form method="post" class="mt-2">
-                @Html.HiddenFor(x => x.SteamId)
-                <button type="submit" class="btn btn-primary">Again</button>
-            </form>
         </div>
-        <div class="col-12 col-md-8 my-5 my-md-0">
+        <div class="col-12 col-md-7 my-5 my-md-0">
+            <p class="fs-2">@Model.AppDetails.Data.Name</p>
             @Html.Raw(Model.AppDetails.Data.AboutTheGame)
         </div>
     </div>
