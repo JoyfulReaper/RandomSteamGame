@@ -19,17 +19,20 @@ namespace RandomSteamGame.Pages
         public Game Game { get; set; } = default!;
         public string? ErrorMessage { get; set; } = null;
 
+        private readonly SteamClient _steamClient;
+        private readonly SteamStoreClient _steamStoreClient;
         private readonly SteamService _steamService;
-        private readonly SteamStoreService _steamStoreService;
         private readonly ILogger<RandomGameModel> _logger;
 
         public RandomGameModel(
+            SteamClient steamClient,
+            SteamStoreClient steamStoreClient,
             SteamService steamService,
-            SteamStoreService steamStoreService,
             ILogger<RandomGameModel> logger)
         {
+            _steamClient = steamClient;
+            _steamStoreClient = steamStoreClient;
             _steamService = steamService;
-            _steamStoreService = steamStoreService;
             _logger = logger;
         }
 
@@ -50,7 +53,7 @@ namespace RandomSteamGame.Pages
             {
                 try
                 {
-                    SteamId = await _steamService.GetSteamIdFromVanityUrl(CustomUrl);
+                    SteamId = await _steamClient.GetSteamIdFromVanityUrl(CustomUrl);
                 }
                 catch (VanityResolutionException)
                 {
@@ -60,35 +63,17 @@ namespace RandomSteamGame.Pages
                 }
             }
 
-            OwnedGames gamesOwned;
             try
             {
-                gamesOwned = await _steamService.GetOwnedGames(SteamId ?? 0);
+                Game = await _steamService.GetRandomGame(SteamId!.Value);
+                AppDetails = await _steamStoreClient.GetAppData(Game.AppId);
             }
-            catch (Exception)
+            catch (SteamServiceException ex)
             {
-                ErrorMessage = $"An error occurred while trying to get the game list for Steam Id: {SteamId}. Please verify your Steam ID and try again. " +
-                    $"Please note, your Steam Profile must be public for this to work.";
-                return Page();
-            }
-
-            int attempts = 0;
-            while (!AppDetails.Success)
-            {
-                Game = gamesOwned.Games[Random.Shared.Next(0, gamesOwned.GameCount - 1)];
-                AppDetails = await _steamStoreService.GetAppData(Game.AppId);
-
-                if (!AppDetails.Success)
-                {
-                    attempts++;
-                    if (attempts >= 3)
-                    {
-                        ErrorMessage = $"We were unable to find any games for you after 3 attempts. Aborting.";
-                        return Page();
-                    }
-
-                    _logger.LogWarning("Unable to get app details for {AppId}", Game.AppId);
-                }
+                ErrorMessage = ex.Message;
+                TempData["ErrorMessage"] = ErrorMessage;
+                
+                return RedirectToPage("Index");
             }
 
             return Page();

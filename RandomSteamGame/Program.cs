@@ -13,8 +13,9 @@ builder.Services.AddRazorPages();
     builder.Services.Configure<SteamOptions>(
         builder.Configuration.GetSection(nameof(SteamOptions)));
 
-    builder.Services.AddHttpClient<SteamService>();
-    builder.Services.AddHttpClient<SteamStoreService>();
+    builder.Services.AddHttpClient<SteamClient>();
+    builder.Services.AddHttpClient<SteamStoreClient>();
+    builder.Services.AddScoped<SteamService>();
 }
 var app = builder.Build();
 

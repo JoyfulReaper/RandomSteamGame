@@ -1,47 +1,58 @@
-﻿using Microsoft.Extensions.Options;
-using MonkeyCache.SQLite;
-using RandomSteamGame.Constants;
-using RandomSteamGame.Exceptions;
-using RandomSteamGame.Options;
+﻿using RandomSteamGame.Exceptions;
 using RandomSteamGame.SteamApiContracts;
-using System.Net.Http.Headers;
-using System.Text.Json;
+using RandomSteamGame.SteamStoreApiContracts;
 
 namespace RandomSteamGame.Services;
 
 public class SteamService
 {
-    private readonly HttpClient _httpClient;
-    private readonly SteamOptions _steamOptions;
+    private readonly SteamClient _steamClient;
+    private readonly SteamStoreClient _steamStoreClient;
+    private readonly ILogger<SteamService> _logger;
 
-    public SteamService(HttpClient httpClient, IOptions<SteamOptions> steamOptions)
+    public SteamService(
+        SteamClient steamClient,
+        SteamStoreClient steamStoreClient,
+        ILogger<SteamService> logger)
     {
-        _httpClient = httpClient;
-        _steamOptions = steamOptions.Value;
-        _httpClient.BaseAddress = new Uri("https://api.steampowered.com");
-        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(RandomSteamGameConstants.UserAgent, RandomSteamGameConstants.Version));
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(RandomSteamGameConstants.UserAgentComment));
+        _steamClient = steamClient;
+        _steamStoreClient = steamStoreClient;
+        _logger = logger;
     }
-    
-    public async Task<OwnedGames> GetOwnedGames(Int64 steamId)
-    {
-        var output = 
-            await _httpClient.MonkeyCacheGetAsync<OwnedGamesResponse>($"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json");
 
-        return output!.Response;
-    }
-    
-    public async Task<Int64> GetSteamIdFromVanityUrl(string vanityUrl)
+    public async Task<Game> GetRandomGame(Int64 steamId)
     {
-        var output =
-            await _httpClient.MonkeyCacheGetAsync<ResolveVanityUrlResponse>($"/ISteamUser/ResolveVanityURL/v0001/?key={_steamOptions.ApiKey}&vanityurl={vanityUrl}&format=json");
-
-        if(output.Response.Success != 1)
+        OwnedGames gamesOwned;
+        try
         {
-            throw new VanityResolutionException("Unable to resolve vanity url");
+            gamesOwned = await _steamClient.GetOwnedGames(steamId);
+        }
+        catch (Exception)
+        {
+            throw new SteamServiceException($"An error occurred while trying to get the game list for Steam Id: {steamId}. Please verify your Steam ID and try again. " +
+                $"Please note, your Steam Profile must be public for this to work.");
         }
 
-        return Int64.Parse(output.Response.SteamId!);
+        int attempts = 0;
+        Game game = new();
+        AppDetailsResponse response = new();
+        while (!response.Success)
+        {
+            game = gamesOwned.Games[Random.Shared.Next(0, gamesOwned.GameCount - 1)];
+            response = await _steamStoreClient.GetAppData(game.AppId);
+
+            if (!response.Success)
+            {
+                attempts++;
+                if (attempts >= 3)
+                {
+                    throw new SteamServiceException($"We were unable to find any games for you after 3 attempts. Aborting.");
+                }
+
+                _logger.LogWarning("Unable to get app details for {AppId}", game.AppId);
+            }
+        }
+
+        return game;
     }
 }

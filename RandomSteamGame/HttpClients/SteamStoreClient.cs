@@ -5,11 +5,11 @@ using System.Text.Json;
 
 namespace RandomSteamGame.Services;
 
-public class SteamStoreService
+public class SteamStoreClient
 {
     private readonly HttpClient _httpClient;
 
-    public SteamStoreService(HttpClient httpClient)
+    public SteamStoreClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri("https://store.steampowered.com");
