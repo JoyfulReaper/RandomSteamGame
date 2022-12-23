@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.33209.295
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RandomSteamGame", "RandomSteamGame\RandomSteamGame.csproj", "{1CF121EC-DD1C-4A5C-A7E1-D9D9A5B714B4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RandomSteamGame", "RandomSteamGame\RandomSteamGame.csproj", "{1CF121EC-DD1C-4A5C-A7E1-D9D9A5B714B4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

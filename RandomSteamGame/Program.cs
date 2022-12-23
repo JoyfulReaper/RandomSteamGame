@@ -6,10 +6,10 @@ Barrel.ApplicationId = "RandomSteamGame";
 Barrel.Current.EmptyExpired();
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-builder.Services.AddRazorPages();
 {
+    builder.Services.AddRazorPages();
+    builder.Services.AddControllers();
+    
     builder.Services.Configure<SteamOptions>(
         builder.Configuration.GetSection(nameof(SteamOptions)));
 
@@ -35,5 +35,6 @@ app.UseRouting();
 app.UseAuthorization();
 
 app.MapRazorPages();
+app.MapControllers();
 
 app.Run();

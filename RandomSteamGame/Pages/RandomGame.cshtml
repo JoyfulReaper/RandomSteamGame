@@ -13,38 +13,30 @@
 else
 {
     <div class="row">
-        <div class="cold-12 col-md-5">
-            <div class="" style="height: 190px; position: relative">
-                You should play:<br />
-                <span class="fs-2">@Model.AppDetails.Data.Name</span><br />
-
-                <form method="post" class="mt-2" style="position: absolute; bottom: 0px;">
-                    @Html.HiddenFor(x => x.SteamId)
-                    @Html.HiddenFor(x => x.CustomUrl)
-                    <button type="submit" class="btn btn-primary">Choose Again</button>
-                    <a href="steam://run/@Model.AppDetails.Data.SteamAppid/" class="btn btn-success">Run game</a> <br />
-                </form>
-            </div>
-        </div>
-        <div class="col-12 col-md-7 my-5 my-md-0">
-            <p class="fs-2">@Model.AppDetails.Data.Name</p>
-            @Html.Raw(Model.AppDetails.Data.AboutTheGame)
-        </div>
+        @await Html.PartialAsync("_RandomGame",
+                                    new RandomGameViewModel
+                                    {
+                                        AppDetails = Model.AppDetails.Data,
+                                        SteamId = Model.SteamId.Value,
+                                        CustomUrl = Model.CustomUrl
+                                    })
     </div>
 }
 
 @section Scripts {
     <script>
-        $(() => {
+        document.addEventListener("DOMContentLoaded", () => {
+            
+            const body = document.getElementById("body");
+            body.style.color = "white";
+            body.style.backgroundColor = "black";
+            
             if ('@Model.AppDetails.Data?.Background' != '') {
-                const body = document.getElementById("body");
                 body.style.backgroundImage = "url('@Model.AppDetails.Data.Background')";
                 body.style.backgroundRepeat = "no-repeat";
                 body.style.backgroundSize = "cover";
                 body.style.backgroundAttachment = "fixed";
-                body.style.color = "white";
-                body.style.backgroundColor = "black";
             }
-        })
+        });
     </script>
 }

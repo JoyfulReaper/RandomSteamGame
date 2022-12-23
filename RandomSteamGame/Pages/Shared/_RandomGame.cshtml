@@ -1,0 +1,21 @@
+﻿@model RandomGameViewModel
+
+<div class="row">
+    <div class="cold-12 col-md-5">
+        <div class="" style="height: 190px; position: relative">
+            You should play:<br />
+            <span class="fs-2">@Model.AppDetails.Name</span><br />
+
+            <form method="post" class="mt-2" style="position: absolute; bottom: 0px;">
+                @Html.HiddenFor(x => x.SteamId)
+                @Html.HiddenFor(x => x.CustomUrl)
+                <button type="submit" class="btn btn-primary">Choose Again</button>
+                <a href="steam://run/@Model.AppDetails.SteamAppid/" class="btn btn-success">Run game</a> <br />
+            </form>
+        </div>
+    </div>
+    <div class="col-12 col-md-7 my-5 my-md-0">
+        <p class="fs-2">@Model.AppDetails.Name</p>
+        @Html.Raw(Model.AppDetails.AboutTheGame)
+    </div>
+</div>
