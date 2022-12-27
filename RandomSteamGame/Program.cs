@@ -1,4 +1,5 @@
 using MonkeyCache.SQLite;
+using RandomSteamGame;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 
@@ -10,13 +11,8 @@ Barrel.Current.EmptyExpired();
 var builder = WebApplication.CreateBuilder(args);
 {
     builder.Services.AddRazorPages();
-    
-    builder.Services.Configure<SteamOptions>(
-        builder.Configuration.GetSection(nameof(SteamOptions)));
 
-    builder.Services.AddHttpClient<SteamClient>();
-    builder.Services.AddHttpClient<SteamStoreClient>();
-    builder.Services.AddScoped<SteamService>();
+    builder.Services.AddRandomSteamGame(builder.Configuration);
 }
 var app = builder.Build();
 
@@ -29,11 +25,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
 app.UseRouting();
-
 app.UseAuthorization();
-
 app.MapRazorPages();
-
 app.Run();

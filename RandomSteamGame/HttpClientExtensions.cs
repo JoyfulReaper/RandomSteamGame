@@ -5,7 +5,7 @@ namespace RandomSteamGame;
 
 public static class HttpClientExtensions
 {
-    public static async Task<T> MonkeyCacheGetAsync<T>(this HttpClient client, string url, int days = 7, bool forceRefresh = false)
+    public static async Task<T> MonkeyCacheGetAsync<T>(this HttpClient client, string url, int cacheDuration = 86400, bool forceRefresh = false)
     {
         string json = string.Empty;
 
@@ -19,7 +19,7 @@ public static class HttpClientExtensions
             if (string.IsNullOrWhiteSpace(json))
             {
                 json = await client.GetStringAsync(url);
-                Barrel.Current.Add(url, json, TimeSpan.FromDays(days));
+                Barrel.Current.Add(url, json, TimeSpan.FromSeconds(cacheDuration));
             }
 
             var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
@@ -35,7 +35,7 @@ public static class HttpClientExtensions
         }
     }
 
-    public static async Task<string> MonkeyCacheGetJsonStringAsync(this HttpClient client, string url, int days = 7, bool forceRefresh = false)
+    public static async Task<string> MonkeyCacheGetJsonStringAsync(this HttpClient client, string url, int cacheDuration = 86400, bool forceRefresh = false)
     {
         string jsonString = string.Empty;
 
@@ -49,7 +49,7 @@ public static class HttpClientExtensions
             if (string.IsNullOrWhiteSpace(jsonString))
             {
                 jsonString = await client.GetStringAsync(url);
-                Barrel.Current.Add(url, jsonString, TimeSpan.FromDays(days));
+                Barrel.Current.Add(url, jsonString, TimeSpan.FromSeconds(cacheDuration));
             }
 
             return jsonString;
