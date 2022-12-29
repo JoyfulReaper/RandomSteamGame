@@ -1,8 +1,22 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace RandomSteamGame.SteamApiContracts;
+namespace SteamApiClient.Contracts.SteamApi;
 
-public sealed class Game
+public class OwnedGamesResponse
+{
+    [JsonPropertyName("response")]
+    public OwnedGames Response { get; set; } = default!;
+}
+public sealed class OwnedGames
+{
+    [JsonPropertyName("game_count")]
+    public int GameCount { get; set; }
+
+    [JsonPropertyName("games")]
+    public List<Game> Games { get; set; } = new List<Game>();
+}
+
+public class Game
 {
     [JsonPropertyName("appid")]
     public int AppId { get; set; }
@@ -21,4 +35,7 @@ public sealed class Game
 
     [JsonPropertyName("rtime_last_played")]
     public long RTimeLastPlayed { get; set; }
+
+    [JsonPropertyName("playtime_2weeks")]
+    public int Playtime2Weeks { get; set; }
 }
