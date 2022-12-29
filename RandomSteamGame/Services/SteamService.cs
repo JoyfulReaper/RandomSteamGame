@@ -27,10 +27,10 @@ public class SteamService
         {
             gamesOwned = await _steamClient.GetOwnedGames(steamId);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             throw new SteamServiceException($"An error occurred while trying to get the game list for Steam Id: {steamId}. Please verify your Steam ID and try again. " +
-                $"Please note, your Steam Profile must be public for this to work.");
+                $"Please note, your Steam Profile must be public for this to work. ex:" + ex.Message);
         }
 
         int attempts = 0;
