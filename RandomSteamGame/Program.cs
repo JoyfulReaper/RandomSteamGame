@@ -1,6 +1,9 @@
+using SteamApiClient;
+
 var builder = WebApplication.CreateBuilder(args);
 {
     builder.Services.AddControllersWithViews();
+    builder.Services.AddSteamApiClient(builder.Configuration);
 }
 
 var app = builder.Build();

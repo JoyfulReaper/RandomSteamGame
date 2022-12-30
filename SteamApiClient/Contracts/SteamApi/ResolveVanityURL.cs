@@ -8,7 +8,7 @@ namespace SteamApiClient.Contracts.SteamApi;
 
 public class ResolveVanityUrlResponse
 {
-    public ResolvedVanityUrl response { get; set; } = default!;
+    public ResolvedVanityUrl Response { get; set; } = default!;
 }
 
 public class ResolvedVanityUrl
