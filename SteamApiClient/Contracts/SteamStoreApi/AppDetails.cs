@@ -24,8 +24,9 @@ public class Data
     [JsonPropertyName("steam_appid")]
     public int SteamAppid { get; set; }
 
-    [JsonPropertyName("required_age")]
-    public int RequiredAge { get; set; }
+    //TODO:Figure out how to deal with this
+    //[JsonPropertyName("required_age")]
+    //public int RequiredAge { get; set; }
 
     [JsonPropertyName("is_free")]
     public bool IsFree { get; set; }
@@ -51,13 +52,15 @@ public class Data
     [JsonPropertyName("website")]
     public string? Website { get; set; }
 
-    [JsonPropertyName("pc_requirements")]
-    public PcRequirements PcRequirements { get; set; }
+    //TODO: Custom deserializer since the Steam API is so shitty
+    //[JsonPropertyName("pc_requirements")]
+    //public PcRequirements PcRequirements { get; set; }
 
-    [JsonPropertyName("mac_requirements")]
-    public MacRequirements MacRequirements { get; set; }
-    
-    public object[] linux_requirements { get; set; }
+    //[JsonPropertyName("mac_requirements")]
+    //public MacRequirements MacRequirements { get; set; }
+
+    //[JsonPropertyName("linux_requirements")]
+    //public LinuxRequirements LinuxRequirements { get; set; }
     
     [JsonPropertyName("developers")]
     public List<string> Developers { get; set; } = new();
@@ -109,11 +112,19 @@ public class Data
 public class PcRequirements
 {
     public string Minimum { get; set; }
+    public string Recommended { get; set; }
 }
 
 public class MacRequirements
 {
     public string Minimum { get; set; }
+    public string Recommended { get; set; }
+}
+
+public class LinuxRequirements
+{
+    public string Minimum { get; set; }
+    public string Recommended { get; set; }
 }
 
 public class PriceOverview
