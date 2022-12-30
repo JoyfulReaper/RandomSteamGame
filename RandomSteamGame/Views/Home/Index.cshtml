@@ -2,6 +2,13 @@
     //ViewData["Title"] = "Home Page";
 }
 
+@if (TempData["ErrorMessage"] is not null)
+{
+    <div class="alert alert-danger" role="alert">
+        @TempData["ErrorMessage"]?.ToString();
+    </div>
+}
+
 <div class="row justify-content-center">
     <div class="col-12 col-md-6">
         <form method="post" asp-action="RandomGame" class="border border-1 shadow-lg p-2" id="frmSteam">

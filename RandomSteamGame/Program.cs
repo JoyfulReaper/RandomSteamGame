@@ -1,8 +1,10 @@
+using RandomSteamGame.Services;
 using SteamApiClient;
 
 var builder = WebApplication.CreateBuilder(args);
 {
     builder.Services.AddControllersWithViews();
+    builder.Services.AddScoped<SteamService>();
     builder.Services.AddSteamApiClient(builder.Configuration);
 }
 

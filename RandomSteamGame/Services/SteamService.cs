@@ -29,7 +29,7 @@ public class SteamService
         {
             gamesOwned = await _steamClient.GetOwnedGames(steamId);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             throw new SteamServiceException($"An error occurred while trying to get the game list for Steam Id: {steamId}. Please verify your Steam ID and try again. " +
                 $"Please note, your Steam Profile must be public for this to work.");
@@ -61,5 +61,10 @@ public class SteamService
         }
 
         return response.Data;
+    }
+
+    public async Task<Int64> GetSteamIdFromVanityUrl(string vanityUrl)
+    {
+        return await _steamClient.GetSteamIdFromVanityUrl(vanityUrl);
     }
 }
