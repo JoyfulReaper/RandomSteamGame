@@ -1,8 +1,10 @@
 ﻿using RandomSteamGame.Exceptions;
-using RandomSteamGame.SteamApiContracts;
-using RandomSteamGame.SteamStoreApiContracts;
+using SteamApiClient.Contracts.SteamApi;
+using SteamApiClient.Contracts.SteamStoreApi;
+using SteamApiClient.HttpClients;
 
 namespace RandomSteamGame.Services;
+
 
 public class SteamService
 {
@@ -20,17 +22,17 @@ public class SteamService
         _logger = logger;
     }
 
-    public async Task<AppDetails> GetRandomGame(Int64 steamId)
+    public async Task<Data> GetRandomGame(Int64 steamId)
     {
         OwnedGames gamesOwned;
         try
         {
             gamesOwned = await _steamClient.GetOwnedGames(steamId);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             throw new SteamServiceException($"An error occurred while trying to get the game list for Steam Id: {steamId}. Please verify your Steam ID and try again. " +
-                $"Please note, your Steam Profile must be public for this to work. ex:" + ex.Message);
+                $"Please note, your Steam Profile must be public for this to work.");
         }
 
         int attempts = 0;
@@ -53,11 +55,16 @@ public class SteamService
             }
         }
 
-        if(response.Data is null)
+        if (response.Data is null)
         {
             throw new SteamServiceException("Response was successfull, but data was missing.");
         }
 
         return response.Data;
+    }
+
+    public async Task<Int64> GetSteamIdFromVanityUrl(string vanityUrl)
+    {
+        return await _steamClient.GetSteamIdFromVanityUrl(vanityUrl);
     }
 }

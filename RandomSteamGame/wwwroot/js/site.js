@@ -1,8 +1,6 @@
 ﻿// Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
 // for details on configuring this project to bundle and minify static web assets.
 
-// Write your JavaScript code.
-
 function getGame(preload, page) {
     const body = document.getElementById("body");
     body.style.backgroundColor = "#000";
@@ -31,6 +29,6 @@ function getGame(preload, page) {
             body.style.color = "#fff";
         }).catch((error) => {
             console.error('Error:', error);
-            document.getElementById("main").innerHTML("<h1>Something went wrong</h1>");
+            document.getElementById("main").innerHTML = `<h1>Something Went Wrong!</h1>`;
         });
 }

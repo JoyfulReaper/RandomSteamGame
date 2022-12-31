@@ -4,11 +4,11 @@
     <TargetFramework>net6.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>ab4b3ebf-1493-43be-89b1-95481ea15f9e</UserSecretsId>
+    <UserSecretsId>c3b1e7d9-ee9b-4fbe-9a17-cd6a6d8d23eb</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MonkeyCache.SQLite" Version="1.6.3" />
+    <ProjectReference Include="..\SteamApiClient\SteamApiClient.csproj" />
   </ItemGroup>
 
 </Project>
