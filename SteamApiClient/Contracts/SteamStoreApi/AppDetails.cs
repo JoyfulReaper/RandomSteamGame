@@ -73,8 +73,8 @@ public class Data
     
     public int[] Packages { get; set; }
     
-    [JsonPropertyName("package_groups")]
-    public PackageGroups[] PackageGroups { get; set; }
+    //[JsonPropertyName("package_groups")]
+    //public PackageGroups[] PackageGroups { get; set; }
     
     public Platforms Platforms { get; set; }
     

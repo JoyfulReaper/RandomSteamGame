@@ -40,7 +40,7 @@ public class HomeController : Controller
         {
             errorMessage = "Please enter a Steam ID or Custom URL";
             TempData["ErrorMessage"] = errorMessage;
-            return RedirectToPage("Index");
+            return RedirectToAction("Index");
         }
 
         if (customUrl is not null && steamId is null)
@@ -53,7 +53,7 @@ public class HomeController : Controller
             {
                 errorMessage = $"Could not find a Steam ID for the custom URL: '{customUrl}'";
                 TempData["ErrorMessage"] = errorMessage;
-                return RedirectToPage("Index");
+                return RedirectToAction("Index");
             }
         }
 
