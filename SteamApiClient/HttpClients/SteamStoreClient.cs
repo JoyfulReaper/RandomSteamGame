@@ -2,16 +2,25 @@
 using System.Net.Http;
 using SteamApiClient.Contracts.SteamStoreApi;
 using System.Text.Json;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 
 namespace SteamApiClient.HttpClients;
 
 public class SteamStoreClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IDistributedCache _cache;
+    private readonly DistributedCacheEntryOptions _cacheEntryOptions;
 
-    public SteamStoreClient(HttpClient httpClient)
+    public SteamStoreClient(
+        HttpClient httpClient,
+        IDistributedCache cache,
+        IOptions<DistributedCacheEntryOptions> cacheEntryOptions)
     {
         _httpClient = httpClient;
+        _cache = cache;
+        _cacheEntryOptions = cacheEntryOptions.Value;
         _httpClient.BaseAddress = new Uri("https://store.steampowered.com");
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(SteamClientConstants.UserAgent, SteamClientConstants.Version));
@@ -20,11 +29,21 @@ public class SteamStoreClient
 
     public async Task<AppDetailsResponse> GetAppData(int appId)
     {
-        var jsonResponse = await _httpClient.GetStringAsync($"/api/appdetails?appids={appId}");
+        var cachedAppDataString = await _cache.GetStringAsync($"appId_{appId}");
+        if(cachedAppDataString is null)
+        {
+            var jsonResponse = await _httpClient.GetStringAsync($"/api/appdetails?appids={appId}");
 
-        var withoutRoot = JsonDocument.Parse(jsonResponse).RootElement.GetProperty(appId.ToString());
-        var output = JsonSerializer.Deserialize<AppDetailsResponse>(withoutRoot);
+            await _cache.SetStringAsync($"appId_{appId}", jsonResponse, _cacheEntryOptions);
 
-        return output!;
+            var withoutRoot = JsonDocument.Parse(jsonResponse).RootElement.GetProperty(appId.ToString());
+            var output = JsonSerializer.Deserialize<AppDetailsResponse>(withoutRoot);
+
+            return output!;
+        }
+
+        var cachedWithoutRoot = JsonDocument.Parse(cachedAppDataString).RootElement.GetProperty(appId.ToString());
+        var cachedOutput = JsonSerializer.Deserialize<AppDetailsResponse>(cachedWithoutRoot);
+        return cachedOutput;
     }
 }
