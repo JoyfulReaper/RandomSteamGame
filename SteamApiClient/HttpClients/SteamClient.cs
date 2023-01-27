@@ -3,7 +3,6 @@ using System.Net.Http;
 using SteamApiClient.Contracts.SteamApi;
 using System.Net.Http.Json;
 using SteamApiClient.Exceptions;
-using SteamApiClient.Options;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
