@@ -16,9 +16,5 @@
     <ProjectReference Include="..\Shared\RandomSteamGameBlazor.Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Controllers\" />
-  </ItemGroup>
-
 
 </Project>

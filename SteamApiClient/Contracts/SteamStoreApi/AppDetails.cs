@@ -10,10 +10,10 @@ public class AppDetailsResponse
     public bool Success { get; set; }
     
     [JsonPropertyName("data")]
-    public Data? Data { get; set; }
+    public AppData? AppData { get; set; }
 }
 
-public class Data
+public class AppData
 {
     [JsonPropertyName("type")]
     public string Type { get; set; } = default!;

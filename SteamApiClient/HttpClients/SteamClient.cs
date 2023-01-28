@@ -33,7 +33,7 @@ public class SteamClient
         _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(SteamClientConstants.UserAgentComment));
     }
 
-    public async Task<OwnedGames> GetOwnedGames(Int64 steamId)
+    public async Task<OwnedGames> GetOwnedGames(long steamId)
     {
         var cachedGamesString = await _cache.GetStringAsync($"owned_{steamId}");
         if (cachedGamesString is null)
@@ -54,7 +54,7 @@ public class SteamClient
         return cachedGames!.Response;
     }
 
-    public async Task<Int64> GetSteamIdFromVanityUrl(string vanityUrl)
+    public async Task<long> GetSteamIdFromVanityUrl(string vanityUrl)
     {
         var cachedSteamIdString = await _cache.GetStringAsync($"vanity_{vanityUrl}");
         if (cachedSteamIdString is null)
@@ -72,11 +72,11 @@ public class SteamClient
             }
 
             await _cache.SetStringAsync($"vanity_{vanityUrl}", outputString, _cacheEntryOptions);
-            return Int64.Parse(output.Response.SteamId!);
+            return long.Parse(output.Response.SteamId!);
         }
 
         var cachedSteamId = 
             JsonSerializer.Deserialize<ResolveVanityUrlResponse>(cachedSteamIdString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        return Int64.Parse(cachedSteamId.Response.SteamId);
+        return long.Parse(cachedSteamId.Response.SteamId);
     }
 }

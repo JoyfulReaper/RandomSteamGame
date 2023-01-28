@@ -32,7 +32,7 @@ public class HomeController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> RandomGame(Int64? steamId, string? customUrl)
+    public async Task<IActionResult> RandomGame(long? steamId, string? customUrl)
     {
         string errorMessage = string.Empty;
 
@@ -61,7 +61,7 @@ public class HomeController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> RandomGameData(Int64 steamId)
+    public async Task<IActionResult> RandomGameData(long steamId)
     {
         // TODO MAKE THIS A POST AND REQUIRE ANTIFORGERTY
         var details = await _steamService.GetRandomGame(steamId);

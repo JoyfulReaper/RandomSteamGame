@@ -19,7 +19,7 @@ var app = builder.Build();
     }
     else
     {
-        app.UseExceptionHandler("/Error");
+        app.UseExceptionHandler("/error");
         app.UseHsts();
     }
 

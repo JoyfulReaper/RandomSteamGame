@@ -2,7 +2,7 @@
 
 public class RandomGameViewModel
 {
-    public Int64 SteamId { get; set; }
+    public long SteamId { get; set; }
     public string? CustomUrl { get; set; }
     public string? ErrorMessage { get; set; }
 }
