@@ -36,7 +36,15 @@
                            id="txtCustom" />
             </div>
             <div>
-                <button type="submit" class="btn btn-success">Go!</button>
+                <button type="submit"
+                        class="btn btn-success"
+                        disabled="@_isBusy">
+                    @if (_isBusy)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    }
+                    Go!
+                </button>
             </div>
         </EditForm>
 
@@ -63,6 +71,7 @@
 @code {
     private HomePageModel _homePageModel = new HomePageModel();
     private string? _errorMessage;
+    private bool _isBusy = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -78,10 +87,12 @@
     private async Task HandleValidSubmit()
     {
         _errorMessage = null;
+        _isBusy = true;
+        StateHasChanged();
 
         if (_homePageModel.SteamId is null)
         {
-            if(string.IsNullOrWhiteSpace(_homePageModel.VanityUrl))
+            if (string.IsNullOrWhiteSpace(_homePageModel.VanityUrl))
             {
                 _errorMessage = "Please provide a SteamId or Vanity Url";
                 return;

@@ -21,17 +21,21 @@ else
 
 @if (_appData is not null)
 {
-    <div class="row" id="mainContainer" >
+    <div class="row" id="mainContainer">
         <div class="col-12 col-md-5" id="main">
             <div id="randomGame">
                 You should play:<br />
                 <span class="fs-2" id="gameName">@_appData.Name</span><br />
                 <div id="buttonContainer" class="mt-2">
                     <button type="button"
-                    class="btn @(_isBusy ? "btn-warning" : "btn-primary")"
-                    id="btnAgain"
-                    disabled="@_isBusy"
-                    @onclick="UpdateData">
+                        class="btn @(_isBusy ? "btn-warning" : "btn-primary")"
+                        id="btnAgain"
+                        disabled="@_isBusy"
+                        @onclick="UpdateData">
+                        @if (_isBusy)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        }
                         @(_isBusy ? "Loading..." : "Choose Again")
                     </button>
                     <a href="steam://run/@_appData.SteamAppid/" class="btn btn-success" id="steamUrl">Run game</a> <br />
@@ -48,6 +52,9 @@ else
 {
     <div class="text-center">
         <h1 class="text-white">Picking a game!</h1>
+        <div class="spinner-border text-white" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
     </div>
 }
 
@@ -73,8 +80,8 @@ else
         try
         {
             _isBusy = true;
-            await Task.Delay(50);
-            _appData = await _client.GetFromJsonAsync<AppData>($"api/Steam/RandomGameBySteamId/{SteamId}") ?? 
+            StateHasChanged();
+            _appData = await _client.GetFromJsonAsync<AppData>($"api/Steam/RandomGameBySteamId/{SteamId}") ??
                 throw new Exception("Unable to retreive games.");
 
             if (_appData.Background is not null)
@@ -97,11 +104,11 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if(firstRender)
+        if (firstRender)
         {
             await SetBackground("");
         }
-        if(_prevBackground != _background && _backgroundBytes is not null)
+        if (_prevBackground != _background && _backgroundBytes is not null)
         {
             await SetBackground($"data:image/image/jpeg;base64,{Convert.ToBase64String(_backgroundBytes)}");
             _prevBackground = _background;
