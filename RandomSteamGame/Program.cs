@@ -1,3 +1,6 @@
+// Please see the Blazor Version
+// This MVC version needs some improvements
+
 using RandomSteamGame.Services;
 using SteamApiClient;
 
