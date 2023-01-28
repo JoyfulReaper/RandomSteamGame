@@ -1,0 +1,9 @@
+﻿#randomGame {
+    height: 190px;
+    position: relative;
+}
+
+#buttonContainer {
+    position: absolute;
+    bottom: 0px;
+}

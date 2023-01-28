@@ -1,15 +1,31 @@
 ﻿@page "/random-game/{SteamId:long}"
 @inject HttpClient _client
+@inject IJSRuntime _jsRuntime
 
 @if (_appData is not null)
 {
-    <div class="row" >
+    <PageTitle>Random Game: @_appData.Name - By Kyle Givler</PageTitle>
+}
+else
+{
+    <PageTitle>Random Game - By Kyle Givler</PageTitle>
+}
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert-warning" role="alert">
+        @_errorMessage
+    </div>
+}
+
+@if (_appData is not null)
+{
+    <div class="row" id="mainContainer" >
         <div class="col-12 col-md-5" id="main">
-            <div class="" style="height: 190px; position: relative">
+            <div id="randomGame">
                 You should play:<br />
                 <span class="fs-2" id="gameName">@_appData.Name</span><br />
-
-                <div class="mt-2" style="position: absolute; bottom: 0px;" id="frmRandomGame">
+                <div id="buttonContainer" class="mt-2">
                     <button type="button"
                     class="btn @(_isBusy ? "btn-warning" : "btn-primary")"
                     id="btnAgain"
@@ -34,6 +50,9 @@
 
     private AppData _appData = default!;
     private bool _isBusy = false;
+    private string? _errorMessage;
+    private string background = default!;
+    private string prevBackground = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -42,16 +61,30 @@
 
     private async Task UpdateData()
     {
+        _errorMessage = null;
         try
         {
             _isBusy = true;
             await Task.Delay(60);
             _appData = await _client.GetFromJsonAsync<AppData>($"api/Steam/RandomGameBySteamId/{SteamId}");
+
+            background = _appData.Background;
+            var bytes = await _client.GetByteArrayAsync(background);
+
             _isBusy = false;
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            _errorMessage = ex.Message;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(prevBackground != background)
+        {
+            await _jsRuntime.InvokeVoidAsync($"setBackground", background);
+            prevBackground = background;
         }
     }
 }

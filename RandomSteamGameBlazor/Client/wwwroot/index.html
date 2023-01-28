@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-100">
 
 <head>
     <meta charset="utf-8" />
@@ -11,7 +11,7 @@
     <link href="RandomSteamGameBlazor.Client.styles.css" rel="stylesheet" />
 </head>
 
-<body>
+<body class="h-100" id="body">
     <div id="app">Loading...</div>
 
     <div id="blazor-error-ui">
@@ -21,5 +21,10 @@
     </div>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
-
 </html>
+
+<script>
+    window.setBackground = (background) => {
+        document.getElementById('body').style.backgroundImage = `url('${background}')`;
+    }
+</script>
