@@ -10,6 +10,7 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, AppData>
     private readonly SteamClient _steamClient;
     private readonly SteamStoreClient _steamStoreClient;
     private readonly ILogger<RandomGameQueryHandler> _logger;
+    private const int MaxAttempts = 3;
 
     public RandomGameQueryHandler(
         SteamClient steamClient,
@@ -34,6 +35,11 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, AppData>
                 $"Please note, your Steam Profile must be public for this to work.");
         }
 
+        if(!ownedGames.Games.Any())
+        {
+            throw new SteamException("You do not own any games on Steam. Please add some games to your library and try again.");
+        }
+
         int attempts = 0;
         Game game;
         AppDetailsResponse response = new();
@@ -45,20 +51,16 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, AppData>
             if (!response.Success)
             {
                 attempts++;
-                if (attempts >= 3)
+                if (attempts >= MaxAttempts)
                 {
-                    throw new SteamException($"We were unable to find any games for you after 3 attempts. Aborting.");
+                    throw new SteamException($"We were unable to find any games for you after {MaxAttempts} attempts. Aborting.");
                 }
 
-                _logger.LogWarning("Unable to get app details for {AppId}", game.AppId);
+                _logger.LogWarning("Unable to get app details for {AppId}. Attempt: {attempt}", game.AppId, attempts);
             }
         }
 
-        if (response.AppData is null)
-        {
-            throw new SteamException("Response was successfull, but data was missing.");
-        }
-
-        return response.AppData;
+        return response?.AppData ?? 
+            throw new SteamException("Response was successful, but data was missing.");
     }
 }

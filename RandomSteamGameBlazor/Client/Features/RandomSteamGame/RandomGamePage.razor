@@ -1,0 +1,27 @@
+﻿@page "/random-game/{SteamId:long}"
+@inject HttpClient _client
+
+<h3>RandomGame Page</h3>
+@if (_appData is not null)
+{
+    @_appData.Name
+}
+
+@code {
+    [Parameter]
+    public long? SteamId { get; set; }
+
+    private AppData _appData = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _appData = await _client.GetFromJsonAsync<AppData>($"/api/steam/RandomGameBySteamId/{SteamId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+}

@@ -7,11 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RandomSteamGame", "RandomSt
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SteamApiClient", "SteamApiClient\SteamApiClient.csproj", "{2A77EE20-178C-425C-AC15-E2620E663F46}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RandomSteamGameBlazor.Server", "RandomSteamGameBlazor\Server\RandomSteamGameBlazor.Server.csproj", "{D37B5524-23B4-4761-B92D-561C348F4ADE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RandomSteamGameBlazor.Server", "RandomSteamGameBlazor\Server\RandomSteamGameBlazor.Server.csproj", "{D37B5524-23B4-4761-B92D-561C348F4ADE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RandomSteamGameBlazor.Client", "RandomSteamGameBlazor\Client\RandomSteamGameBlazor.Client.csproj", "{27EBF189-0423-4FED-8276-F9F387A3141C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RandomSteamGameBlazor.Client", "RandomSteamGameBlazor\Client\RandomSteamGameBlazor.Client.csproj", "{27EBF189-0423-4FED-8276-F9F387A3141C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RandomSteamGameBlazor.Shared", "RandomSteamGameBlazor\Shared\RandomSteamGameBlazor.Shared.csproj", "{3EA0ABFF-2C7A-4A57-93C0-7ADD4CCD6F37}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RandomSteamGameBlazor.Shared", "RandomSteamGameBlazor\Shared\RandomSteamGameBlazor.Shared.csproj", "{3EA0ABFF-2C7A-4A57-93C0-7ADD4CCD6F37}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

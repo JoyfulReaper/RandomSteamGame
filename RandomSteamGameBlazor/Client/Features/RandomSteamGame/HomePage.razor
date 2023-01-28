@@ -1,0 +1,101 @@
+﻿@page "/"
+
+@inject ILocalStorageService _localStorageService
+@inject NavigationManager _navigationManager
+@inject HttpClient _client
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert-warning" role="alert">
+        @_errorMessage
+    </div>
+}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6">
+        <EditForm Model="_homePageModel"
+                  OnValidSubmit="HandleValidSubmit"
+                  class="border border-1 shadow-lg p-2">
+            <div class="">
+                <label for="txtSteamId" class="form-label">17 digit Steam ID</label>
+                <InputNumber class="form-control"
+                             placeholder="Enter Steam ID"
+                             id="txtSteamId"
+                             @bind-Value="_homePageModel.SteamId" />
+            </div>
+            <div class="my-3 text-center fw-bold">
+                OR
+            </div>
+            <div class="mb-2">
+                <label for="steamId" class="form-label">Custom Url</label>
+                <InputText class="form-control"
+                           placeholder="Enter Custom Url"
+                           @bind-Value="_homePageModel.VanityUrl"
+                           id="txtCustom" />
+            </div>
+            <div>
+                <button type="submit" class="btn btn-success">Go!</button>
+            </div>
+        </EditForm>
+
+        <div class="mt-5 border border-1 p-2 shadow-lg text-center">
+            <div class="fw-bold mb-3">Instructions:</div>
+            Enter your 17 digit Steam ID from: steamcommunity.com/profiles/[SteamId]) <br />
+            <span class="fw-bold">OR</span> <br />
+            Enter you Custom Steam URL from: steamcommunity.com/id/[CustomUrl])
+            <hr />
+            <div class="my-3">
+                If you would like instructions for <strong>finding your Steam Id</strong> check the link below: <br />
+                <a href="https://help.steampowered.com/en/faqs/view/2816-BE67-5B69-0FEC" target="_blank">https://help.steampowered.com/en/faqs/view/2816-BE67-5B69-0FEC</a>
+            </div>
+            <hr />
+            <div class="my-3">
+                For this application to work your Steam <strong>Profile must be public</strong>: <br />
+                <a href="https://help.steampowered.com/en/faqs/view/588C-C67D-0251-C276" target="_blank">https://help.steampowered.com/en/faqs/view/588C-C67D-0251-C276</a>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@code {
+    private HomePageModel _homePageModel = new HomePageModel();
+    private string? _errorMessage;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _homePageModel.SteamId = await _localStorageService.GetItemAsync<long?>("steamId");
+            _homePageModel.VanityUrl = await _localStorageService.GetItemAsStringAsync("customUrl");
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        _errorMessage = null;
+
+        if (_homePageModel.SteamId is null)
+        {
+            if(string.IsNullOrWhiteSpace(_homePageModel.VanityUrl))
+            {
+                _errorMessage = "Please provide a SteamId or Vanity Url";
+                return;
+            }
+            try
+            {
+                _homePageModel.SteamId = await _client.GetFromJsonAsync<long>($"/api/steam/ResolveVanityUrl/{_homePageModel.VanityUrl}");
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = ex.Message;
+                return;
+            }
+        }
+
+        await _localStorageService.SetItemAsync<long?>("steamId", _homePageModel.SteamId);
+        await _localStorageService.SetItemAsStringAsync("customUrl", _homePageModel.VanityUrl ?? "");
+
+        _navigationManager.NavigateTo($"/random-game/{_homePageModel.SteamId}");
+    }
+}
