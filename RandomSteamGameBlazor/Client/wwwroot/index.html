@@ -25,6 +25,13 @@
 
 <script>
     window.setBackground = (background) => {
-        document.getElementById('body').style.backgroundImage = `url('${background}')`;
+        const body = document.getElementById('body');
+        body.style.backgroundColor = '#000';
+        body.style.backgroundImage = `url('${background}')`;
+    }
+    window.resetBackground = () => {
+        const body = document.getElementById('body');
+        body.style.backgroundImage = 'none';
+        body.style.backgroundColor = '#fff';
     }
 </script>

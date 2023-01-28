@@ -1,6 +1,7 @@
 ﻿@page "/random-game/{SteamId:long}"
 @inject HttpClient _client
 @inject IJSRuntime _jsRuntime
+@implements IAsyncDisposable
 
 @if (_appData is not null)
 {
@@ -69,7 +70,7 @@ else
             _appData = await _client.GetFromJsonAsync<AppData>($"api/Steam/RandomGameBySteamId/{SteamId}");
 
             background = _appData.Background;
-            var bytes = await _client.GetByteArrayAsync(background);
+            var bytes = await _client.GetByteArrayAsync(background); // make the browser cache the background so it doesn't flicker
 
             _isBusy = false;
         }
@@ -86,5 +87,10 @@ else
             await _jsRuntime.InvokeVoidAsync($"setBackground", background);
             prevBackground = background;
         }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _jsRuntime.InvokeVoidAsync($"resetBackground");
     }
 }
