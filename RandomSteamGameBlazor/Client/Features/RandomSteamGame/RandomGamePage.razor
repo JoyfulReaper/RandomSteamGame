@@ -58,8 +58,9 @@ else
     private AppData _appData = default!;
     private bool _isBusy = false;
     private string? _errorMessage;
-    private string background = default!;
-    private string prevBackground = string.Empty;
+    private string _background = default!;
+    private string _prevBackground = string.Empty;
+    private byte[]? _backgroundBytes = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -78,8 +79,8 @@ else
 
             if (_appData.Background is not null)
             {
-                background = _appData.Background;
-                var bytes = await _client.GetByteArrayAsync(background); // make the browser cache the background so it doesn't flicker
+                _background = _appData.Background;
+                _backgroundBytes = await _client.GetByteArrayAsync(_background);
             }
             else
             {
@@ -96,11 +97,20 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if(prevBackground != background)
+        if(firstRender)
         {
-            await _jsRuntime.InvokeVoidAsync($"setBackground", background);
-            prevBackground = background;
+            await SetBackground("");
         }
+        if(_prevBackground != _background && _backgroundBytes is not null)
+        {
+            await SetBackground($"data:image/image/jpeg;base64,{Convert.ToBase64String(_backgroundBytes)}");
+            _prevBackground = _background;
+        }
+    }
+
+    private async Task SetBackground(string background)
+    {
+        await _jsRuntime.InvokeVoidAsync($"setBackground", background);
     }
 
     private async Task RemoveBackground()
