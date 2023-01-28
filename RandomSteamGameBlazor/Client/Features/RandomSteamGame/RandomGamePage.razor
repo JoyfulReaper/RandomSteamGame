@@ -47,7 +47,7 @@ else
 else
 {
     <div class="text-center">
-        <h1>Loading your game!</h1>
+        <h1 class="text-white">Loading your game!</h1>
     </div>
 }
 
@@ -72,11 +72,19 @@ else
         try
         {
             _isBusy = true;
-            await Task.Delay(60);
-            _appData = await _client.GetFromJsonAsync<AppData>($"api/Steam/RandomGameBySteamId/{SteamId}");
+            await Task.Delay(50);
+            _appData = await _client.GetFromJsonAsync<AppData>($"api/Steam/RandomGameBySteamId/{SteamId}") ?? 
+                throw new Exception("Unable to retreive games.");
 
-            background = _appData.Background;
-            var bytes = await _client.GetByteArrayAsync(background); // make the browser cache the background so it doesn't flicker
+            if (_appData.Background is not null)
+            {
+                background = _appData.Background;
+                var bytes = await _client.GetByteArrayAsync(background); // make the browser cache the background so it doesn't flicker
+            }
+            else
+            {
+                await RemoveBackground();
+            }
 
             _isBusy = false;
         }
@@ -95,8 +103,13 @@ else
         }
     }
 
-    public async ValueTask DisposeAsync()
+    private async Task RemoveBackground()
     {
         await _jsRuntime.InvokeVoidAsync($"resetBackground");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await RemoveBackground();
     }
 }
