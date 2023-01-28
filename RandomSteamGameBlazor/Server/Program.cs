@@ -1,5 +1,6 @@
 using MediatR;
 using SteamApiClient;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 {
@@ -7,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
     builder.Services.AddRazorPages();
 
     builder.Services.AddSteamApiClient(builder.Configuration);
-    builder.Services.AddMediatR(typeof(Program).Assembly);
+    builder.Services.AddMediatR(Assembly.GetExecutingAssembly());
 }
 
 var app = builder.Build();

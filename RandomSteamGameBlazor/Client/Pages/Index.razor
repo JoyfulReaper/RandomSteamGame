@@ -1,4 +1,5 @@
 ﻿@page "/"
+@inject HttpClient _httpClient
 
 <PageTitle>Index</PageTitle>
 
@@ -6,4 +7,9 @@
 
 Welcome to your new app.
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var test = await _httpClient.GetFromJsonAsync<AppData>("/api/Steam/RandomGame/76561197988408972");
+    }
+}
