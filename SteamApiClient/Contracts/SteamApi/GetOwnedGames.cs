@@ -20,10 +20,16 @@ public class Game
 {
     [JsonPropertyName("appid")]
     public int AppId { get; set; }
+    
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
 
     [JsonPropertyName("playtime_forever")]
     public int PlaytimeForever { get; set; }
 
+    [JsonPropertyName("img_icon_url")]
+    public string? ImgIconUrl { get; set; }
+    
     [JsonPropertyName("playtime_windows_forever")]
     public int PlaytimeWindowsForever { get; set; }
 

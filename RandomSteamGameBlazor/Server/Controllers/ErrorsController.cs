@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace RandomSteamGameBlazor.Server.Controllers;
 
-[Route("api/[controller]")]
 [ApiController]
 public class ErrorsController : ControllerBase
 {
@@ -23,6 +22,6 @@ public class ErrorsController : ControllerBase
 
         _logger.LogError(exception, exception.Message);
 
-        return Problem();
+        return StatusCode(StatusCodes.Status500InternalServerError);
     }
 }

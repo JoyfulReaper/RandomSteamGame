@@ -33,16 +33,27 @@ public class SteamClient
         _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(SteamClientConstants.UserAgentComment));
     }
 
-    public async Task<OwnedGames> GetOwnedGames(long steamId)
+    public async Task<OwnedGames> GetOwnedGames(long steamId, bool includeAppInfo = true, bool includePlayedFreeGames = true)
     {
-        var cachedGamesString = await _cache.GetStringAsync($"owned_{steamId}");
+        var cachedGamesString = await _cache.GetStringAsync($"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}");
         if (cachedGamesString is null)
         {
-            var ownedGamesString =
-            await _httpClient.GetStringAsync(
-                $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json");
+            var arguments = string.Empty;
+            if(includeAppInfo)
+            {
+                arguments += "&include_appinfo=1";
+            }
 
-            await _cache.SetStringAsync($"owned_{steamId}", ownedGamesString, _cacheEntryOptions);
+            if (includePlayedFreeGames)
+            {
+                arguments += "&include_played_free_games=1";
+            }
+
+                var ownedGamesString =
+            await _httpClient.GetStringAsync(
+                $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json{arguments}");
+
+            await _cache.SetStringAsync($"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}", ownedGamesString, _cacheEntryOptions);
             var ownedGames = 
                 JsonSerializer.Deserialize<OwnedGamesResponse>(ownedGamesString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 

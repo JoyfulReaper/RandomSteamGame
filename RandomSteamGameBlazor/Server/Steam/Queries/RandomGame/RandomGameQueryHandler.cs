@@ -35,11 +35,19 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, AppData>
                 $"Please note, your Steam Profile must be public for this to work.");
         }
 
-        if(!ownedGames.Games.Any())
+        if (!ownedGames.Games.Any())
         {
             throw new SteamException("You do not own any games on Steam. Please add some games to your library and try again.");
         }
 
+        AppDetailsResponse response = await GetAppData(ownedGames);
+
+        return response?.AppData ??
+            throw new SteamException("Response was successful, but data was missing.");
+    }
+
+    private async Task<AppDetailsResponse> GetAppData(OwnedGames ownedGames)
+    {
         int attempts = 0;
         Game game;
         AppDetailsResponse response = new();
@@ -60,7 +68,6 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, AppData>
             }
         }
 
-        return response?.AppData ?? 
-            throw new SteamException("Response was successful, but data was missing.");
+        return response;
     }
 }

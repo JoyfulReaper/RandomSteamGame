@@ -1,23 +1,49 @@
 ﻿@page "/random-game/{SteamId:long}"
 @inject HttpClient _client
 
-<h3>RandomGame Page</h3>
-@if (_appData is not null)
-{
-    @_appData.Name
-}
+<div class="row" >
+    <div class="col-12 col-md-5" id="main">
+        <div class="" style="height: 190px; position: relative">
+            You should play:<br />
+            <span class="fs-2" id="gameName">@_appData.Name</span><br />
+
+            <div class="mt-2" style="position: absolute; bottom: 0px;" id="frmRandomGame">
+                <button type="button"
+                    class="btn @(_isBusy ? "btn-warning" : "btn-primary")"
+                    id="btnAgain"
+                    disabled="@_isBusy">
+                    Choose Again
+                </button>
+                <a href="steam://run/@_appData.SteamAppid/" class="btn btn-success" id="steamUrl">Run game</a> <br />
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-7 my-5 my-md-0">
+        <p class="fs-2" id="gameNameHeader">@_appData.Name</p>
+        <span id="gameDescription"></span>
+    </div>
+</div>
 
 @code {
     [Parameter]
     public long? SteamId { get; set; }
 
     private AppData _appData = default!;
+    private bool _isBusy = false;
 
     protected override async Task OnInitializedAsync()
     {
+        await UpdateData();
+    }
+
+    private async Task UpdateData()
+    {
         try
         {
-            _appData = await _client.GetFromJsonAsync<AppData>($"/api/steam/RandomGameBySteamId/{SteamId}");
+            _isBusy = true;
+            await Task.Delay(1000);
+            _appData = await _client.GetFromJsonAsync<AppData>($"api/Steam/RandomGameBySteamId/{SteamId}");
+            _isBusy = false;
         }
         catch (Exception ex)
         {

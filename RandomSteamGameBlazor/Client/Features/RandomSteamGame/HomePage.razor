@@ -68,6 +68,8 @@
         {
             _homePageModel.SteamId = await _localStorageService.GetItemAsync<long?>("steamId");
             _homePageModel.VanityUrl = await _localStorageService.GetItemAsStringAsync("customUrl");
+
+            StateHasChanged();
         }
     }
 
@@ -84,7 +86,7 @@
             }
             try
             {
-                _homePageModel.SteamId = await _client.GetFromJsonAsync<long>($"/api/steam/ResolveVanityUrl/{_homePageModel.VanityUrl}");
+                _homePageModel.SteamId = await _client.GetFromJsonAsync<long>($"api/Steam/ResolveVanityUrl/{_homePageModel.VanityUrl}");
             }
             catch (Exception ex)
             {

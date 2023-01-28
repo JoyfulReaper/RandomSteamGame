@@ -13,17 +13,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 var app = builder.Build();
 {
-
     if (app.Environment.IsDevelopment())
     {
         app.UseWebAssemblyDebugging();
     }
     else
     {
-        app.UseExceptionHandler("/error");
         app.UseHsts();
+        app.UseExceptionHandler("/error");
     }
-
+   
     app.UseHttpsRedirection();
 
     app.UseBlazorFrameworkFiles();
