@@ -9,13 +9,25 @@
 
   <ItemGroup>
     <PackageReference Include="Mapster" Version="7.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="6.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="6.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.13">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.13" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\SteamApiClient\SteamApiClient.csproj" />
     <ProjectReference Include="..\Client\RandomSteamGameBlazor.Client.csproj" />
     <ProjectReference Include="..\Shared\RandomSteamGameBlazor.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Persistence\Data\" />
+    <Folder Include="Persistence\Entities\" />
   </ItemGroup>
 
 

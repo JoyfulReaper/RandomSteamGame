@@ -1,4 +1,5 @@
 using MediatR;
+using RandomSteamGameBlazor.Server;
 using SteamApiClient;
 using System.Reflection;
 
@@ -7,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
     builder.Services.AddControllersWithViews();
     builder.Services.AddRazorPages();
 
+    builder.Services.AddRandomSteamGame(builder.Configuration);
     builder.Services.AddSteamApiClient(builder.Configuration);
     builder.Services.AddMediatR(Assembly.GetExecutingAssembly());
 }

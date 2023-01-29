@@ -93,13 +93,13 @@ else
             {
                 await RemoveBackground();
             }
-
-            _isBusy = false;
         }
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
         }
+
+        _isBusy = false;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
