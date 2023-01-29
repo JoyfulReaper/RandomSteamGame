@@ -13,6 +13,9 @@ The Solution file contains the following projects:
 
 # In Planning/Under Development:
 - Ability to register and login to save your favorite games (in develoment)
-  - Identity, JWT Tokens
+  - Identity, JWT Tokens (in development)
+  - Save favorite Games (planned)
+  - Exclude games from random game list (planned)
+  - Save a list of games you want to play next (planned)
 - Filters for refining the games picked. (planned)
   - Ex: Games I never played, games I played less than x hours, games I played more than x hours
