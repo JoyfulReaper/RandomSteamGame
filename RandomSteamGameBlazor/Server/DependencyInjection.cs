@@ -81,7 +81,7 @@ public static class DependencyInjection
         // Identity
         services.AddDbContext<RandomSteamContext>(opts =>
         {
-            opts.UseSqlServer(configuration.GetConnectionString("PlantBuddy"));
+            opts.UseSqlServer(configuration.GetConnectionString("RandomSteamGame"));
         });
 
         services.AddIdentity<RandomSteamUser, IdentityRole>(opts =>

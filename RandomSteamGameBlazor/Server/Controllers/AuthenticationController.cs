@@ -11,6 +11,7 @@ using RandomSteamGameBlazor.Shared.Contracts.Authentication;
 namespace RandomSteamGameBlazor.Server.Controllers;
 
 [Route("api/auth")]
+[ApiController]
 public class AuthenticationController : ControllerBase
 {
     private readonly ISender _mediator;

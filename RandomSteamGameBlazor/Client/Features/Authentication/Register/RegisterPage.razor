@@ -1,5 +1,50 @@
-﻿<h3>RegisterPage</h3>
+﻿@page "/register"
+@inject HttpClient _httpClient
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ILocalStorageService LocalStorage
+
+<h3>Register</h3>
+
+<EditForm Model="_registerModel" OnSubmit="HandleRegister">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-1">
+        <label for="firstName">First Name</label>
+        <InputText class="form-control" id="firstName" @bind-Value="_registerModel.FirstName" />
+    </div>
+    <div class="mb-1">
+        <label for="lastName">Last Name</label>
+        <InputText class="form-control" id="lastName" @bind-Value="_registerModel.LastName" />
+    </div>
+    <div class="mb-1">
+        <label for="email">Email</label>
+        <InputText class="form-control" id="email" @bind-Value="_registerModel.Email" />
+    </div>
+    <div class="mb-1">
+        <label for="password">Password</label>
+        <InputText class="form-control" id="password" @bind-Value="_registerModel.Password" />
+    </div>
+    <button class="btn btn-primary" type="submit">Register</button>
+</EditForm>
 
 @code {
+    RegisterModel _registerModel { get; set; } = new RegisterModel();
 
+    async Task HandleRegister()
+    {
+        RegisterRequest registerRequest = new RegisterRequest(_registerModel.FirstName, _registerModel.LastName, _registerModel.Email, _registerModel.Password);
+        using var result = await _httpClient.PostAsJsonAsync("api/auth/register", registerRequest);
+        var response = await result.Content.ReadFromJsonAsync<AuthenticationResponse>();
+        Console.WriteLine(response.Token);
+        await LocalStorage.SetItemAsync("token", response.Token);
+        await AuthStateProvider.GetAuthenticationStateAsync();
+    }
+
+    private class RegisterModel
+    {
+        public string FirstName { get; set; } = default!;
+        public string LastName { get; set; } = default!;
+        public string Email { get; set; } = default!;
+        public string Password { get; set; } = default!;
+    }
 }

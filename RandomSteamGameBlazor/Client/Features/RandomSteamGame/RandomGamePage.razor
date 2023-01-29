@@ -1,6 +1,11 @@
 ﻿@page "/random-game/{SteamId:long}"
-@inject HttpClient _client
+
 @inject IJSRuntime _jsRuntime
+@*TODO: Use Serilog or something*@
+@inject ILogger<RandomGamePage> _logger 
+@inject HttpClient _client
+@inject NavigationManager _navigationManager
+
 @implements IAsyncDisposable
 
 @if (_appData is not null)
@@ -15,7 +20,7 @@ else
 @if (!string.IsNullOrEmpty(_errorMessage))
 {
     <div class="alert alert-warning" role="alert">
-        @_errorMessage
+        @_errorMessage &nbsp; <a href="random-game/@SteamId">Reload page</a>
     </div>
 }
 
@@ -97,6 +102,7 @@ else
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
+            _logger.LogError(ex, "Error getting random game for {steamId}.", SteamId);
         }
 
         _isBusy = false;
