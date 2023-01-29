@@ -5,6 +5,18 @@
 
 <h3>Register</h3>
 
+<Alert SuccessMessage="@_successMessage" />
+
+@*For Testing*@
+<AuthorizeView>
+    <Authorized>
+        <span>You're Loged in as @context.User.Identity.Name</span>
+    </Authorized>
+    <NotAuthorized>
+        <span>You're not logged in.</span>
+    </NotAuthorized>
+</AuthorizeView>
+
 <EditForm Model="_registerModel" OnSubmit="HandleRegister">
     <DataAnnotationsValidator />
     <ValidationSummary />
@@ -28,16 +40,20 @@
 </EditForm>
 
 @code {
-    RegisterModel _registerModel { get; set; } = new RegisterModel();
+    private RegisterModel _registerModel { get; set; } = new RegisterModel();
+    private string? _successMessage;
 
     async Task HandleRegister()
     {
         RegisterRequest registerRequest = new RegisterRequest(_registerModel.FirstName, _registerModel.LastName, _registerModel.Email, _registerModel.Password);
         using var result = await _httpClient.PostAsJsonAsync("api/auth/register", registerRequest);
         var response = await result.Content.ReadFromJsonAsync<AuthenticationResponse>();
-        Console.WriteLine(response.Token);
+
         await LocalStorage.SetItemAsync("token", response.Token);
+        await LocalStorage.SetItemAsync("refreshToken", response.RefreshToken);
         await AuthStateProvider.GetAuthenticationStateAsync();
+
+        _successMessage = "Successfully Registered!";
     }
 
     private class RegisterModel

@@ -8,6 +8,8 @@ public class RandomSteamUser : IdentityUser
 {
     public string FirstName { get; set; } = default!;
     public string LastName { get; set; } = default!;
+    public string? VanityUrl { get; set; }
+    public long? SteamId { get; set; }
     public string? RefreshToken { get; set; }
     public DateTime RefreshTokenExpiryTime { get; set; }
 }
