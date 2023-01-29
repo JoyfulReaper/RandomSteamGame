@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Mapster;
+using MapsterMapper;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -6,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using RandomSteamGameBlazor.Server.Authentication;
 using RandomSteamGameBlazor.Server.Common.Services;
 using RandomSteamGameBlazor.Server.Persistence;
+using System.Reflection;
 using System.Text;
 
 namespace RandomSteamGameBlazor.Server;
@@ -20,7 +23,20 @@ public static class DependencyInjection
 
         services.AddAuthentication(configuration);
         services.AddIdentity(configuration);
-        
+        services.AddMapster();
+
+        return services;
+    }
+
+    public static IServiceCollection AddMapster(
+        this IServiceCollection services)
+    {
+        var config = TypeAdapterConfig.GlobalSettings;
+        config.Scan(Assembly.GetExecutingAssembly());
+
+        services.AddSingleton(config);
+        services.AddScoped<IMapper, ServiceMapper>();
+
         return services;
     }
 

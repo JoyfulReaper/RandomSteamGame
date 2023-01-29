@@ -36,7 +36,7 @@ public class AuthenticationController : ControllerBase
             var command = _mapper.Map<RegisterCommand>(request);
             AuthenticationResult result = await _mediator.Send(command);
 
-            return Ok(result);
+            return Ok(_mapper.Map<AuthenticationResponse>(result));
         }
         catch (AuthenticationException ex)
         {
@@ -52,8 +52,8 @@ public class AuthenticationController : ControllerBase
         {
             var query = _mapper.Map<LoginQuery>(request);
             AuthenticationResult result = await _mediator.Send(query);
-            
-            return Ok(result);
+
+            return Ok(_mapper.Map<AuthenticationResponse>(result));
         }
         catch (AuthenticationException)
         {
@@ -69,7 +69,7 @@ public class AuthenticationController : ControllerBase
             var query = _mapper.Map<TokenRefreshCommand>(request);
             AuthenticationResult result = await _mediator.Send(query);
 
-            return Ok(result);
+            return Ok(_mapper.Map<AuthenticationResponse>(result));
         }
         catch (AuthenticationException)
         {
