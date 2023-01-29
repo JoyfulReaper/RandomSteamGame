@@ -1,5 +1,6 @@
 ﻿using Mapster;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RandomSteamGameBlazor.Server.Steam.Queries.RandomGame;
 using RandomSteamGameBlazor.Server.Steam.Queries.ResolveVantiy;
@@ -8,6 +9,7 @@ using RandomSteamGameBlazor.Shared.Contracts.SteamApiContracts;
 namespace RandomSteamGameBlazor.Server.Controllers;
 
 [Route("api/[controller]")]
+[AllowAnonymous]
 [ApiController]
 public class SteamController : ControllerBase
 {
