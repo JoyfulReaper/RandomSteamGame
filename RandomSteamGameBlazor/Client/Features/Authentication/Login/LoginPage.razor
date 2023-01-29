@@ -1,0 +1,40 @@
+﻿@page "/login"
+@inject HttpClient _httpClient
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ILocalStorageService LocalStorage
+
+<h3>Login</h3>
+
+<EditForm Model="_loginModel" OnSubmit="HandleLogin">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-1">
+        <label for="username">Username</label>
+        <InputText class="form-control" id="username" @bind-Value="_loginModel.Email" />
+    </div>
+    <div class="mb-1">
+        <label for="password">Password</label>
+        <InputText class="form-control" id="password" @bind-Value="_loginModel.Password" />
+    </div>
+    <button class="btn btn-primary" type="submit">Login</button>
+</EditForm>
+
+@code {
+    LoginModel _loginModel { get; set; } = new LoginModel();
+
+    async Task HandleLogin()
+    {
+        LoginRequest _loginRequest = new LoginRequest(_loginModel.Email, _loginModel.Password);
+        using var result = await _httpClient.PostAsJsonAsync("api/v1/authentication/login", _loginRequest);
+        var response = await result.Content.ReadFromJsonAsync<AuthenticationResponse>();
+        Console.WriteLine(response.Token);
+        await LocalStorage.SetItemAsync("token", response.Token);
+        await AuthStateProvider.GetAuthenticationStateAsync();
+    }
+
+    private class LoginModel
+    {
+        public string Email { get; set; } = default!;
+        public string Password { get; set; } = default!;
+    }
+}
