@@ -2,8 +2,8 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RandomSteamGameBlazor.Server.Steam.Queries.RandomGame;
-using RandomSteamGameBlazor.Server.Steam.Queries.ResolveVantiy;
+using RandomSteamGameBlazor.Server.Features.Steam.Queries.RandomGame;
+using RandomSteamGameBlazor.Server.Features.Steam.Queries.ResolveVantiy;
 using RandomSteamGameBlazor.Shared.Contracts.SteamApiContracts;
 
 namespace RandomSteamGameBlazor.Server.Controllers;

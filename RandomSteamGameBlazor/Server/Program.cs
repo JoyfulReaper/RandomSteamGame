@@ -24,7 +24,6 @@ var app = builder.Build();
         app.UseHsts();
         app.UseExceptionHandler("/error");
     }
-   
     app.UseHttpsRedirection();
 
     app.UseBlazorFrameworkFiles();
