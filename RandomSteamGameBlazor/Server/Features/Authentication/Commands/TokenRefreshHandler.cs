@@ -1,4 +1,5 @@
-﻿using MediatR;
+﻿using ErrorOr;
+using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using RandomSteamGameBlazor.Server.Common.Services;
@@ -7,7 +8,7 @@ using System.Security.Authentication;
 
 namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands;
 
-public class TokenRefreshHandler : IRequestHandler<TokenRefreshCommand, AuthenticationResult>
+public class TokenRefreshHandler : IRequestHandler<TokenRefreshCommand, ErrorOr<AuthenticationResult>>
 {
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly UserManager<RandomSteamUser> _userManager;
@@ -26,12 +27,16 @@ public class TokenRefreshHandler : IRequestHandler<TokenRefreshCommand, Authenti
         _jwtSettings = jwtSettings.Value;
     }
 
-    public async Task<AuthenticationResult> Handle(TokenRefreshCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<AuthenticationResult>> Handle(TokenRefreshCommand request, CancellationToken cancellationToken)
     {
-        var principalResult = _jwtTokenGenerator.GetPrincipalFromExpiredToke(request.token);
+        var principalResult = _jwtTokenGenerator.GetPrincipalFromExpiredToken(request.token);
+        if(principalResult.IsError)
+        {
+            return principalResult.Errors;
+        }
 
 
-        var username = principalResult.Identity.Name;
+        var username = principalResult.Value.Identity.Name;
         var user = await _userManager.FindByNameAsync(username);
 
         if (user is null ||

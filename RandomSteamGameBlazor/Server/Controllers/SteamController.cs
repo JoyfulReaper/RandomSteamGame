@@ -11,7 +11,7 @@ namespace RandomSteamGameBlazor.Server.Controllers;
 [Route("api/[controller]")]
 [AllowAnonymous]
 [ApiController]
-public class SteamController : ControllerBase
+public class SteamController : ApiController
 {
     private readonly ISender _mediator;
 
@@ -26,8 +26,10 @@ public class SteamController : ControllerBase
     {
         var query = new RandomGameQuery(steamId);
         var result = await _mediator.Send(query);
-        
-        return Ok(result.Adapt<AppData>());
+
+        return result.Match(
+            result => Ok(result.Adapt<AppData>()),
+            errors => Problem(errors));
     }
 
     [HttpGet("RandomGameByVanityUrl/{vanityUrl}")]
@@ -35,10 +37,17 @@ public class SteamController : ControllerBase
     public async Task<IActionResult> RandomGame(string vanityUrl)
     {
         var steamId = await _mediator.Send(new ResolveVanityQuery(vanityUrl));
-        var query = new RandomGameQuery(steamId);
+        if (steamId.IsError)
+        {
+            return Problem(steamId.Errors);
+        }
+
+        var query = new RandomGameQuery(steamId.Value);
         var result = await _mediator.Send(query);
 
-        return Ok(result.Adapt<AppData>());
+        return result.Match(
+            result => Ok(result.Adapt<AppData>()),
+            errors => Problem(errors));
     }
 
     [HttpGet("ResolveVanityUrl/{vanityUrl}")]
@@ -46,7 +55,9 @@ public class SteamController : ControllerBase
     public async Task<IActionResult> ResolveVanityUrl(string vanityUrl)
     {
         var steamId = await _mediator.Send(new ResolveVanityQuery(vanityUrl));
-        
-        return Ok(steamId);
+
+        return steamId.Match(
+            steamId => Ok(steamId),
+            errors => Problem(errors));
     }
 }

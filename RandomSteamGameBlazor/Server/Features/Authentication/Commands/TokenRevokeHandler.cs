@@ -1,10 +1,11 @@
-﻿using MediatR;
+﻿using ErrorOr;
+using MediatR;
 using Microsoft.AspNetCore.Identity;
-using System.Security.Authentication;
+using RandomSteamGameBlazor.Server.Common.Errors;
 
 namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands;
 
-public class TokenRevokeHandler : IRequestHandler<TokenRevokeCommand, Unit>
+public class TokenRevokeHandler : IRequestHandler<TokenRevokeCommand, ErrorOr<Success>>
 {
     private readonly UserManager<RandomSteamUser> _userManager;
 
@@ -13,23 +14,23 @@ public class TokenRevokeHandler : IRequestHandler<TokenRevokeCommand, Unit>
         _userManager = userManager;
     }
 
-    public async Task<Unit> Handle(TokenRevokeCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<Success>> Handle(TokenRevokeCommand request, CancellationToken cancellationToken)
     {
         if (request.email is null)
         {
-            throw new AuthenticationException("Invalid Credentials");
+            return Errors.Authentication.InvalidCredentials;
         }
 
         var user = await _userManager.FindByEmailAsync(request.email);
 
         if (user is null)
         {
-            throw new AuthenticationException("Invalid Credentials");
+            return Errors.Authentication.InvalidCredentials;
         }
 
         user.RefreshToken = null;
         await _userManager.UpdateAsync(user);
 
-        return new Unit();
+        return new Success();
     }
 }

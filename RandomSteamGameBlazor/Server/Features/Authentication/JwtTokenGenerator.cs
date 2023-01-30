@@ -1,8 +1,9 @@
-﻿using Microsoft.Extensions.Options;
+﻿using ErrorOr;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using RandomSteamGameBlazor.Server.Common.Errors;
 using RandomSteamGameBlazor.Server.Common.Services;
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Authentication;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -58,7 +59,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         return Convert.ToBase64String(randomNumber);
     }
 
-    public ClaimsPrincipal GetPrincipalFromExpiredToke(string token)
+    public ErrorOr<ClaimsPrincipal> GetPrincipalFromExpiredToken(string token)
     {
         var tokenValidationParameters = new TokenValidationParameters
         {
@@ -78,7 +79,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
 
         if (jwtSecurityToken == null || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
         {
-            throw new AuthenticationException("Invalid token");
+            return Errors.Authentication.InvalidToken;
         }
 
         return principal;

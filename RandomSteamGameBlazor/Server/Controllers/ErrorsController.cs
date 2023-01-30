@@ -17,11 +17,10 @@ public class ErrorsController : ControllerBase
     [Route("/error")]
     public IActionResult Error()
     {
-        var context = HttpContext.Features.Get<IExceptionHandlerFeature>();
-        var exception = context?.Error ?? new Exception("Unknown error");
+        Exception? exception = HttpContext.Features.Get<IExceptionHandlerFeature>()?.Error;
 
-        _logger.LogError(exception, exception.Message);
+        _logger.LogError(exception, "Unhandled exception");
 
-        return StatusCode(StatusCodes.Status500InternalServerError);
+        return Problem();
     }
 }

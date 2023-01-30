@@ -1,19 +1,32 @@
-﻿using MediatR;
+﻿using ErrorOr;
+using MediatR;
 using SteamApiClient.HttpClients;
 
 namespace RandomSteamGameBlazor.Server.Features.Steam.Queries.ResolveVantiy;
 
-public class ResolveVanityHandler : IRequestHandler<ResolveVanityQuery, long>
+public class ResolveVanityHandler : IRequestHandler<ResolveVanityQuery, ErrorOr<long>>
 {
     private readonly SteamClient _steamClient;
+    private readonly ILogger<ResolveVanityHandler> _logger;
 
-    public ResolveVanityHandler(SteamClient steamClient)
+    public ResolveVanityHandler(
+        SteamClient steamClient,
+        ILogger<ResolveVanityHandler> logger)
     {
         _steamClient = steamClient;
+        _logger = logger;
     }
 
-    public async Task<long> Handle(ResolveVanityQuery request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<long>> Handle(ResolveVanityQuery request, CancellationToken cancellationToken)
     {
-        return await _steamClient.GetSteamIdFromVanityUrl(request.vantiyUrl);
+        try
+        {
+            return await _steamClient.GetSteamIdFromVanityUrl(request.vantiyUrl);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to resolve vanity URL: {vanityUrl}", request.vantiyUrl);
+            return Errors.Steam.VanityResolutonFailed;
+        }
     }
 }

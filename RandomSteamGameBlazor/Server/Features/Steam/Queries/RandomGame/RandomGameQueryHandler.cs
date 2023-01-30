@@ -1,11 +1,12 @@
-﻿using MediatR;
+﻿using ErrorOr;
+using MediatR;
 using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
 
 namespace RandomSteamGameBlazor.Server.Features.Steam.Queries.RandomGame;
 
-public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, AppData>
+public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, ErrorOr<AppData>>
 {
     private readonly SteamClient _steamClient;
     private readonly SteamStoreClient _steamStoreClient;
@@ -22,7 +23,7 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, AppData>
         _logger = logger;
     }
 
-    public async Task<AppData> Handle(RandomGameQuery request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<AppData>> Handle(RandomGameQuery request, CancellationToken cancellationToken)
     {
         OwnedGames ownedGames;
         try
@@ -31,22 +32,24 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, AppData>
         }
         catch (Exception)
         {
-            throw new SteamException($"An error occurred while trying to get the game list for Steam Id: {request.SteamId}. Please verify your Steam ID and try again. " +
-                $"Please note, your Steam Profile must be public for this to work.");
+            return Errors.Steam.SteamApiFailed;
         }
 
         if (!ownedGames.Games.Any())
         {
-            throw new SteamException("You do not own any games on Steam. Please add some games to your library and try again.");
+            return Errors.Steam.EmptyLibrary;
         }
 
-        AppDetailsResponse response = await GetAppData(ownedGames);
+        AppDetailsResponse? response = await GetAppData(ownedGames);
+        if(response?.AppData is null)
+        {
+            return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
+        }
 
-        return response?.AppData ??
-            throw new SteamException("Response was successful, but data was missing.");
+        return response.AppData;
     }
 
-    private async Task<AppDetailsResponse> GetAppData(OwnedGames ownedGames)
+    private async Task<AppDetailsResponse?> GetAppData(OwnedGames ownedGames)
     {
         int attempts = 0;
         Game game;
@@ -61,7 +64,7 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, AppData>
                 attempts++;
                 if (attempts >= MaxAttempts)
                 {
-                    throw new SteamException($"We were unable to find any games for you after {MaxAttempts} attempts. Aborting.");
+                    return null;
                 }
 
                 _logger.LogWarning("Unable to get app details for {AppId}. Attempt: {attempt}", game.AppId, attempts);

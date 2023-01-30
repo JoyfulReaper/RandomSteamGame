@@ -1,13 +1,14 @@
-﻿using MediatR;
+﻿using ErrorOr;
+using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using RandomSteamGameBlazor.Server.Common.Services;
 using RandomSteamGameBlazor.Server.Features.Authentication.Common;
-using System.Security.Authentication;
+using RandomSteamGameBlazor.Server.Common.Errors;
 
 namespace RandomSteamGameBlazor.Server.Features.Authentication.Queries;
 
-public class LoginQueryHandler : IRequestHandler<LoginQuery, AuthenticationResult>
+public class LoginQueryHandler : IRequestHandler<LoginQuery, ErrorOr<AuthenticationResult>>
 {
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IDateTimeProvider _dateTimeProvider;
@@ -30,18 +31,18 @@ public class LoginQueryHandler : IRequestHandler<LoginQuery, AuthenticationResul
         _signInManager = signInManager;
     }
 
-    public async Task<AuthenticationResult> Handle(LoginQuery request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<AuthenticationResult>> Handle(LoginQuery request, CancellationToken cancellationToken)
     {
         RandomSteamUser? user = await _userManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
-            throw new AuthenticationException("Invalid Credentials");
+            return Errors.Authentication.InvalidCredentials;
         }
 
         SignInResult result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, true);
         if (!result.Succeeded)
         {
-            throw new AuthenticationException("Invalid Credentials");
+            return Errors.Authentication.InvalidCredentials;
         }
 
         var token = _jwtTokenGenerator.GenerateToken(user);

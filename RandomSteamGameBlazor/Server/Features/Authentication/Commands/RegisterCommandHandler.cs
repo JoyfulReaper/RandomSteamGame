@@ -1,4 +1,5 @@
-﻿using MediatR;
+﻿using ErrorOr;
+using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using RandomSteamGameBlazor.Server.Common.Services;
@@ -7,7 +8,8 @@ using System.Security.Authentication;
 
 namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands;
 
-public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthenticationResult>
+public class RegisterCommandHandler :
+    IRequestHandler<RegisterCommand, ErrorOr<AuthenticationResult>>
 {
     private readonly UserManager<RandomSteamUser> _userManager;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
@@ -25,7 +27,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Authentic
         _jwtSettings = jwtSettings.Value;
     }
 
-    public async Task<AuthenticationResult> Handle(RegisterCommand request, CancellationToken cancellationToken)
+    public async Task<ErrorOr<AuthenticationResult>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
         var user = new RandomSteamUser
         {
@@ -38,7 +40,11 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Authentic
         var result = await _userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
         {
-            throw new AuthenticationException("Failed to create user");
+            var errors =
+            result.Errors.Select(e => Error.Validation(e.Code, e.Description))
+            .ToList();
+
+            return errors;
         }
 
         var token = _jwtTokenGenerator.GenerateToken(user);
