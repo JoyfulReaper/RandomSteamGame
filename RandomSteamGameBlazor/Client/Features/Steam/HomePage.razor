@@ -107,7 +107,8 @@
             }
             catch (Exception ex)
             {
-                _errorMessage = ex.Message;
+                _errorMessage = "Failed to resolve vantiy URL";
+                _isBusy = false;
                 return;
             }
         }

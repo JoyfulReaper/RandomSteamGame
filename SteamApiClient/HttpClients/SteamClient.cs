@@ -1,7 +1,5 @@
 ﻿using System.Net.Http.Headers;
-using System.Net.Http;
 using SteamApiClient.Contracts.SteamApi;
-using System.Net.Http.Json;
 using SteamApiClient.Exceptions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Caching.Distributed;
@@ -88,6 +86,12 @@ public class SteamClient
 
         var cachedSteamId = 
             JsonSerializer.Deserialize<ResolveVanityUrlResponse>(cachedSteamIdString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        
+        if (cachedSteamId is null)
+        {
+            throw new CacheException("Failed to deserialize cached data");
+        }
+        
         return long.Parse(cachedSteamId.Response.SteamId);
     }
 }

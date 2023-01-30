@@ -6,11 +6,11 @@ public static partial class Errors
 {
     public static class Steam
     {
-        public static Error VanityResolutonFailed => Error.Failure(
+        public static Error VanityResolutonFailed => Error.NotFound(
             code: "Steam.VanityResolutonFailed",
             description: "Failed to resolve vanity URL.");
 
-        public static Error EmptyLibrary => Error.Failure(
+        public static Error EmptyLibrary => Error.NotFound(
             code: "Steam.EmptyLibrary",
             description: "Steam Library does not contain any games.");
 

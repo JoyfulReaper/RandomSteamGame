@@ -36,7 +36,6 @@ var app = builder.Build();
 
     app.UseAuthentication();
     
-    
     app.UseBlazorFrameworkFiles();
     app.UseStaticFiles();
 

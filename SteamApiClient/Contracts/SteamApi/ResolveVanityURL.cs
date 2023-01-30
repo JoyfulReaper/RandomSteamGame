@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SteamApiClient.Contracts.SteamApi;
+﻿namespace SteamApiClient.Contracts.SteamApi;
 
 public class ResolveVanityUrlResponse
 {
@@ -13,7 +7,6 @@ public class ResolveVanityUrlResponse
 
 public class ResolvedVanityUrl
 {
-    public string? SteamId { get; set; }
+    public string SteamId { get; set; } = string.Empty;
     public int Success { get; set; }
 }
-

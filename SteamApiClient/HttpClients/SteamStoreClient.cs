@@ -1,9 +1,9 @@
 ﻿using System.Net.Http.Headers;
-using System.Net.Http;
 using SteamApiClient.Contracts.SteamStoreApi;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
+using SteamApiClient.Exceptions;
 
 namespace SteamApiClient.HttpClients;
 
@@ -44,6 +44,12 @@ public class SteamStoreClient
 
         var cachedWithoutRoot = JsonDocument.Parse(cachedAppDataString).RootElement.GetProperty(appId.ToString());
         var cachedOutput = JsonSerializer.Deserialize<AppDetailsResponse>(cachedWithoutRoot);
+
+        if(cachedOutput is null)
+        {
+            throw new CacheException("Failed to deserialize cached data");
+        }
+
         return cachedOutput;
     }
 }
