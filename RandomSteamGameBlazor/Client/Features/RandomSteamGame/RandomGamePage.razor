@@ -1,9 +1,12 @@
 ﻿@page "/random-game/{SteamId:long}"
 
 @inject IJSRuntime _jsRuntime
+
 @*TODO: Use Serilog or something*@
-@inject ILogger<RandomGamePage> _logger 
+@inject ILogger<RandomGamePage> _logger
+
 @inject HttpClient _client
+@inject IHttpClientFactory _clientFactory
 @inject NavigationManager _navigationManager
 
 @implements IAsyncDisposable
@@ -81,18 +84,28 @@ else
 
     private async Task UpdateData()
     {
+        var backgroundClient = _clientFactory.CreateClient();
         _errorMessage = null;
+        _isBusy = true;
+        StateHasChanged();
+
         try
         {
-            _isBusy = true;
-            StateHasChanged();
             _appData = await _client.GetFromJsonAsync<AppData>($"api/Steam/RandomGameBySteamId/{SteamId}") ??
                 throw new Exception("Unable to retreive games.");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            _logger.LogError(ex, "Error getting random game for {steamId}.", SteamId);
+        }
 
+        try
+        {
             if (_appData.Background is not null)
             {
                 _background = _appData.Background;
-                _backgroundBytes = await _client.GetByteArrayAsync(_background);
+                _backgroundBytes = await backgroundClient.GetByteArrayAsync(_background);
             }
             else
             {
@@ -101,8 +114,8 @@ else
         }
         catch (Exception ex)
         {
-            _errorMessage = ex.Message;
-            _logger.LogError(ex, "Error getting random game for {steamId}.", SteamId);
+            _errorMessage = "Failed to load background image :(";
+            _logger.LogError(ex, "Error getting background image for {steamAppid}.", _appData.SteamAppid);
         }
 
         _isBusy = false;

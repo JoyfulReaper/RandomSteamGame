@@ -3,6 +3,9 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ILocalStorageService LocalStorage
 
+<Alert ErrorMessage="Registration not currently open, please check back soon!" 
+    ErrorClass="alert-danger"/>
+
 <h3>Register</h3>
 
 <Alert SuccessMessage="@_successMessage" />
@@ -45,6 +48,8 @@
 
     async Task HandleRegister()
     {
+        return; // Don't want anyone registering right now since this is very much under development
+
         RegisterRequest registerRequest = new RegisterRequest(_registerModel.FirstName, _registerModel.LastName, _registerModel.Email, _registerModel.Password);
         using var result = await _httpClient.PostAsJsonAsync("api/auth/register", registerRequest);
         var response = await result.Content.ReadFromJsonAsync<AuthenticationResponse>();
