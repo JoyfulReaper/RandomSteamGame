@@ -7,7 +7,8 @@ public class OwnedGamesResponse
     [JsonPropertyName("response")]
     public OwnedGames Response { get; set; } = default!;
 }
-public sealed class OwnedGames
+
+public class OwnedGames
 {
     [JsonPropertyName("game_count")]
     public int GameCount { get; set; }

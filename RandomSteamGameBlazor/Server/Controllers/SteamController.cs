@@ -1,10 +1,13 @@
 ﻿using Mapster;
+using MapsterMapper;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RandomSteamGameBlazor.Server.Features.Steam.Queries.OwnedGames;
 using RandomSteamGameBlazor.Server.Features.Steam.Queries.RandomGame;
 using RandomSteamGameBlazor.Server.Features.Steam.Queries.ResolveVantiy;
-using RandomSteamGameBlazor.Shared.Contracts.SteamApiContracts;
+using RandomSteamGameBlazor.Shared.Contracts.RandomSteamGame;
+using RandomSteamGameBlazor.Shared.Contracts.Steam;
 
 namespace RandomSteamGameBlazor.Server.Controllers;
 
@@ -14,10 +17,26 @@ namespace RandomSteamGameBlazor.Server.Controllers;
 public class SteamController : ApiController
 {
     private readonly ISender _mediator;
+    private readonly IMapper _mapper;
 
-    public SteamController(ISender mediator)
+    public SteamController(
+        ISender mediator,
+        IMapper mapper)
     {
         _mediator = mediator;
+        _mapper = mapper;
+    }
+
+    [HttpGet("OwnedGames/{steamId}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OwnedGamesResponse))]
+    public async Task<IActionResult> GetOwnedGames(long steamId)
+    {
+        var query = new OwnedGamesQuery(steamId);
+        var result = await _mediator.Send(query);
+
+        return result.Match(
+            result => Ok(result),
+            errors => Problem(errors));
     }
     
     [HttpGet("RandomGameBySteamId/{steamId}")]

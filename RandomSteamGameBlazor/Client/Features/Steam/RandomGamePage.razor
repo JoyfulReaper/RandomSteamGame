@@ -23,7 +23,7 @@ else
 @if (!string.IsNullOrEmpty(_errorMessage))
 {
     <div class="alert alert-warning" role="alert">
-        @_errorMessage &nbsp; <a href="random-game/@SteamId">Reload page</a>
+        @_errorMessage &nbsp; <button class="btn btn-sm btn-link p-0 m-0" @onclick="UpdateData">Reload page</button>
     </div>
 }
 

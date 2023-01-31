@@ -25,31 +25,30 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, ErrorOr<A
 
     public async Task<ErrorOr<AppData>> Handle(RandomGameQuery request, CancellationToken cancellationToken)
     {
-        OwnedGames ownedGames;
         try
         {
-            ownedGames = await _steamClient.GetOwnedGames(request.SteamId);
+            var ownedGames = await _steamClient.GetOwnedGames(request.SteamId);
+            
+            if (!ownedGames.Games.Any())
+            {
+                return Errors.Steam.EmptyLibrary;
+            }
+
+            AppDetailsResponse? response = await GetAppData(ownedGames);
+            if (response?.AppData is null)
+            {
+                return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
+            }
+            
+            return response.AppData;
         }
         catch (Exception)
         {
             return Errors.Steam.SteamApiFailed;
         }
-
-        if (!ownedGames.Games.Any())
-        {
-            return Errors.Steam.EmptyLibrary;
-        }
-
-        AppDetailsResponse? response = await GetAppData(ownedGames);
-        if(response?.AppData is null)
-        {
-            return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
-        }
-
-        return response.AppData;
     }
 
-    private async Task<AppDetailsResponse?> GetAppData(OwnedGames ownedGames)
+    private async Task<AppDetailsResponse?> GetAppData(SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames)
     {
         int attempts = 0;
         Game game;

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace RandomSteamGameBlazor.Shared.Contracts;
+namespace RandomSteamGameBlazor.Shared.Contracts.Steam;
 
 public class SteamStoreApiContracts
 {
@@ -112,7 +112,7 @@ public class SteamStoreApiContracts
         public bool ComingSoon { get; set; }
         public string? Date { get; set; }
     }
-    
+
     public class Category
     {
         public int Id { get; set; }

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace RandomSteamGameBlazor.Shared.Contracts.SteamApiContracts;
+namespace RandomSteamGameBlazor.Shared.Contracts.Steam;
 
 public class AppDetailsResponse
 {
