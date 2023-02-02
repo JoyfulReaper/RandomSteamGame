@@ -81,7 +81,8 @@ public static class DependencyInjection
         // Identity
         services.AddDbContext<RandomSteamContext>(opts =>
         {
-            opts.UseSqlServer(configuration.GetConnectionString("RandomSteamGame"));
+            opts.UseSqlServer(configuration.GetConnectionString("RandomSteamGame")
+                ?? throw new Exception($"Connection string: 'RandomSteamGame' not found")); // TODO: Don't hardcode this
         });
 
         services.AddIdentity<RandomSteamUser, IdentityRole>(opts =>

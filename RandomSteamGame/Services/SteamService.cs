@@ -66,6 +66,11 @@ public class SteamService
 
         AppDetailsResponse response = await GetAppData(gamesOwned);
 
+        if(response.AppData is null)
+        {
+            throw new SteamServiceException("Response was successful, but AppData was missing.");
+        }
+
         return response.AppData;
     }
 

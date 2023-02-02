@@ -34,30 +34,31 @@ public class HomeController : Controller
     [HttpPost]
     public async Task<IActionResult> RandomGame(long? steamId, string? customUrl)
     {
-        string errorMessage = string.Empty;
-
-        if (steamId is null && customUrl is null)
+        try
         {
-            errorMessage = "Please enter a Steam ID or Custom URL";
+            if (steamId is null && customUrl is null)
+            {
+                TempData["ErrorMessage"] = "Please enter a Steam ID or Custom URL";
+                return RedirectToAction("Index");
+            }
+            
+            if (customUrl is not null && steamId is null)
+            {
+                steamId = await _steamService.GetSteamIdFromVanityUrl(customUrl);
+                if(steamId is null)
+                {
+                    throw new VanityResolutionException();
+                }
+            }
+
+            return View(new RandomGameViewModel { CustomUrl = customUrl, SteamId = steamId!.Value });
+        }
+        catch (VanityResolutionException)
+        {
+            string errorMessage = $"Could not find a Steam ID for the custom URL: '{customUrl}'";
             TempData["ErrorMessage"] = errorMessage;
             return RedirectToAction("Index");
         }
-
-        if (customUrl is not null && steamId is null)
-        {
-            try
-            {
-                steamId = await _steamService.GetSteamIdFromVanityUrl(customUrl);
-            }
-            catch (VanityResolutionException)
-            {
-                errorMessage = $"Could not find a Steam ID for the custom URL: '{customUrl}'";
-                TempData["ErrorMessage"] = errorMessage;
-                return RedirectToAction("Index");
-            }
-        }
-
-        return View(new RandomGameViewModel { CustomUrl = customUrl, SteamId = steamId.Value, ErrorMessage = errorMessage });
     }
 
     [HttpGet]

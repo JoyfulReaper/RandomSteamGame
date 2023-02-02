@@ -10,13 +10,16 @@ public class OwnedGamesQueryHandler : IRequestHandler<OwnedGamesQuery, ErrorOr<O
 {
     private readonly ISteamClient _steamClient;
     private readonly IMapper _mapper;
+    private readonly ILogger<OwnedGamesQueryHandler> _logger;
 
     public OwnedGamesQueryHandler(
         ISteamClient steamClient,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<OwnedGamesQueryHandler> logger)
     {
         _steamClient = steamClient;
         _mapper = mapper;
+        _logger = logger;
     }
     
     public async Task<ErrorOr<OwnedGamesResponse>> Handle(OwnedGamesQuery request, CancellationToken cancellationToken)
@@ -34,6 +37,7 @@ public class OwnedGamesQueryHandler : IRequestHandler<OwnedGamesQuery, ErrorOr<O
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error getting owned games");
             return Errors.Steam.SteamApiFailed;
         }
     }

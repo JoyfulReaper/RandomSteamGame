@@ -13,7 +13,7 @@
 @*For Testing*@
 <AuthorizeView>
     <Authorized>
-        <span>You're Loged in as @context.User.Identity.Name</span>
+        <span>You're Loged in as @context.User.Identity?.Name ?? "(Unknown)"</span>
     </Authorized>
     <NotAuthorized>
         <span>You're not logged in.</span>

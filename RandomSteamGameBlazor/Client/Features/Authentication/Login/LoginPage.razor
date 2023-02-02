@@ -26,7 +26,8 @@
     {
         LoginRequest _loginRequest = new LoginRequest(_loginModel.Email, _loginModel.Password);
         using var result = await _httpClient.PostAsJsonAsync("api/auth/login", _loginRequest);
-        var response = await result.Content.ReadFromJsonAsync<AuthenticationResponse>();
+        var response = (await result.Content.ReadFromJsonAsync<AuthenticationResponse>()) ?? 
+            throw new Exception("Failed to login");
 
         await LocalStorage.SetItemAsync("token", response.Token);
         await LocalStorage.SetItemAsync("refreshToken", response.RefreshToken);
