@@ -8,11 +8,11 @@ namespace RandomSteamGameBlazor.Server.Features.Steam.Queries.OwnedGames;
 
 public class OwnedGamesQueryHandler : IRequestHandler<OwnedGamesQuery, ErrorOr<OwnedGamesResponse>>
 {
-    private readonly SteamClient _steamClient;
+    private readonly ISteamClient _steamClient;
     private readonly IMapper _mapper;
 
     public OwnedGamesQueryHandler(
-        SteamClient steamClient,
+        ISteamClient steamClient,
         IMapper mapper)
     {
         _steamClient = steamClient;

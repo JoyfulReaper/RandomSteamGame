@@ -6,11 +6,11 @@ namespace RandomSteamGameBlazor.Server.Features.Steam.Queries.ResolveVantiy;
 
 public class ResolveVanityHandler : IRequestHandler<ResolveVanityQuery, ErrorOr<long>>
 {
-    private readonly SteamClient _steamClient;
+    private readonly ISteamClient _steamClient;
     private readonly ILogger<ResolveVanityHandler> _logger;
 
     public ResolveVanityHandler(
-        SteamClient steamClient,
+        ISteamClient steamClient,
         ILogger<ResolveVanityHandler> logger)
     {
         _steamClient = steamClient;

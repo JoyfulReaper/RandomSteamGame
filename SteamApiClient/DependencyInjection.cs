@@ -20,8 +20,8 @@ public static class DependencyInjection
         services.Configure<DistributedCacheEntryOptions>(
             configuration.GetSection(nameof(DistributedCacheEntryOptions)));
 
-        services.AddHttpClient<SteamClient>();
-        services.AddHttpClient<SteamStoreClient>();
+        services.AddHttpClient<ISteamClient, SteamClient>();
+        services.AddHttpClient<ISteamStoreClient, SteamStoreClient>();
 
         services.AddDistributedSqlServerCache(opts =>
         {

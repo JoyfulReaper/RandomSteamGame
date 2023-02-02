@@ -8,14 +8,14 @@ namespace RandomSteamGameBlazor.Server.Features.Steam.Queries.RandomGame;
 
 public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, ErrorOr<AppData>>
 {
-    private readonly SteamClient _steamClient;
-    private readonly SteamStoreClient _steamStoreClient;
+    private readonly ISteamClient _steamClient;
+    private readonly ISteamStoreClient _steamStoreClient;
     private readonly ILogger<RandomGameQueryHandler> _logger;
     private const int MaxAttempts = 3;
 
     public RandomGameQueryHandler(
-        SteamClient steamClient,
-        SteamStoreClient steamStoreClient,
+        ISteamClient steamClient,
+        ISteamStoreClient steamStoreClient,
         ILogger<RandomGameQueryHandler> logger)
     {
         _steamClient = steamClient;

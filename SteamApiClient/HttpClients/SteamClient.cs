@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace SteamApiClient.HttpClients;
 
-public class SteamClient
+public class SteamClient : ISteamClient
 {
     private readonly HttpClient _httpClient;
     private readonly IDistributedCache _cache;
@@ -37,7 +37,7 @@ public class SteamClient
         if (cachedGamesString is null)
         {
             var arguments = string.Empty;
-            if(includeAppInfo)
+            if (includeAppInfo)
             {
                 arguments += "&include_appinfo=1";
             }
@@ -47,12 +47,12 @@ public class SteamClient
                 arguments += "&include_played_free_games=1";
             }
 
-                var ownedGamesString =
-            await _httpClient.GetStringAsync(
-                $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json{arguments}");
+            var ownedGamesString =
+        await _httpClient.GetStringAsync(
+            $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json{arguments}");
 
             await _cache.SetStringAsync($"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}", ownedGamesString, _cacheEntryOptions);
-            var ownedGames = 
+            var ownedGames =
                 JsonSerializer.Deserialize<OwnedGamesResponse>(ownedGamesString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
             return ownedGames!.Response;
@@ -84,14 +84,14 @@ public class SteamClient
             return long.Parse(output.Response.SteamId!);
         }
 
-        var cachedSteamId = 
+        var cachedSteamId =
             JsonSerializer.Deserialize<ResolveVanityUrlResponse>(cachedSteamIdString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        
+
         if (cachedSteamId is null)
         {
             throw new CacheException("Failed to deserialize cached data");
         }
-        
+
         return long.Parse(cachedSteamId.Response.SteamId);
     }
 }

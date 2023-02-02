@@ -8,13 +8,13 @@ namespace RandomSteamGame.Services;
 
 public class SteamService
 {
-    private readonly SteamClient _steamClient;
-    private readonly SteamStoreClient _steamStoreClient;
+    private readonly ISteamClient _steamClient;
+    private readonly ISteamStoreClient _steamStoreClient;
     private readonly ILogger<SteamService> _logger;
 
     public SteamService(
-        SteamClient steamClient,
-        SteamStoreClient steamStoreClient,
+        ISteamClient steamClient,
+        ISteamStoreClient steamStoreClient,
         ILogger<SteamService> logger)
     {
         _steamClient = steamClient;

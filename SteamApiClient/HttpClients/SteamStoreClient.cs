@@ -7,7 +7,7 @@ using SteamApiClient.Exceptions;
 
 namespace SteamApiClient.HttpClients;
 
-public class SteamStoreClient
+public class SteamStoreClient : ISteamStoreClient
 {
     private readonly HttpClient _httpClient;
     private readonly IDistributedCache _cache;
@@ -30,7 +30,7 @@ public class SteamStoreClient
     public async Task<AppDetailsResponse> GetAppData(int appId)
     {
         var cachedAppDataString = await _cache.GetStringAsync($"appId_{appId}");
-        if(cachedAppDataString is null)
+        if (cachedAppDataString is null)
         {
             var jsonResponse = await _httpClient.GetStringAsync($"/api/appdetails?appids={appId}");
 
@@ -45,7 +45,7 @@ public class SteamStoreClient
         var cachedWithoutRoot = JsonDocument.Parse(cachedAppDataString).RootElement.GetProperty(appId.ToString());
         var cachedOutput = JsonSerializer.Deserialize<AppDetailsResponse>(cachedWithoutRoot);
 
-        if(cachedOutput is null)
+        if (cachedOutput is null)
         {
             throw new CacheException("Failed to deserialize cached data");
         }
