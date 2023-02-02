@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using RandomSteamGameBlazor.Server.Common.Services;
+using RandomSteamGameBlazor.Server.Common.Errors;
 using RandomSteamGameBlazor.Server.Features.Authentication.Common;
 using System.Security.Authentication;
 
@@ -35,6 +36,10 @@ public class TokenRefreshHandler : IRequestHandler<TokenRefreshCommand, ErrorOr<
             return principalResult.Errors;
         }
 
+        if (principalResult.Value.Identity is null)
+        {
+            return Errors.Authentication.InvalidCredentials;
+        }
 
         var username = principalResult.Value.Identity.Name;
         var user = await _userManager.FindByNameAsync(username);

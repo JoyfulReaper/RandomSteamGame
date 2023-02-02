@@ -51,11 +51,10 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, ErrorOr<A
     private async Task<AppDetailsResponse?> GetAppData(SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames)
     {
         int attempts = 0;
-        Game game;
         AppDetailsResponse response = new();
         while (!response.Success)
         {
-            game = ownedGames.Games[Random.Shared.Next(0, ownedGames.GameCount - 1)];
+            Game game = ownedGames.Games[Random.Shared.Next(0, ownedGames.GameCount - 1)];
             response = await _steamStoreClient.GetAppData(game.AppId);
 
             if (!response.Success)

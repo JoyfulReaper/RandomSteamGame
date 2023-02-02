@@ -67,7 +67,7 @@ public class AuthenticationController : ApiController
     [HttpPost("revoke")]
     public async Task<IActionResult> Revoke()
     {
-        var query = new TokenRevokeCommand(User.Identity.Name);
+        var query = new TokenRevokeCommand(User.Identity?.Name);
         var result = await _mediator.Send(query);
 
         return result.Match(

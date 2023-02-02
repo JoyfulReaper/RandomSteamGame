@@ -69,16 +69,16 @@ public class AppData
     public List<string> publishers { get; set; } = new();
 
     [JsonPropertyName("price_overview")]
-    public PriceOverview PriceOverview { get; set; }
+    public PriceOverview? PriceOverview { get; set; }
     
-    public int[] Packages { get; set; }
+    public int[]? Packages { get; set; }
     
     //[JsonPropertyName("package_groups")]
     //public PackageGroups[] PackageGroups { get; set; }
     
-    public Platforms Platforms { get; set; }
+    public Platforms? Platforms { get; set; }
     
-    public Metacritic Metacritic { get; set; }
+    public Metacritic? Metacritic { get; set; }
     
     [JsonPropertyName("categories")]
     public List<Category> Categories { get; set; } = new();
@@ -89,15 +89,15 @@ public class AppData
     [JsonPropertyName("screenshots")]
     public List<Screenshot> screenshots { get; set; } = new();
     
-    public Recommendations Recommendations { get; set; }
+    public Recommendations? Recommendations { get; set; }
     
-    public Achievements Achievements { get; set; }
+    public Achievements? Achievements { get; set; }
     
     [JsonPropertyName("release_date")]
     public ReleaseDate ReleaseDate { get; set; } = default!;
 
     [JsonPropertyName("support_info")]
-    public SupportInfo SupportInfo { get; set; }
+    public SupportInfo? SupportInfo { get; set; }
     
     [JsonPropertyName("background")]
     public string? Background { get; set; } = default!;
@@ -106,30 +106,30 @@ public class AppData
     public string BackgroundRaw { get; set; } = default!;
     
     [JsonPropertyName("content_descriptors")]
-    public ContentDescriptors ContentDescriptors { get; set; }
+    public ContentDescriptors? ContentDescriptors { get; set; }
 }
 
 public class PcRequirements
 {
-    public string Minimum { get; set; }
-    public string Recommended { get; set; }
+    public string? Minimum { get; set; }
+    public string? Recommended { get; set; }
 }
 
 public class MacRequirements
 {
-    public string Minimum { get; set; }
-    public string Recommended { get; set; }
+    public string? Minimum { get; set; }
+    public string? Recommended { get; set; }
 }
 
 public class LinuxRequirements
 {
-    public string Minimum { get; set; }
-    public string Recommended { get; set; }
+    public string? Minimum { get; set; }
+    public string? Recommended { get; set; }
 }
 
 public class PriceOverview
 {
-    public string Currency { get; set; }
+    public string? Currency { get; set; }
     public int Initial { get; set; }
     public int Final { get; set; }
 
@@ -137,10 +137,10 @@ public class PriceOverview
     public int DiscountPercent { get; set; }
 
     [JsonPropertyName("initial_formatted")]
-    public string InitialFormatted { get; set; }
+    public string? InitialFormatted { get; set; }
 
     [JsonPropertyName("final_formatted")]
-    public string FinalFormatted { get; set; }
+    public string? FinalFormatted { get; set; }
 }
 
 public class Platforms
@@ -153,7 +153,7 @@ public class Platforms
 public class Metacritic
 {
     public int Score { get; set; }
-    public string Url { get; set; }
+    public string? Url { get; set; }
 }
 
 public class Recommendations
@@ -164,71 +164,71 @@ public class Recommendations
 public class Achievements
 {
     public int Total { get; set; }
-    public Highlighted[] Highlighted { get; set; }
+    public Highlighted[]? Highlighted { get; set; }
 }
 
 public class Highlighted
 {
-    public string Name { get; set; }
-    public string Path { get; set; }
+    public string? Name { get; set; }
+    public string? Path { get; set; }
 }
 
 public class ReleaseDate
 {
     [JsonPropertyName("coming_soon")]
     public bool ComingSoon { get; set; }
-    public string Date { get; set; }
+    public string? Date { get; set; }
 }
 
 public class SupportInfo
 {
-    public string Url { get; set; }
-    public string Email { get; set; }
+    public string? Url { get; set; }
+    public string? Email { get; set; }
 }
 
 public class ContentDescriptors
 {
-    public object[] Ids { get; set; }
-    public object Notes { get; set; }
+    public object[]? Ids { get; set; }
+    public object? Notes { get; set; }
 }
 
 public class PackageGroups
 {
-    public string Name { get; set; }
-    public string Title { get; set; }
-    public string Description { get; set; }
+    public string? Name { get; set; }
+    public string? Title { get; set; }
+    public string? Description { get; set; }
 
     [JsonPropertyName("selection_text")]
-    public string SelectionText { get; set; }
+    public string? SelectionText { get; set; }
 
     [JsonPropertyName("save_text")]
-    public string SaveText { get; set; }
+    public string? SaveText { get; set; }
 
     [JsonPropertyName("display_type")]
     public int DisplayType { get; set; }
 
     [JsonPropertyName("is_recurring_subscription")]
-    public string IsRecurringSubscription { get; set; }
-    public Sub[] Subs { get; set; }
+    public string? IsRecurringSubscription { get; set; }
+    public Sub[]? Subs { get; set; }
 }
 
 public class Sub
 {
     public int PackageId { get; set; }
     [JsonPropertyName("percent_savings_text")]
-    public string PercentSavingsText { get; set; }
+    public string? PercentSavingsText { get; set; }
 
     [JsonPropertyName("percent_savings")]
     public int PercentSavings { get; set; }
 
     [JsonPropertyName("option_text")]
-    public string OptionText { get; set; }
+    public string? OptionText { get; set; }
 
     [JsonPropertyName("option_description")]
-    public string OptionDescription { get; set; }
+    public string? OptionDescription { get; set; }
 
     [JsonPropertyName("can_get_free_license")]
-    public string CanGetFreeLicense { get; set; }
+    public string? CanGetFreeLicense { get; set; }
 
     [JsonPropertyName("is_free_license")]
     public bool IsFreeLicense { get; set; }
@@ -240,13 +240,13 @@ public class Sub
 public class Category
 {
     public int Id { get; set; }
-    public string Description { get; set; }
+    public string? Description { get; set; }
 }
 
 public class Genre
 {
-    public string Id { get; set; }
-    public string Description { get; set; }
+    public string? Id { get; set; }
+    public string? Description { get; set; }
 }
 
 public class Screenshot
@@ -254,8 +254,8 @@ public class Screenshot
     public int Id { get; set; }
 
     [JsonPropertyName("path_thumbnail")]
-    public string PathThumbnail { get; set; }
+    public string? PathThumbnail { get; set; }
 
     [JsonPropertyName("path_full")]
-    public string PathFull { get; set; }
+    public string? PathFull { get; set; }
 }
