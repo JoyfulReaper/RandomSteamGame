@@ -3,8 +3,8 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using RandomSteamGameBlazor.Server.Common.Services;
+using RandomSteamGameBlazor.Server.Features.Authentication.Commands.Register;
 using RandomSteamGameBlazor.Server.Features.Authentication.Common;
-using System.Security.Authentication;
 
 namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands;
 

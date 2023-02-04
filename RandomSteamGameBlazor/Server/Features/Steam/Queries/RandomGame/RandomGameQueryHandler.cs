@@ -34,7 +34,7 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, ErrorOr<A
                 return Errors.Steam.EmptyLibrary;
             }
 
-            AppDetailsResponse? response = await GetAppData(ownedGames);
+            var response = await GetAppDataAsync(ownedGames);
             if (response?.AppData is null)
             {
                 return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
@@ -48,10 +48,10 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, ErrorOr<A
         }
     }
 
-    private async Task<AppDetailsResponse?> GetAppData(SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames)
+    private async Task<AppDetailsResponse?> GetAppDataAsync(SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames)
     {
         int attempts = 0;
-        AppDetailsResponse response = new();
+        var response = new AppDetailsResponse();
         while (!response.Success)
         {
             Game game = ownedGames.Games[Random.Shared.Next(0, ownedGames.GameCount - 1)];

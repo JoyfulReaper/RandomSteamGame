@@ -3,7 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Identity;
 using RandomSteamGameBlazor.Server.Common.Errors;
 
-namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands;
+namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands.TokenRevoke;
 
 public class TokenRevokeHandler : IRequestHandler<TokenRevokeCommand, ErrorOr<Success>>
 {

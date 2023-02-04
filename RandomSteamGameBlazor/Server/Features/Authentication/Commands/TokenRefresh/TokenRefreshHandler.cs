@@ -7,7 +7,7 @@ using RandomSteamGameBlazor.Server.Common.Errors;
 using RandomSteamGameBlazor.Server.Features.Authentication.Common;
 using System.Security.Authentication;
 
-namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands;
+namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands.TokenRefresh;
 
 public class TokenRefreshHandler : IRequestHandler<TokenRefreshCommand, ErrorOr<AuthenticationResult>>
 {
@@ -31,7 +31,7 @@ public class TokenRefreshHandler : IRequestHandler<TokenRefreshCommand, ErrorOr<
     public async Task<ErrorOr<AuthenticationResult>> Handle(TokenRefreshCommand request, CancellationToken cancellationToken)
     {
         var principalResult = _jwtTokenGenerator.GetPrincipalFromExpiredToken(request.token);
-        if(principalResult.IsError)
+        if (principalResult.IsError)
         {
             return principalResult.Errors;
         }

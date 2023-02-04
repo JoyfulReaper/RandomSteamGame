@@ -2,7 +2,7 @@
 using MediatR;
 using RandomSteamGameBlazor.Server.Features.Authentication.Common;
 
-namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands;
+namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands.TokenRefresh;
 
 public record TokenRefreshCommand(
     string token,

@@ -6,7 +6,7 @@ using RandomSteamGameBlazor.Server.Common.Services;
 using RandomSteamGameBlazor.Server.Features.Authentication.Common;
 using RandomSteamGameBlazor.Server.Common.Errors;
 
-namespace RandomSteamGameBlazor.Server.Features.Authentication.Queries;
+namespace RandomSteamGameBlazor.Server.Features.Authentication.Queries.Login;
 
 public class LoginQueryHandler : IRequestHandler<LoginQuery, ErrorOr<AuthenticationResult>>
 {
@@ -30,16 +30,16 @@ public class LoginQueryHandler : IRequestHandler<LoginQuery, ErrorOr<Authenticat
         _userManager = userManager;
         _signInManager = signInManager;
     }
-
+    
     public async Task<ErrorOr<AuthenticationResult>> Handle(LoginQuery request, CancellationToken cancellationToken)
     {
-        RandomSteamUser? user = await _userManager.FindByEmailAsync(request.Email);
+        var user = await _userManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
             return Errors.Authentication.InvalidCredentials;
         }
 
-        SignInResult result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, true);
+        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, true);
         if (!result.Succeeded)
         {
             return Errors.Authentication.InvalidCredentials;

@@ -32,8 +32,7 @@ public class OwnedGamesQueryHandler : IRequestHandler<OwnedGamesQuery, ErrorOr<O
                 return Errors.Steam.EmptyLibrary;
             }
 
-            var output = _mapper.Map<OwnedGamesResponse>((ownedGames, request.steamId));
-            return output;
+            return _mapper.Map<OwnedGamesResponse>((ownedGames, request.steamId));
         }
         catch (Exception ex)
         {

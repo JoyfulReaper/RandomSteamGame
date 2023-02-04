@@ -14,7 +14,7 @@ public class RandomSteamUser : IdentityUser
     public DateTime RefreshTokenExpiryTime { get; set; }
 }
 
-public class PlantBuddyUserConfiguration : IEntityTypeConfiguration<RandomSteamUser>
+public class RandomSteamUserUserConfiguration : IEntityTypeConfiguration<RandomSteamUser>
 {
     public void Configure(EntityTypeBuilder<RandomSteamUser> builder)
     {

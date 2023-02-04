@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using RandomSteamGameBlazor.Server.Features.Authentication.Commands.Register;
 
 namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands;
 

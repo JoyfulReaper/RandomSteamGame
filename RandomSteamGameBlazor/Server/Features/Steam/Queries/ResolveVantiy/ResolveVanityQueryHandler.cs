@@ -4,14 +4,14 @@ using SteamApiClient.HttpClients;
 
 namespace RandomSteamGameBlazor.Server.Features.Steam.Queries.ResolveVantiy;
 
-public class ResolveVanityHandler : IRequestHandler<ResolveVanityQuery, ErrorOr<long>>
+public class ResolveVanityQueryHandler : IRequestHandler<ResolveVanityQuery, ErrorOr<long>>
 {
     private readonly ISteamClient _steamClient;
-    private readonly ILogger<ResolveVanityHandler> _logger;
+    private readonly ILogger<ResolveVanityQueryHandler> _logger;
 
-    public ResolveVanityHandler(
+    public ResolveVanityQueryHandler(
         ISteamClient steamClient,
-        ILogger<ResolveVanityHandler> logger)
+        ILogger<ResolveVanityQueryHandler> logger)
     {
         _steamClient = steamClient;
         _logger = logger;

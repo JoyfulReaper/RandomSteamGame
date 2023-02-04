@@ -1,7 +1,8 @@
 ﻿using Mapster;
-using RandomSteamGameBlazor.Server.Features.Authentication.Commands;
+using RandomSteamGameBlazor.Server.Features.Authentication.Commands.Register;
+using RandomSteamGameBlazor.Server.Features.Authentication.Commands.TokenRefresh;
 using RandomSteamGameBlazor.Server.Features.Authentication.Common;
-using RandomSteamGameBlazor.Server.Features.Authentication.Queries;
+using RandomSteamGameBlazor.Server.Features.Authentication.Queries.Login;
 using RandomSteamGameBlazor.Shared.Contracts.Authentication;
 
 namespace RandomSteamGameBlazor.Server.Common.Mapping;
