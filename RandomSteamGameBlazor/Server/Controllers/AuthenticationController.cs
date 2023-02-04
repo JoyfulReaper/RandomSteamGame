@@ -53,7 +53,6 @@ public class AuthenticationController : ApiController
             errors => Problem(errors));
     }
 
-    [Authorize]
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(TokenRefreshRequest request)
     {

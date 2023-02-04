@@ -29,8 +29,8 @@
         var response = (await result.Content.ReadFromJsonAsync<AuthenticationResponse>()) ?? 
             throw new Exception("Failed to login");
 
-        await LocalStorage.SetItemAsync("token", response.Token);
-        await LocalStorage.SetItemAsync("refreshToken", response.RefreshToken);
+        await LocalStorage.SetItemAsync(LocalStorageKeys.Token, response.Token);
+        await LocalStorage.SetItemAsync(LocalStorageKeys.RefreshToken, response.RefreshToken);
         await AuthStateProvider.GetAuthenticationStateAsync();
     }
 

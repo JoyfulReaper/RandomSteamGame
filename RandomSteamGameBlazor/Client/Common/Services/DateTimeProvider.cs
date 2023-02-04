@@ -1,4 +1,4 @@
-﻿namespace RandomSteamGameBlazor.Server.Common.Services;
+﻿namespace RandomSteamGameBlazor.Client.Common.Services;
 
 public class DateTimeProvider : IDateTimeProvider
 {

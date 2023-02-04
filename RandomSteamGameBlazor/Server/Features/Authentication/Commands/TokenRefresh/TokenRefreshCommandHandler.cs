@@ -9,14 +9,14 @@ using System.Security.Authentication;
 
 namespace RandomSteamGameBlazor.Server.Features.Authentication.Commands.TokenRefresh;
 
-public class TokenRefreshHandler : IRequestHandler<TokenRefreshCommand, ErrorOr<AuthenticationResult>>
+public class TokenRefreshCommandHandler : IRequestHandler<TokenRefreshCommand, ErrorOr<AuthenticationResult>>
 {
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly UserManager<RandomSteamUser> _userManager;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly JwtSettings _jwtSettings;
 
-    public TokenRefreshHandler(
+    public TokenRefreshCommandHandler(
         IJwtTokenGenerator jwtTokenGenerator,
         UserManager<RandomSteamUser> userManager,
         IDateTimeProvider dateTimeProvider,
@@ -48,7 +48,7 @@ public class TokenRefreshHandler : IRequestHandler<TokenRefreshCommand, ErrorOr<
             user.RefreshToken != request.refreshToken ||
             user.RefreshTokenExpiryTime <= _dateTimeProvider.UtcNow)
         {
-            throw new AuthenticationException("Invalid Token");
+            return Errors.Authentication.InvalidToken;
         }
 
         var newToken = _jwtTokenGenerator.GenerateToken(user);

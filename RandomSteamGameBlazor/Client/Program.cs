@@ -3,6 +3,7 @@ using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using RandomSteamGameBlazor.Client;
+using RandomSteamGameBlazor.Client.Common.Services;
 using RandomSteamGameBlazor.Client.Features.Authentication;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -14,6 +15,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
     builder.Services.AddHttpClient();
 
     builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
+    builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
     builder.Services.AddHttpContextAccessor();
 

@@ -77,8 +77,8 @@
     {
         if (firstRender)
         {
-            _homePageModel.SteamId = await _localStorageService.GetItemAsync<long?>("steamId");
-            _homePageModel.VanityUrl = await _localStorageService.GetItemAsStringAsync("customUrl");
+            _homePageModel.SteamId = await _localStorageService.GetItemAsync<long?>(LocalStorageKeys.SteamId);
+            _homePageModel.VanityUrl = await _localStorageService.GetItemAsStringAsync(LocalStorageKeys.VanityUrl);
 
             StateHasChanged();
         }
@@ -109,8 +109,8 @@
             }
         }
 
-        await _localStorageService.SetItemAsync<long?>("steamId", _homePageModel.SteamId);
-        await _localStorageService.SetItemAsStringAsync("customUrl", _homePageModel.VanityUrl ?? "");
+        await _localStorageService.SetItemAsync<long?>(LocalStorageKeys.SteamId, _homePageModel.SteamId);
+        await _localStorageService.SetItemAsStringAsync(LocalStorageKeys.VanityUrl, _homePageModel.VanityUrl ?? "");
 
         _navigationManager.NavigateTo($"/random-game/{_homePageModel.SteamId}");
     }
