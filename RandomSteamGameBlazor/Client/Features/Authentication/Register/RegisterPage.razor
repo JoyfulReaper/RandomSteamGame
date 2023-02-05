@@ -3,34 +3,51 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ILocalStorageService LocalStorage
 
-<Alert ErrorMessage="Registration not currently open, please check back soon!" 
-    ErrorClass="alert-danger"/>
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6">
+        <header class="border border-1 shadow-lg p-2 mb-3 text-center h3 radialGradient text-white">
+            Register for the Random Steam Game Picker.
+        </header>
 
-<h3>Register</h3>
+        <Alert ErrorMessage="Registration not currently open, please check back soon!"
+               ErrorClass="alert-danger" />
 
-<Alert SuccessMessage="@_successMessage" />
+        <Alert SuccessMessage="@_successMessage" />
 
-<EditForm Model="_registerModel" OnSubmit="HandleRegister">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-    <div class="mb-1">
-        <label for="firstName">First Name</label>
-        <InputText class="form-control" id="firstName" @bind-Value="_registerModel.FirstName" />
+        <EditForm Model="_registerModel"
+            OnSubmit="HandleRegister"
+            class="p-2 border border-1 shadow-lg">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <div class="mb-1">
+                <label for="firstName">First Name</label>
+                <InputText class="form-control" id="firstName" @bind-Value="_registerModel.FirstName" />
+            </div>
+            <div class="mb-1">
+                <label for="lastName">Last Name</label>
+                <InputText class="form-control" id="lastName" @bind-Value="_registerModel.LastName" />
+            </div>
+            <div class="mb-1">
+                <label for="email">Email</label>
+                <InputText class="form-control" id="email" @bind-Value="_registerModel.Email" />
+            </div>
+            <div class="mb-1">
+                <label for="password">Password</label>
+                <InputText class="form-control"
+                           id="password"
+                           @bind-Value="_registerModel.Password"
+                           type="password" />
+            </div>
+            <button class="btn btn-primary"
+                    type="submit"
+                    disabled>
+                Register
+            </button>
+        </EditForm>
+
     </div>
-    <div class="mb-1">
-        <label for="lastName">Last Name</label>
-        <InputText class="form-control" id="lastName" @bind-Value="_registerModel.LastName" />
-    </div>
-    <div class="mb-1">
-        <label for="email">Email</label>
-        <InputText class="form-control" id="email" @bind-Value="_registerModel.Email" />
-    </div>
-    <div class="mb-1">
-        <label for="password">Password</label>
-        <InputText class="form-control" id="password" @bind-Value="_registerModel.Password" />
-    </div>
-    <button class="btn btn-primary" type="submit">Register</button>
-</EditForm>
+</div>
+
 
 @code {
     private RegisterModel _registerModel { get; set; } = new RegisterModel();
