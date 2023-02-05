@@ -33,10 +33,10 @@
                            id="password"
                            @bind-Value="_loginModel.Password" />
             </div>
-            <button class="btn btn-primary"
-                    type="submit">
-                    disable="@_loggingIn"/>
-                Login
+            <button class="btn @(_loggingIn ? "btn-warning" :"btn-primary")"
+                    type="submit"
+                    disabled="@_loggingIn">
+                @(_loggingIn ? "Working..." : "Log in")
             </button>
         </EditForm>
     </div>
@@ -50,6 +50,7 @@
 
     async Task HandleLogin()
     {
+        _loggingIn = true;
         _errorMessage = null;
 
         LoginRequest _loginRequest = new LoginRequest(_loginModel.Email, _loginModel.Password);
@@ -68,18 +69,19 @@
                 _errorMessage = "Login failed";
             }
 
+            _loggingIn = false;
             return;
         }
 
         var response = (await result.Content.ReadFromJsonAsync<AuthenticationResponse>()) ??
             throw new Exception("Failed to login");
 
-
         await LocalStorage.SetItemAsync(LocalStorageKeys.Token, response.Token);
         await LocalStorage.SetItemAsync(LocalStorageKeys.RefreshToken, response.RefreshToken);
         await AuthStateProvider.GetAuthenticationStateAsync();
 
         _navigationManager.NavigateTo("/");
+        _loggingIn = false;
     }
 
     private class LoginModel
