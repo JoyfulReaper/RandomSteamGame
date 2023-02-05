@@ -4,12 +4,12 @@ using RandomSteamGameBlazor.Client.Common;
 
 namespace RandomSteamGameBlazor.Client.Features.Authentication.Queries;
 
-public class LogOutQueryHandler : IRequestHandler<LogOutQuery, Unit>
+public class LogOutCommandHandler : IRequestHandler<LogoutCommand, Unit>
 {
     private readonly ILocalStorageService _localStorageService;
     private readonly AuthenticationStateProvider _authenticationStateProvider;
 
-    public LogOutQueryHandler(
+    public LogOutCommandHandler(
         ILocalStorageService localStorageService,
         AuthenticationStateProvider authenticationStateProvider)
     {
@@ -17,7 +17,7 @@ public class LogOutQueryHandler : IRequestHandler<LogOutQuery, Unit>
         _authenticationStateProvider = authenticationStateProvider;
     }
 
-    public async Task<Unit> Handle(LogOutQuery request, CancellationToken cancellationToken)
+    public async Task<Unit> Handle(LogoutCommand request, CancellationToken cancellationToken)
     {
         await _localStorageService.RemoveItemsAsync(new List<string> {
             LocalStorageKeys.Token,

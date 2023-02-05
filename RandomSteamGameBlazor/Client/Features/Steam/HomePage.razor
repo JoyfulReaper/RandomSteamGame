@@ -39,13 +39,19 @@
 
     <div class="col-12 col-md-6">
 
-        <div class="border border-1 shadow-lg p-2 mb-3">
+        <header class="border border-1 shadow-lg p-2 mb-3 text-center h3 radialGradient text-white">
             Welcome to the Random Steam Game Picker.
-        </div>
+        </header>
 
         <EditForm Model="_homePageModel"
                   OnValidSubmit="HandleValidSubmit"
                   class="border border-1 shadow-lg p-2">
+
+            <p class="lh-1 lead text-center">
+                Enter your Steam Id or Custom url and press the 'Go!' button to pick a random game from your Steam library.
+                See the instructions below if you are unsure of how to find this information.
+            </p>
+
             <div class="">
                 <label for="txtSteamId" class="form-label">17 digit Steam ID</label>
                 <InputNumber class="form-control"
@@ -149,6 +155,6 @@
 
     private async Task Logout()
     {
-        await _mediator.Send(new LogOutQuery());
+        await _mediator.Send(new LogoutCommand());
     }
 }

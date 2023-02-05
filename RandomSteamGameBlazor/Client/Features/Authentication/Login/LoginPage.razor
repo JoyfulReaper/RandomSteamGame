@@ -1,45 +1,85 @@
 ﻿@page "/login"
+
 @inject HttpClient _httpClient
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ILocalStorageService LocalStorage
+@inject NavigationManager _navigationManager
 
-<h3>Login</h3>
 
-<EditForm Model="_loginModel" OnSubmit="HandleLogin">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-    <div class="mb-1">
-        <label for="username">Username</label>
-        <InputText class="form-control"
-        id="username" 
-        @bind-Value="_loginModel.Email" />
+<div class="row justify-content-center mb-5">
+    <div class="col-12 col-md-6">
+
+        <header class="border border-1 shadow-lg p-2 mb-3 text-center h3 radialGradient text-white">
+            Login to the Random Steam Game Picker.
+        </header>
+
+        <Alert ErrorMessage="@_errorMessage" />
+
+        <EditForm Model="_loginModel"
+                  OnSubmit="HandleLogin"
+                  class="p-2 border border-1 shadow-lg">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <div class="mb-1">
+                <label for="username">Username</label>
+                <InputText class="form-control"
+                           id="username"
+                           @bind-Value="_loginModel.Email" />
+            </div>
+            <div class="mb-1">
+                <label for="password">Password</label>
+                <InputText class="form-control"
+                           type="password"
+                           id="password"
+                           @bind-Value="_loginModel.Password" />
+            </div>
+            <button class="btn btn-primary"
+                    type="submit">
+                    disable="@_loggingIn"/>
+                Login
+            </button>
+        </EditForm>
     </div>
-    <div class="mb-1">
-        <label for="password">Password</label>
-        <InputText class="form-control"
-        type="password"
-        id="password" 
-        @bind-Value="_loginModel.Password" />
-    </div>
-    <button class="btn btn-primary" type="submit">Login</button>
-</EditForm>
+</div>
 
 @code {
     LoginModel _loginModel { get; set; } = new LoginModel();
+    private string? _errorMessage = null;
+    private bool _loggingIn = false;
+
 
     async Task HandleLogin()
     {
+        _errorMessage = null;
+
         LoginRequest _loginRequest = new LoginRequest(_loginModel.Email, _loginModel.Password);
         using var result = await _httpClient.PostAsJsonAsync("api/auth/login", _loginRequest);
-        result.EnsureSuccessStatusCode();
 
-        var response = (await result.Content.ReadFromJsonAsync<AuthenticationResponse>()) ?? 
+        if (!result.IsSuccessStatusCode)
+        {
+            var test = await result.Content.ReadAsStringAsync();
+            var errorResponse = JsonSerializer.Deserialize<ProblemJson>(await result.Content.ReadAsStringAsync(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            if (errorResponse.Errors.ContainsKey("Auth.InvalidCred"))
+            {
+                _errorMessage = "Invalid username or password";
+            }
+            else
+            {
+                _errorMessage = "Login failed";
+            }
+
+            return;
+        }
+
+        var response = (await result.Content.ReadFromJsonAsync<AuthenticationResponse>()) ??
             throw new Exception("Failed to login");
 
 
         await LocalStorage.SetItemAsync(LocalStorageKeys.Token, response.Token);
         await LocalStorage.SetItemAsync(LocalStorageKeys.RefreshToken, response.RefreshToken);
         await AuthStateProvider.GetAuthenticationStateAsync();
+
+        _navigationManager.NavigateTo("/");
     }
 
     private class LoginModel

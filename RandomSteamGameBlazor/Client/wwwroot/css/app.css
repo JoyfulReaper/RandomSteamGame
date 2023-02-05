@@ -51,3 +51,8 @@ body {
     background-repeat: no-repeat;
     background-attachment: fixed;
 }
+
+.radialGradient {
+    background: rgb(27,0,36);
+    background: radial-gradient(circle, rgba(27,0,36,1) 0%, rgba(99,121,9,1) 35%, rgba(0,239,255,1) 100%);
+}

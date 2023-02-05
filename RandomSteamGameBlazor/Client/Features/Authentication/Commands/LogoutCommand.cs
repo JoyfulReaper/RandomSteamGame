@@ -2,4 +2,4 @@
 
 namespace RandomSteamGameBlazor.Client.Features.Authentication.Queries;
 
-public record LogOutQuery() : IRequest<Unit>;
+public record LogoutCommand() : IRequest<Unit>;

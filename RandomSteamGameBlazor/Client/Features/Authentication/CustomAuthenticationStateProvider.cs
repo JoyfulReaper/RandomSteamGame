@@ -33,7 +33,7 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
         var identity = new ClaimsIdentity();
         _http.DefaultRequestHeaders.Authorization = null;
 
-        if (!string.IsNullOrEmpty(token))
+        if (!string.IsNullOrEmpty(token) && token != "null")
         {
             var claims = ParseClaimsFromJwt(token).ToList();
             var expiration = claims.Where(c => c.Type == "exp").FirstOrDefault();
