@@ -10,11 +10,16 @@
     <ValidationSummary />
     <div class="mb-1">
         <label for="username">Username</label>
-        <InputText class="form-control" id="username" @bind-Value="_loginModel.Email" />
+        <InputText class="form-control"
+        id="username" 
+        @bind-Value="_loginModel.Email" />
     </div>
     <div class="mb-1">
         <label for="password">Password</label>
-        <InputText class="form-control" id="password" @bind-Value="_loginModel.Password" />
+        <InputText class="form-control"
+        type="password"
+        id="password" 
+        @bind-Value="_loginModel.Password" />
     </div>
     <button class="btn btn-primary" type="submit">Login</button>
 </EditForm>
@@ -26,8 +31,11 @@
     {
         LoginRequest _loginRequest = new LoginRequest(_loginModel.Email, _loginModel.Password);
         using var result = await _httpClient.PostAsJsonAsync("api/auth/login", _loginRequest);
+        result.EnsureSuccessStatusCode();
+
         var response = (await result.Content.ReadFromJsonAsync<AuthenticationResponse>()) ?? 
             throw new Exception("Failed to login");
+
 
         await LocalStorage.SetItemAsync(LocalStorageKeys.Token, response.Token);
         await LocalStorage.SetItemAsync(LocalStorageKeys.RefreshToken, response.RefreshToken);

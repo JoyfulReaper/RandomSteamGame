@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using RandomSteamGameBlazor.Client;
 using RandomSteamGameBlazor.Client.Common.Services;
 using RandomSteamGameBlazor.Client.Features.Authentication;
+using MediatR;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 {
@@ -18,10 +19,10 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
     builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
     builder.Services.AddHttpContextAccessor();
-
     builder.Services.AddAuthorizationCore();
-
     builder.Services.AddBlazoredLocalStorage();
+    builder.Services.AddMediatR(typeof(Program).Assembly);
 
-    await builder.Build().RunAsync();
+    await builder.Build()
+        .RunAsync();
 }
