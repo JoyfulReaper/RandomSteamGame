@@ -27,8 +27,8 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        var token = await _localStorage.GetItemAsStringAsync(LocalStorageKeys.Token);
-        var refreshToken = await _localStorage.GetItemAsStringAsync(LocalStorageKeys.RefreshToken);
+        var token = (await _localStorage.GetItemAsStringAsync(LocalStorageKeys.Token))?.Replace("\"", "");
+        var refreshToken = (await _localStorage.GetItemAsStringAsync(LocalStorageKeys.RefreshToken))?.Replace("\"", "");
 
         var identity = new ClaimsIdentity();
         _http.DefaultRequestHeaders.Authorization = null;
@@ -46,6 +46,10 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
                 if (expirationDate < now)
                 {
                     var authResult = await RefreshTokenAsync(token, refreshToken);
+                    if (authResult is null)
+                    {
+                        return CreateAuthenticationState(identity);
+                    }
                     claims = ParseClaimsFromJwt(token).ToList();
                 }
             }
@@ -53,25 +57,37 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
             identity = new ClaimsIdentity(claims, "jwt", "name", null);
 
             _http.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token.Replace("\"", ""));
+                new AuthenticationHeaderValue("Bearer", token);
         }
 
+        return CreateAuthenticationState(identity);
+    }
+
+    private AuthenticationState CreateAuthenticationState(ClaimsIdentity identity)
+    {
         var user = new ClaimsPrincipal(identity);
         var state = new AuthenticationState(user);
 
         NotifyAuthenticationStateChanged(Task.FromResult(state));
-
         return state;
     }
 
-    private async Task<AuthenticationResponse> RefreshTokenAsync(string token, string refreshToken)
+    private async Task<AuthenticationResponse?> RefreshTokenAsync(string token, string refreshToken)
     {
         var refreshRequest = new TokenRefreshRequest(token, refreshToken);
         using var response = await _http.PostAsJsonAsync("api/auth/refresh", refreshRequest);
 
+        if(!response.IsSuccessStatusCode)
+        {
+            await _localStorage.RemoveItemsAsync(new List<string> { LocalStorageKeys.Token, LocalStorageKeys.RefreshToken });
+            return null;
+        }
+
         var authResult = await response.Content.ReadFromJsonAsync<AuthenticationResponse>();
+
         await _localStorage.SetItemAsync(LocalStorageKeys.Token, token);
         await _localStorage.SetItemAsync(LocalStorageKeys.RefreshToken, refreshToken);
+
         return authResult;
     }
 
