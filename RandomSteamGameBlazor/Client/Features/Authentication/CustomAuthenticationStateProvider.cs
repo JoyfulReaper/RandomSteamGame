@@ -85,8 +85,8 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 
         var authResult = await response.Content.ReadFromJsonAsync<AuthenticationResponse>();
 
-        await _localStorage.SetItemAsync(LocalStorageKeys.Token, authResult.Token);
-        await _localStorage.SetItemAsync(LocalStorageKeys.RefreshToken, authResult.RefreshToken);
+        await _localStorage.SetItemAsStringAsync(LocalStorageKeys.Token, authResult.Token);
+        await _localStorage.SetItemAsStringAsync(LocalStorageKeys.RefreshToken, authResult.RefreshToken);
 
         return authResult;
     }
