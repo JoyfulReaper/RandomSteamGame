@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RandomSteamGameBlazor.Server.Features.Steam.Queries.OwnedGames;
 using RandomSteamGameBlazor.Server.Features.Steam.Queries.RandomGame;
+using RandomSteamGameBlazor.Server.Features.Steam.Queries.RandomSteamGame;
 using RandomSteamGameBlazor.Server.Features.Steam.Queries.ResolveVantiy;
 using RandomSteamGameBlazor.Shared.Contracts.RandomSteamGame;
 using RandomSteamGameBlazor.Shared.Contracts.Steam;
@@ -38,10 +39,22 @@ public class SteamController : ApiController
             result => Ok(result),
             errors => Problem(errors));
     }
-    
+
+    [HttpGet("RandomSteamGame/{steamId}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(RandomGameResponse))]
+    public async Task<IActionResult> RandomSteamGame(long steamId)
+    {
+        var query = new RandomSteamGameQuery(steamId);
+        var result = await _mediator.Send(query);
+
+        return result.Match(
+            result => Ok(result),
+            errors => Problem(errors));
+    }
+
     [HttpGet("RandomGameBySteamId/{steamId}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AppData))]
-    public async Task<IActionResult> RandomGame(long steamId)
+    public async Task<IActionResult> RandomGameBySteamId(long steamId)
     {
         var query = new RandomGameQuery(steamId);
         var result = await _mediator.Send(query);
@@ -53,7 +66,7 @@ public class SteamController : ApiController
 
     [HttpGet("RandomGameByVanityUrl/{vanityUrl}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AppData))]
-    public async Task<IActionResult> RandomGame(string vanityUrl)
+    public async Task<IActionResult> RandomGameByVanityUrl(string vanityUrl)
     {
         var steamId = await _mediator.Send(new ResolveVanityQuery(vanityUrl));
         if (steamId.IsError)

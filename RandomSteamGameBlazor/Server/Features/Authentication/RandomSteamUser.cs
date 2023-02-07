@@ -23,5 +23,8 @@ public class RandomSteamUserUserConfiguration : IEntityTypeConfiguration<RandomS
 
         builder.Property(p => p.LastName)
             .HasMaxLength(100);
+
+        builder.Property(p => p.VanityUrl)
+            .HasMaxLength(100);
     }
 }

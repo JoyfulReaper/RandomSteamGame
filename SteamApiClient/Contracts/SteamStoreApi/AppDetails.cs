@@ -22,7 +22,7 @@ public class AppData
     public string Name { get; set; } = default!;
 
     [JsonPropertyName("steam_appid")]
-    public int SteamAppid { get; set; }
+    public int SteamAppId { get; set; }
 
     //TODO:Figure out how to deal with this
     //[JsonPropertyName("required_age")]

@@ -61,8 +61,8 @@
         using var result = await _httpClient.PostAsJsonAsync("api/auth/register", registerRequest);
         var response = await result.Content.ReadFromJsonAsync<AuthenticationResponse>();
 
-        await LocalStorage.SetItemAsync("token", response.Token);
-        await LocalStorage.SetItemAsync("refreshToken", response.RefreshToken);
+        await LocalStorage.SetItemAsStringAsync("token", response.Token);
+        await LocalStorage.SetItemAsStringAsync("refreshToken", response.RefreshToken);
         await AuthStateProvider.GetAuthenticationStateAsync();
 
         _successMessage = "Successfully Registered!";

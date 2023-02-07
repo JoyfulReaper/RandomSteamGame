@@ -33,7 +33,6 @@
 
   <ItemGroup>
     <Folder Include="Persistence\Data\" />
-    <Folder Include="Persistence\Entities\" />
   </ItemGroup>
 
 
