@@ -75,7 +75,7 @@ else
     private string? _errorMessage;
     private string _background = default!;
     private string _prevBackground = string.Empty;
-    private byte[]? _backgroundBytes = default!;
+    //private byte[]? _backgroundBytes = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -84,7 +84,7 @@ else
 
     private async Task UpdateData()
     {
-        var backgroundClient = _clientFactory.CreateClient();
+        //var backgroundClient = _clientFactory.CreateClient();
         _errorMessage = null;
         _isBusy = true;
         StateHasChanged();
@@ -105,7 +105,7 @@ else
             if (_appData.Background is not null)
             {
                 _background = _appData.Background;
-                _backgroundBytes = await backgroundClient.GetByteArrayAsync(_background);
+                //_backgroundBytes = await backgroundClient.GetByteArrayAsync(_background);
             }
             else
             {
@@ -128,9 +128,9 @@ else
         {
             await SetBackground("");
         }
-        if (_prevBackground != _background && _backgroundBytes is not null)
+        if (_prevBackground != _background)
         {
-            await SetBackground($"data:image/image/jpeg;base64,{Convert.ToBase64String(_backgroundBytes)}");
+            await SetBackground($"{_background}");
             _prevBackground = _background;
         }
     }
