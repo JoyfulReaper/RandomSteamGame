@@ -145,7 +145,11 @@
             }
             catch (Exception ex)
             {
+                #if DEBUG
+                _errorMessage = $"Failed to resolve vantiy URL: {ex.Message}";
+                #else
                 _errorMessage = "Failed to resolve vantiy URL";
+                #endif
                 _isBusy = false;
                 return;
             }

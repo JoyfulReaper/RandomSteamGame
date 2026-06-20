@@ -58,9 +58,8 @@
 
         if (!result.IsSuccessStatusCode)
         {
-            var test = await result.Content.ReadAsStringAsync();
             var errorResponse = JsonSerializer.Deserialize<ProblemJson>(await result.Content.ReadAsStringAsync(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
-            if (errorResponse.Errors.ContainsKey("Auth.InvalidCred"))
+            if (errorResponse?.Errors?.ContainsKey("Auth.InvalidCred") == true)
             {
                 _errorMessage = "Invalid username or password";
             }

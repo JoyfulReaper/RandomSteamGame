@@ -84,6 +84,12 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 
         var authResult = await response.Content.ReadFromJsonAsync<AuthenticationResponse>();
 
+        if (authResult is null)
+        {
+            await _localStorage.RemoveItemsAsync(new List<string> { LocalStorageKeys.Token, LocalStorageKeys.RefreshToken });
+            return null;
+        }
+
         await _localStorage.SetItemAsStringAsync(LocalStorageKeys.Token, authResult.Token);
         await _localStorage.SetItemAsStringAsync(LocalStorageKeys.RefreshToken, authResult.RefreshToken);
 
