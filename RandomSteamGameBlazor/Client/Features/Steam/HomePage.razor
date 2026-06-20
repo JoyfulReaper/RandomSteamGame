@@ -3,7 +3,7 @@
 @inject ILocalStorageService _localStorageService
 @inject NavigationManager _navigationManager
 @inject HttpClient _client
-@inject ISender _mediator
+@inject AuthenticationStateProvider _authStateProvider
 
 <PageTitle>Random Steam Game Picker - By Kyle Givler</PageTitle>
 
@@ -159,6 +159,11 @@
 
     private async Task Logout()
     {
-        await _mediator.Send(new LogoutCommand());
+        await _localStorageService.RemoveItemsAsync(new List<string> {
+            LocalStorageKeys.Token,
+            LocalStorageKeys.RefreshToken
+        });
+
+        await _authStateProvider.GetAuthenticationStateAsync();
     }
 }
