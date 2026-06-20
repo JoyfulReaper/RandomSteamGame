@@ -1,12 +1,13 @@
-﻿using Mapster;
-using MapsterMapper;
-using MediatR;
+﻿/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RandomSteamGameBlazor.Server.Features.Steam.Queries.OwnedGames;
-using RandomSteamGameBlazor.Server.Features.Steam.Queries.RandomGame;
-using RandomSteamGameBlazor.Server.Features.Steam.Queries.RandomSteamGame;
-using RandomSteamGameBlazor.Server.Features.Steam.Queries.ResolveVantiy;
+using RandomSteamGameBlazor.Server.Services;
 using RandomSteamGameBlazor.Shared.Contracts.RandomSteamGame;
 using RandomSteamGameBlazor.Shared.Contracts.Steam;
 
@@ -17,23 +18,18 @@ namespace RandomSteamGameBlazor.Server.Controllers;
 [ApiController]
 public class SteamController : ApiController
 {
-    private readonly ISender _mediator;
-    private readonly IMapper _mapper;
+    private readonly ISteamService _steamService;
 
-    public SteamController(
-        ISender mediator,
-        IMapper mapper)
+    public SteamController(ISteamService steamService)
     {
-        _mediator = mediator;
-        _mapper = mapper;
+        _steamService = steamService;
     }
 
     [HttpGet("OwnedGames/{steamId}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OwnedGamesResponse))]
     public async Task<IActionResult> GetOwnedGames(long steamId)
     {
-        var query = new OwnedGamesQuery(steamId);
-        var result = await _mediator.Send(query);
+        var result = await _steamService.GetOwnedGamesAsync(steamId);
 
         return result.Match(
             result => Ok(result),
@@ -44,8 +40,7 @@ public class SteamController : ApiController
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(RandomGameResponse))]
     public async Task<IActionResult> RandomSteamGame(long steamId)
     {
-        var query = new RandomSteamGameQuery(steamId);
-        var result = await _mediator.Send(query);
+        var result = await _steamService.GetRandomSteamGameAsync(steamId);
 
         return result.Match(
             result => Ok(result),
@@ -56,11 +51,10 @@ public class SteamController : ApiController
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AppData))]
     public async Task<IActionResult> RandomGameBySteamId(long steamId)
     {
-        var query = new RandomGameQuery(steamId);
-        var result = await _mediator.Send(query);
+        var result = await _steamService.GetRandomGameBySteamIdAsync(steamId);
 
         return result.Match(
-            result => Ok(result.Adapt<AppData>()),
+            result => Ok(result),
             errors => Problem(errors));
     }
 
@@ -68,17 +62,16 @@ public class SteamController : ApiController
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(AppData))]
     public async Task<IActionResult> RandomGameByVanityUrl(string vanityUrl)
     {
-        var steamId = await _mediator.Send(new ResolveVanityQuery(vanityUrl));
-        if (steamId.IsError)
+        var steamIdResult = await _steamService.ResolveVanityUrlAsync(vanityUrl);
+        if (steamIdResult.IsError)
         {
-            return Problem(steamId.Errors);
+            return Problem(steamIdResult.Errors);
         }
 
-        var query = new RandomGameQuery(steamId.Value);
-        var result = await _mediator.Send(query);
+        var result = await _steamService.GetRandomGameBySteamIdAsync(steamIdResult.Value);
 
         return result.Match(
-            result => Ok(result.Adapt<AppData>()),
+            result => Ok(result),
             errors => Problem(errors));
     }
 
@@ -86,10 +79,10 @@ public class SteamController : ApiController
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(long))]
     public async Task<IActionResult> ResolveVanityUrl(string vanityUrl)
     {
-        var steamId = await _mediator.Send(new ResolveVanityQuery(vanityUrl));
+        var result = await _steamService.ResolveVanityUrlAsync(vanityUrl);
 
-        return steamId.Match(
-            steamId => Ok(steamId),
+        return result.Match(
+            result => Ok(result),
             errors => Problem(errors));
     }
 }

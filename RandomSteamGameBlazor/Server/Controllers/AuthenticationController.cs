@@ -1,78 +1,74 @@
-﻿using ErrorOr;
+﻿/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
 using MapsterMapper;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RandomSteamGameBlazor.Server.Features.Authentication.Commands.Register;
-using RandomSteamGameBlazor.Server.Features.Authentication.Commands.TokenRefresh;
-using RandomSteamGameBlazor.Server.Features.Authentication.Commands.TokenRevoke;
-using RandomSteamGameBlazor.Server.Features.Authentication.Common;
-using RandomSteamGameBlazor.Server.Features.Authentication.Queries.Login;
+using RandomSteamGameBlazor.Server.Services;
 using RandomSteamGameBlazor.Shared.Contracts.Authentication;
 
 namespace RandomSteamGameBlazor.Server.Controllers;
 
 [Route("api/auth")]
 [ApiController]
-[AllowAnonymous]
 public class AuthenticationController : ApiController
 {
-    private readonly ISender _mediator;
+    private readonly IAuthService _authService;
     private readonly IMapper _mapper;
-    private readonly ILogger _logger;
 
     public AuthenticationController(
-        ISender mediator,
-        IMapper mapper,
-        ILogger<AuthenticationController> logger)
+        IAuthService authService,
+        IMapper mapper)
     {
-        _mediator = mediator;
+        _authService = authService;
         _mapper = mapper;
-        _logger = logger;
     }
 
     [HttpPost("register")]
+    [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
-        var command = _mapper.Map<RegisterCommand>(request);
-        ErrorOr<AuthenticationResult> result = await _mediator.Send(command);
+        var result = await _authService.RegisterAsync(request);
 
         return result.Match(
-            result => Ok(_mapper.Map<AuthenticationResponse>(result)),
-            errors => Problem(errors));
+            res => Ok(_mapper.Map<AuthenticationResponse>(res)),
+            Problem);
     }
 
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        var query = _mapper.Map<LoginQuery>(request);
-        ErrorOr<AuthenticationResult> result = await _mediator.Send(query);
+        var result = await _authService.LoginAsync(request);
 
         return result.Match(
-            result => Ok(_mapper.Map<AuthenticationResponse>(result)),
-            errors => Problem(errors));
+            res => Ok(_mapper.Map<AuthenticationResponse>(res)),
+            Problem);
     }
 
     [HttpPost("refresh")]
+    [AllowAnonymous]
     public async Task<IActionResult> Refresh(TokenRefreshRequest request)
     {
-        var query = _mapper.Map<TokenRefreshCommand>(request);
-        ErrorOr<AuthenticationResult> result = await _mediator.Send(query);
+        var result = await _authService.RefreshTokenAsync(request);
 
         return result.Match(
-            result => Ok(_mapper.Map<AuthenticationResponse>(result)),
-            errors => Problem(errors));
+            res => Ok(_mapper.Map<AuthenticationResponse>(res)),
+            Problem);
     }
 
     [Authorize]
     [HttpPost("revoke")]
     public async Task<IActionResult> Revoke()
     {
-        var query = new TokenRevokeCommand(User.Identity?.Name);
-        var result = await _mediator.Send(query);
+        var result = await _authService.RevokeTokenAsync(User.Identity?.Name);
 
         return result.Match(
-            result => NoContent(),
-            errors => Problem(errors));
+            res => NoContent(),
+            Problem);
     }
 }

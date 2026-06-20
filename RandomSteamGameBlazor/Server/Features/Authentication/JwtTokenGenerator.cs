@@ -31,13 +31,13 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
-        {
-            new Claim(JwtRegisteredClaimNames.Name, user.Email),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()!),
-            new Claim(JwtRegisteredClaimNames.GivenName, user.FirstName),
-            new Claim(JwtRegisteredClaimNames.FamilyName, user.LastName),
+                {
+            new Claim(JwtRegisteredClaimNames.Name, user.Email ?? string.Empty),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName ?? string.Empty),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString() ?? string.Empty),
+            new Claim(JwtRegisteredClaimNames.GivenName, user.FirstName ?? string.Empty),
+            new Claim(JwtRegisteredClaimNames.FamilyName, user.LastName ?? string.Empty),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
 

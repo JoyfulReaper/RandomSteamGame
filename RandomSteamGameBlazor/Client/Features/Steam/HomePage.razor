@@ -3,7 +3,7 @@
 @inject ILocalStorageService _localStorageService
 @inject NavigationManager _navigationManager
 @inject HttpClient _client
-@inject ISender _mediator
+@inject AuthenticationStateProvider _authStateProvider
 
 <PageTitle>Random Steam Game Picker - By Kyle Givler</PageTitle>
 
@@ -145,7 +145,11 @@
             }
             catch (Exception ex)
             {
+                #if DEBUG
+                _errorMessage = $"Failed to resolve vantiy URL: {ex.Message}";
+                #else
                 _errorMessage = "Failed to resolve vantiy URL";
+                #endif
                 _isBusy = false;
                 return;
             }
@@ -159,6 +163,11 @@
 
     private async Task Logout()
     {
-        await _mediator.Send(new LogoutCommand());
+        await _localStorageService.RemoveItemsAsync(new List<string> {
+            LocalStorageKeys.Token,
+            LocalStorageKeys.RefreshToken
+        });
+
+        await _authStateProvider.GetAuthenticationStateAsync();
     }
 }

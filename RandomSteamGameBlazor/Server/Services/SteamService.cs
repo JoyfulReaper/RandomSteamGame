@@ -1,0 +1,142 @@
+﻿/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
+using ErrorOr;
+using MapsterMapper;
+using RandomSteamGameBlazor.Server.Features.Steam;
+using SteamApiClient.Contracts.SteamStoreApi;
+using SteamApiClient.HttpClients;
+using ClientGame = SteamApiClient.Contracts.SteamApi.Game;
+using ClientOwnedGames = SteamApiClient.Contracts.SteamApi.OwnedGames;
+using SharedOwnedGamesResponse = RandomSteamGameBlazor.Shared.Contracts.RandomSteamGame.OwnedGamesResponse;
+
+namespace RandomSteamGameBlazor.Server.Services;
+
+public class SteamService : ISteamService
+{
+    private readonly ISteamClient _steamClient;
+    private readonly ISteamStoreClient _steamStoreClient;
+    private readonly IMapper _mapper;
+    private readonly ILogger<SteamService> _logger;
+    private const int MaxAttempts = 3;
+
+    public SteamService(
+        ISteamClient steamClient,
+        ISteamStoreClient steamStoreClient,
+        IMapper mapper,
+        ILogger<SteamService> logger)
+    {
+        _steamClient = steamClient;
+        _steamStoreClient = steamStoreClient;
+        _mapper = mapper;
+        _logger = logger;
+    }
+
+    // Explicitly returning the Shared Contracts variant to satisfy ISteamService
+    public async Task<ErrorOr<SharedOwnedGamesResponse>> GetOwnedGamesAsync(long steamId)
+    {
+        try
+        {
+            var ownedGames = await _steamClient.GetOwnedGames(steamId);
+            if (!ownedGames.Games.Any())
+            {
+                return Errors.Steam.EmptyLibrary;
+            }
+
+            return _mapper.Map<SharedOwnedGamesResponse>((ownedGames, steamId));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting owned games for SteamID: {SteamId}", steamId);
+            return Errors.Steam.SteamApiFailed;
+        }
+    }
+
+    public async Task<ErrorOr<long>> ResolveVanityUrlAsync(string vanityUrl)
+    {
+        try
+        {
+            var steamId = await _steamClient.GetSteamIdFromVanityUrl(vanityUrl);
+            return steamId;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resolving vanity URL: {VanityUrl}", vanityUrl);
+            return Errors.Steam.VanityResolutonFailed;
+        }
+    }
+
+    // Explicitly define the return type to use your Shared Contract
+    public async Task<ErrorOr<RandomSteamGameBlazor.Shared.Contracts.Steam.AppData>> GetRandomGameBySteamIdAsync(long steamId)
+    {
+        try
+        {
+            var ownedGames = await _steamClient.GetOwnedGames(steamId);
+
+            if (!ownedGames.Games.Any())
+            {
+                return Errors.Steam.EmptyLibrary;
+            }
+
+            var response = await GetAppDataAsync(ownedGames);
+            if (response?.AppData is null)
+            {
+                return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
+            }
+
+            // Map the raw Steam API model to your Shared Contract model
+            return _mapper.Map<RandomSteamGameBlazor.Shared.Contracts.Steam.AppData>(response.AppData);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting random app data for SteamID: {SteamId}", steamId);
+            return Errors.Steam.SteamApiFailed;
+        }
+    }
+
+    public async Task<ErrorOr<RandomSteamGameBlazor.Shared.Contracts.RandomSteamGame.RandomGameResponse>> GetRandomSteamGameAsync(long steamId)
+    {
+        var ownedGamesResult = await GetOwnedGamesAsync(steamId);
+        if (ownedGamesResult.IsError)
+        {
+            return ownedGamesResult.Errors;
+        }
+
+        var randomGameResult = await GetRandomGameBySteamIdAsync(steamId);
+        if (randomGameResult.IsError)
+        {
+            return randomGameResult.Errors;
+        }
+
+        var response = _mapper.Map<RandomSteamGameBlazor.Shared.Contracts.RandomSteamGame.RandomGameResponse>((ownedGamesResult.Value, randomGameResult.Value));
+        return response;
+    }
+
+    private async Task<AppDetailsResponse?> GetAppDataAsync(ClientOwnedGames ownedGames)
+    {
+        int attempts = 0;
+        var response = new AppDetailsResponse();
+        while (!response.Success)
+        {
+            ClientGame game = ownedGames.Games[Random.Shared.Next(0, ownedGames.GameCount)];
+            response = await _steamStoreClient.GetAppData(game.AppId);
+
+            if (!response.Success)
+            {
+                attempts++;
+                if (attempts >= MaxAttempts)
+                {
+                    return null;
+                }
+
+                _logger.LogWarning("Unable to get app details for {AppId}. Attempt: {attempt}", game.AppId, attempts);
+            }
+        }
+
+        return response;
+    }
+}

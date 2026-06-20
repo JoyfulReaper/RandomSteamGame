@@ -1,5 +1,4 @@
 ﻿using Blazored.LocalStorage;
-using Microsoft.AspNetCore.Http;
 using RandomSteamGameBlazor.Client.Common;
 using RandomSteamGameBlazor.Client.Common.Services;
 using RandomSteamGameBlazor.Shared.Contracts.Authentication;
@@ -72,18 +71,24 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
         return state;
     }
 
-    private async Task<AuthenticationResponse?> RefreshTokenAsync(string token, string refreshToken)
+    private async Task<AuthenticationResponse?> RefreshTokenAsync(string token, string? refreshToken)
     {
-        var refreshRequest = new TokenRefreshRequest(token, refreshToken);
+        var refreshRequest = new TokenRefreshRequest(token, refreshToken ?? string.Empty);
         using var response = await _http.PostAsJsonAsync("api/auth/refresh", refreshRequest);
 
-        if(!response.IsSuccessStatusCode)
+        if (!response.IsSuccessStatusCode)
         {
             await _localStorage.RemoveItemsAsync(new List<string> { LocalStorageKeys.Token, LocalStorageKeys.RefreshToken });
             return null;
         }
 
         var authResult = await response.Content.ReadFromJsonAsync<AuthenticationResponse>();
+
+        if (authResult is null)
+        {
+            await _localStorage.RemoveItemsAsync(new List<string> { LocalStorageKeys.Token, LocalStorageKeys.RefreshToken });
+            return null;
+        }
 
         await _localStorage.SetItemAsStringAsync(LocalStorageKeys.Token, authResult.Token);
         await _localStorage.SetItemAsStringAsync(LocalStorageKeys.RefreshToken, authResult.RefreshToken);
