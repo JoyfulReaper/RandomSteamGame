@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>b4ddad76-b03f-458a-9a5a-900bcd6a39fd</UserSecretsId>
@@ -9,13 +9,12 @@
 
   <ItemGroup>
     <PackageReference Include="Blazored.LocalStorage" Version="4.3.0" />
-    <PackageReference Include="MediatR" Version="11.1.0" />
-    <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="11.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="6.0.13" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="6.0.13" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="6.0.13" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.2.2" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="7.0.0" />
+    <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="11.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.9" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.11" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.9" />
   </ItemGroup>
 
   <ItemGroup>

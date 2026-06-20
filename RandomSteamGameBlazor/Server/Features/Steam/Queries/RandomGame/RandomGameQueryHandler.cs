@@ -54,7 +54,7 @@ public class RandomGameQueryHandler : IRequestHandler<RandomGameQuery, ErrorOr<A
         var response = new AppDetailsResponse();
         while (!response.Success)
         {
-            Game game = ownedGames.Games[Random.Shared.Next(0, ownedGames.GameCount - 1)];
+            Game game = ownedGames.Games[Random.Shared.Next(0, ownedGames.GameCount)];
             response = await _steamStoreClient.GetAppData(game.AppId);
 
             if (!response.Success)
