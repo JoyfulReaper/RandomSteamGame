@@ -77,9 +77,26 @@ public static class ServerDependencyInjection
 
     public static IServiceCollection AddIdentity(this IServiceCollection services, IConfiguration configuration)
     {
+        var databaseProvider = configuration.GetValue<string>("DatabaseProvider") ?? "Sqlite";
+
         services.AddDbContext<RandomSteamContext>(opts =>
         {
-            opts.UseSqlServer(configuration.GetConnectionString("RandomSteamGame"));
+            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            if (databaseProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                // Create folder ONLY if using Sqlite
+                var dataFolder = Path.Combine(baseDirectory, "Data");
+                Directory.CreateDirectory(dataFolder);
+
+                var dbFile = configuration.GetConnectionString("SqliteConnection");
+                var fullPath = Path.Combine(dataFolder, dbFile);
+
+                opts.UseSqlite($"Data Source={fullPath}");
+            }
+            else
+            {
+                opts.UseSqlServer(configuration.GetConnectionString("SqlServerConnection"));
+            }
         });
 
         services.AddIdentity<RandomSteamUser, IdentityRole>(opts =>
