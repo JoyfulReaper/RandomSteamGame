@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
@@ -21,6 +22,8 @@ public class SteamStoreClient : ISteamStoreClient
     private readonly CacheSettings _cacheSettings;
     private static readonly JsonSerializerOptions _jsonOptions =
             new(JsonSerializerDefaults.Web);
+
+    private static readonly ConcurrentDictionary<int, SemaphoreSlim> _locks = new();
 
     public SteamStoreClient(
         HttpClient httpClient,
@@ -40,71 +43,68 @@ public class SteamStoreClient : ISteamStoreClient
             new ProductInfoHeaderValue(SteamClientConstants.UserAgentComment));
     }
 
-    public async Task<AppDetailsResponse> GetAppData(int appId)
+    public async Task<AppDetailsResponse> GetAppData(
+        int appId,
+        CancellationToken ct = default)
     {
         var cacheKey = $"appId_{appId}";
 
         var cached = await _cache.GetAsync<AppDetailsResponse>(cacheKey);
         if (cached is not null)
-        {
             return cached;
-        }
 
-        AppDetailsResponse? result = null;
+        var gate = _locks.GetOrAdd(appId, _ => new SemaphoreSlim(1, 1));
+
+        await gate.WaitAsync(ct);
         try
         {
+            cached = await _cache.GetAsync<AppDetailsResponse>(cacheKey);
+            if (cached is not null)
+                return cached;
+
             using var response = await _httpClient.GetAsync(
-                $"/api/appdetails?appids={appId}&l=english");
+                $"/api/appdetails?appids={appId}&l=english", ct);
 
             response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync();
+
+            var json = await response.Content.ReadAsStringAsync(ct);
+
             using var doc = JsonDocument.Parse(json);
 
             if (!doc.RootElement.TryGetProperty(appId.ToString(), out var root))
-            {
-                return await CreateAndCacheFailure(appId);
-            }
+                return await CacheFailure(appId);
 
-            result = JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions);
+            var result = JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions);
+
+            if (result is null || !result.Success || result.AppData is null)
+                return await CacheFailure(appId);
+
+            await _cache.SetAsync(cacheKey, result, _cacheSettings.AppDetails);
+
+            return result;
         }
         catch
         {
-            return await CreateAndCacheFailure(appId);
+            return await CacheFailure(appId);
         }
-
-        if (result is null || !result.Success || result.AppData is null)
+        finally
         {
-            return await CreateAndCacheFailure(appId);
+            gate.Release();
         }
-
-        await _cache.SetAsync(
-            cacheKey,
-            result,
-            _cacheSettings.AppDetails);
-
-        return result;
     }
 
-    private async Task<AppDetailsResponse> CreateAndCacheFailure(int appId)
+    private async Task<AppDetailsResponse> CacheFailure(int appId)
     {
-        var cacheKey = $"appId_{appId}_fail";
+        var cacheKey = $"appId_{appId}";
 
-        await _cache.SetAsync(
-            cacheKey,
-            new AppDetailsResponse
-            {
-                Success = false,
-                AppData = null
-            },
-            new CachePolicy
-            {
-                AbsoluteMinutes = 10
-            });
-
-        return new AppDetailsResponse
+        var failure = new AppDetailsResponse
         {
             Success = false,
             AppData = null
         };
+
+        await _cache.SetAsync(cacheKey, failure, _cacheSettings.AppDetails);
+
+        return failure;
     }
 }
