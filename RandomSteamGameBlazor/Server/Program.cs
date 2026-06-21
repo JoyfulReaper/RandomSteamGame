@@ -35,7 +35,7 @@ var builder = WebApplication.CreateBuilder(args);
         {
             policy.WithOrigins(allowedOrigins)
                   .WithMethods("GET", "POST")
-                  .WithHeaders("Content-Type", "Authorization")
+                  .WithHeaders("Content-Type", "Authorization");
         });
     });
 
