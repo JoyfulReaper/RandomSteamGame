@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NeoSmart.Caching.Sqlite;
 using SteamApiClient.HttpClients;
+using SteamApiClient.Services;
 using SteamApiClient.Settings;
 
 namespace SteamApiClient;
@@ -12,7 +13,7 @@ public static class SteamApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var steamOptions = services.Configure<SteamOptions>(
+        services.Configure<SteamOptions>(
             configuration.GetSection("SteamOptions"));
 
         services.Configure<CacheSettings>(
@@ -20,6 +21,7 @@ public static class SteamApiDependencyInjection
 
         services.AddHttpClient<ISteamClient, SteamClient>();
         services.AddHttpClient<ISteamStoreClient, SteamStoreClient>();
+        services.AddScoped<ICacheService, CacheService>();
 
         var cacheProvider = configuration.GetValue<string>("CacheProvider") ?? "SqlServer";
 
