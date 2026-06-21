@@ -22,6 +22,14 @@ var builder = WebApplication.CreateBuilder(args);
     builder.Services.AddRandomSteamGame(builder.Configuration);
     builder.Services.AddSteamApiClient(builder.Configuration);
 
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowAll", policy =>
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader());
+    });
+
     builder.Services.AddSingleton<ProblemDetailsFactory, RandomSteamProblemDetailsFactory>();
 }
 
@@ -38,12 +46,13 @@ var app = builder.Build();
     }
 
     app.UseHttpsRedirection();
-    app.UseAuthentication();
-
     app.UseBlazorFrameworkFiles();
     app.UseStaticFiles();
 
     app.UseRouting();
+    app.UseCors("AllowAll");
+
+    app.UseAuthentication();
     app.UseAuthorization();
 
     app.MapRazorPages();

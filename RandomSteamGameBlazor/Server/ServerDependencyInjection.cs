@@ -49,11 +49,15 @@ public static class ServerDependencyInjection
 
     public static IServiceCollection AddAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddAuthorization();
         var jwtSettings = new JwtSettings();
         configuration.Bind(JwtSettings.SectionName, jwtSettings);
         services.AddSingleton(Options.Create(jwtSettings));
         services.AddTransient<IJwtTokenGenerator, JwtTokenGenerator>();
+
+        services.AddAuthorization(options =>
+        {
+            options.FallbackPolicy = null;
+        });
 
         services.AddAuthentication(opt =>
         {
@@ -81,17 +85,9 @@ public static class ServerDependencyInjection
 
         services.AddDbContext<RandomSteamContext>(opts =>
         {
-            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
             if (databaseProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
             {
-                // Create folder ONLY if using Sqlite
-                var dataFolder = Path.Combine(baseDirectory, "Data");
-                Directory.CreateDirectory(dataFolder);
-
-                var dbFile = configuration.GetConnectionString("SqliteConnection");
-                var fullPath = Path.Combine(dataFolder, dbFile);
-
-                opts.UseSqlite($"Data Source={fullPath}");
+                opts.UseSqlite($"Data Source={GetSqlitePath(configuration)}");
             }
             else
             {
@@ -103,9 +99,23 @@ public static class ServerDependencyInjection
         {
             opts.SignIn.RequireConfirmedAccount = false;
         })
-        .AddEntityFrameworkStores<RandomSteamContext>()
-        .AddDefaultTokenProviders();
+            .AddEntityFrameworkStores<RandomSteamContext>()
+            .AddDefaultTokenProviders();
 
         return services;
+    }
+
+    private static string GetSqlitePath(IConfiguration configuration)
+    {
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        var dataFolder = Path.Combine(baseDir, "Data");
+
+        if (!Directory.Exists(dataFolder))
+        {
+            Directory.CreateDirectory(dataFolder);
+        }
+
+        var dbFile = configuration.GetConnectionString("SqliteConnection");
+        return Path.Combine(dataFolder, dbFile);
     }
 }
