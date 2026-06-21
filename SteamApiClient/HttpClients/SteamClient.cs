@@ -23,6 +23,17 @@ public class SteamClient : ISteamClient
     private readonly SteamOptions _steamOptions;
     private readonly ILogger _logger;
 
+    private const int STEAM_VANITY_SUCCESS = 1;
+    private const int STEAM_VANITY_NO_MATCH = 42;
+    private const string STAEM_VANITY_NOTFOUND = "NOT_FOUND";
+
+    private const int NotFoundCacheAbsoulteExpirtationMin = 5;
+
+    private static readonly DistributedCacheEntryOptions NotFoundCacheOptions = new()
+    {
+        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(NotFoundCacheAbsoulteExpirtationMin)
+    };
+
     public SteamClient(
         HttpClient httpClient,
         IOptions<SteamOptions> steamOptions,
@@ -71,43 +82,59 @@ public class SteamClient : ISteamClient
 
         var cachedGames =
             JsonSerializer.Deserialize<OwnedGamesResponse>(cachedGamesString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
         return cachedGames!.Response;
     }
 
     public async Task<long> GetSteamIdFromVanityUrl(string vanityUrl)
     {
-        var encodedVanity = Uri.EscapeDataString(vanityUrl);
+        var cacheKey = $"vanity_{vanityUrl}";
+        var cachedResponse = await _cache.GetStringAsync(cacheKey);
 
-        var cachedSteamIdString = await _cache.GetStringAsync($"vanity_{vanityUrl}");
-        if (cachedSteamIdString is null)
+        if (cachedResponse is not null)
         {
-            var outputString = await _httpClient.GetStringAsync(
-                $"/ISteamUser/ResolveVanityURL/v0001/?key={_steamOptions.ApiKey}&vanityurl={encodedVanity}&format=json");
-
-            var output = JsonSerializer.Deserialize<ResolveVanityUrlResponse>(outputString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-            if (output?.Response?.Success == 42)
-            {
-                _logger.LogInformation("Vanity URL {VanityUrl} not found.", vanityUrl);
+            if (cachedResponse == STAEM_VANITY_NOTFOUND)
                 return 0;
-            }
 
-            if (output?.Response?.Success != 1)
-            {
-                throw new VanityResolutionException($"Steam API returned unexpected success code: {output?.Response?.Success}");
-            }
-
-            await _cache.SetStringAsync($"vanity_{vanityUrl}", outputString, _cacheEntryOptions);
-            return long.Parse(output.Response.SteamId!);
+            return long.Parse(cachedResponse);
         }
 
-        var cachedSteamId =
-            JsonSerializer.Deserialize<ResolveVanityUrlResponse>(cachedSteamIdString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var encodedVanity = Uri.EscapeDataString(vanityUrl);
+        var responseString = await _httpClient.GetStringAsync(
+            $"/ISteamUser/ResolveVanityURL/v0001/?key={_steamOptions.ApiKey}&vanityurl={encodedVanity}&format=json");
 
-        if (cachedSteamId is null)
+        var response = JsonSerializer.Deserialize<ResolveVanityUrlResponse>(responseString,
+             new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        if (response?.Response?.Success == STEAM_VANITY_NO_MATCH)
         {
-            throw new CacheException("Failed to deserialize cached data");
+            _logger.LogInformation(
+                "Steam vanity URL not found: {VanityUrl}",
+                vanityUrl);
+
+            await _cache.SetStringAsync(
+                cacheKey,
+                STAEM_VANITY_NOTFOUND,
+                NotFoundCacheOptions
+            );
+
+            return 0;
         }
 
-        return long.Parse(cachedSteamId.Response.SteamId);
+        if (response?.Response?.Success != STEAM_VANITY_SUCCESS)
+        {
+            throw new VanityResolutionException(
+                $"Steam API returned unexpected success code: {response?.Response?.Success}");
+        }
+
+        var steamId = response.Response.SteamId!;
+
+        await _cache.SetStringAsync(
+            cacheKey,
+            steamId,
+            _cacheEntryOptions
+        );
+
+        return long.Parse(steamId);
     }
 }
