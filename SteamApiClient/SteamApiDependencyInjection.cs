@@ -1,4 +1,11 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NeoSmart.Caching.Sqlite;
 using SteamApiClient.HttpClients;

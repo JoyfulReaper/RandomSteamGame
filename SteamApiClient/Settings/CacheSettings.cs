@@ -11,4 +11,7 @@ public class CacheSettings
 public class CachePolicy
 {
     public int AbsoluteMinutes { get; set; }
+
+    public TimeSpan Duration =>
+        TimeSpan.FromMinutes(AbsoluteMinutes);
 }

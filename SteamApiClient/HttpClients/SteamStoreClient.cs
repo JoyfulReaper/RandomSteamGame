@@ -5,68 +5,105 @@
  * Licensed under the MIT License.
  */
 
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamStoreApi;
+using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
-using System.Net.Http.Headers;
 using System.Text.Json;
-
-namespace SteamApiClient.HttpClients;
 
 public class SteamStoreClient : ISteamStoreClient
 {
     private readonly HttpClient _httpClient;
-
     private readonly ICacheService _cache;
     private readonly CacheSettings _cacheSettings;
+    private readonly IMemoryCache _memo;
+    private readonly ILogger<SteamStoreClient> _logger;
 
     private static readonly JsonSerializerOptions _jsonOptions =
-            new(JsonSerializerDefaults.Web);
+        new(JsonSerializerDefaults.Web);
 
     public SteamStoreClient(
         HttpClient httpClient,
         ICacheService cache,
-        IOptions<CacheSettings> cacheSettings)
+        IOptions<CacheSettings> cacheSettings,
+        IMemoryCache memo,
+        ILogger<SteamStoreClient> logger)
     {
         _httpClient = httpClient;
         _cache = cache;
         _cacheSettings = cacheSettings.Value;
+        _memo = memo;
+        _logger = logger;
 
         _httpClient.BaseAddress = new Uri("https://store.steampowered.com");
-        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(SteamClientConstants.UserAgent, SteamClientConstants.Version));
-        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(SteamClientConstants.UserAgentComment));
     }
 
-    public async Task<AppDetailsResponse> GetAppData(int appId)
+    public Task<AppDetailsResponse> GetAppData(int appId, CancellationToken ct = default)
     {
-        var cacheKey = $"appId_{appId}";
+        var cacheKey = $"app:{appId}";
 
-        var cached = await _cache.GetAsync<AppDetailsResponse>(cacheKey);
-        if (cached is not null)
+        return MemoizeAsync(cacheKey, async () =>
         {
-            return cached;
-        }
+            var cached = await _cache.GetAsync<AppDetailsResponse>(cacheKey);
+            if (cached is not null)
+                return cached;
 
-        var jsonResponse = 
-            await _httpClient.GetStringAsync(
-                $"/api/appdetails?appids={appId}&l=english"); // TODO: Add support for other languages
+            using var response = await _httpClient.GetAsync(
+                $"/api/appdetails?appids={appId}&l=english", ct);
 
-        var root = JsonDocument.Parse(jsonResponse)
-            .RootElement
-            .GetProperty(appId.ToString());
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Steam Store API failed (AppDetails). AppId: {AppId}, StatusCode: {StatusCode}",
+                    appId,
+                    response.StatusCode);
 
-        var result = JsonSerializer.Deserialize<AppDetailsResponse>(
-            root, 
-            _jsonOptions);
+                return new AppDetailsResponse { Success = false };
+            }
 
-        await _cache.SetAsync<AppDetailsResponse>(
-            cacheKey,
-            result,
-            _cacheSettings.AppDetails);
+            var json = await response.Content.ReadAsStringAsync(ct);
 
+            using var doc = JsonDocument.Parse(json);
 
-        return result;
+            if (!doc.RootElement.TryGetProperty(appId.ToString(), out var root))
+            {
+                _logger.LogWarning(
+                    "Steam Store API malformed response (missing app key). AppId: {AppId}",
+                    appId);
+
+                return new AppDetailsResponse { Success = false };
+            }
+
+            var result = JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions)
+                         ?? new AppDetailsResponse { Success = false };
+            if (result.Success && result.AppData is not null)
+            {
+                await _cache.SetAsync(cacheKey, result, _cacheSettings.AppDetails);
+            }
+
+            return result;
+
+        }, _cacheSettings.AppDetails.Duration);
+    }
+
+    private Task<T> MemoizeAsync<T>(
+        string key,
+        Func<Task<T>> factory,
+        TimeSpan ttl)
+    {
+        return _memo.GetOrCreate(key, entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = ttl;
+
+            entry.Value = new Lazy<Task<T>>(
+                factory,
+                LazyThreadSafetyMode.ExecutionAndPublication);
+
+            return ((Lazy<Task<T>>)entry.Value).Value;
+
+        })!;
     }
 }

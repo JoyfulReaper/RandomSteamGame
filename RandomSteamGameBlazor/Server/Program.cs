@@ -5,9 +5,7 @@
  * Licensed under the MIT License.
  */
 
-using Microsoft.AspNetCore.Mvc.Infrastructure;
 using RandomSteamGameBlazor.Server;
-using RandomSteamGameBlazor.Server.Common.Errors;
 using RandomSteamGameBlazor.Server.Services;
 using SteamApiClient;
 
@@ -24,40 +22,49 @@ var builder = WebApplication.CreateBuilder(args);
 
     builder.Services.AddCors(options =>
     {
-        options.AddPolicy("AllowAll", policy =>
-            policy.AllowAnyOrigin()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader());
+        var allowedOrigins = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>() ?? [];
+
+        if (allowedOrigins.Length == 0)
+        {
+            throw new InvalidOperationException("No CORS origins configured.");
+        }
+
+        options.AddPolicy("DefaultCors", policy =>
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .WithMethods("GET", "POST")
+                  .WithHeaders("Content-Type", "Authorization")
+        });
     });
 
-    builder.Services.AddSingleton<ProblemDetailsFactory, RandomSteamProblemDetailsFactory>();
-}
-
-var app = builder.Build();
-{
-    if (app.Environment.IsDevelopment())
+    var app = builder.Build();
     {
-        app.UseWebAssemblyDebugging();
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseWebAssemblyDebugging();
+        }
+        else
+        {
+            app.UseHsts();
+            app.UseExceptionHandler("/error");
+        }
+
+        app.UseHttpsRedirection();
+        app.UseBlazorFrameworkFiles();
+        app.UseStaticFiles();
+
+        app.UseRouting();
+        app.UseCors("DefaultCors");
+
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        app.MapRazorPages();
+        app.MapControllers();
+        app.MapFallbackToFile("index.html");
+
+        app.Run();
     }
-    else
-    {
-        app.UseHsts();
-        app.UseExceptionHandler("/error");
-    }
-
-    app.UseHttpsRedirection();
-    app.UseBlazorFrameworkFiles();
-    app.UseStaticFiles();
-
-    app.UseRouting();
-    app.UseCors("AllowAll");
-
-    app.UseAuthentication();
-    app.UseAuthorization();
-
-    app.MapRazorPages();
-    app.MapControllers();
-    app.MapFallbackToFile("index.html");
-
-    app.Run();
 }

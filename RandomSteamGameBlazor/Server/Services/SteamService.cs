@@ -22,14 +22,21 @@ public class SteamService : ISteamService
     private readonly ISteamStoreClient _steamStoreClient;
     private readonly IMapper _mapper;
     private readonly ILogger<SteamService> _logger;
-    private const int MaxAttempts = 3;
+    private readonly IHtmlSanitizerService _htmlSanitizer;
+
+    // Max number of attempts to get app data
+    // Becase sometime steam basiclly returns garbage...
+    // TODO: Make a setting in appsettings
+    private const int MAX_ATTEMPTS = 3;
 
     public SteamService(
         ISteamClient steamClient,
         ISteamStoreClient steamStoreClient,
         IMapper mapper,
+        IHtmlSanitizerService htmlSanitizerService,
         ILogger<SteamService> logger)
     {
+        _htmlSanitizer = htmlSanitizerService;
         _steamClient = steamClient;
         _steamStoreClient = steamStoreClient;
         _mapper = mapper;
@@ -41,7 +48,7 @@ public class SteamService : ISteamService
         try
         {
             var ownedGames = await _steamClient.GetOwnedGames(steamId);
-            if (!ownedGames.Games.Any())
+            if (ownedGames.Games.Count == 0)
             {
                 return Errors.Steam.EmptyLibrary;
             }
@@ -75,13 +82,13 @@ public class SteamService : ISteamService
         }
     }
 
-    public async Task<ErrorOr<RandomSteamGameBlazor.Shared.Contracts.Steam.AppData>> GetRandomGameBySteamIdAsync(long steamId)
+    public async Task<ErrorOr<Shared.Contracts.Steam.AppData>> GetRandomGameBySteamIdAsync(long steamId)
     {
         try
         {
             var ownedGames = await _steamClient.GetOwnedGames(steamId);
 
-            if (!ownedGames.Games.Any())
+            if (ownedGames.Games.Count == 0)
             {
                 return Errors.Steam.EmptyLibrary;
             }
@@ -92,7 +99,7 @@ public class SteamService : ISteamService
                 return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
             }
 
-            return _mapper.Map<RandomSteamGameBlazor.Shared.Contracts.Steam.AppData>(response.AppData);
+            return _mapper.Map<Shared.Contracts.Steam.AppData>(response.AppData);
         }
         catch (Exception ex)
         {
@@ -101,22 +108,63 @@ public class SteamService : ISteamService
         }
     }
 
-    public async Task<ErrorOr<RandomSteamGameBlazor.Shared.Contracts.RandomSteamGame.RandomGameResponse>> GetRandomSteamGameAsync(long steamId)
+    public async Task<ErrorOr<Shared.Contracts.RandomSteamGame.RandomGameResponse>>
+        GetRandomSteamGameAsync(long steamId)
     {
-        var ownedGamesResult = await GetOwnedGamesAsync(steamId);
-        if (ownedGamesResult.IsError)
+        try
         {
-            return ownedGamesResult.Errors;
+            var ownedGames = await _steamClient.GetOwnedGames(steamId);
+            if (ownedGames.Games.Count == 0)
+            {
+                return Errors.Steam.EmptyLibrary;
+            }
+
+            var ownedGamesResponse =
+                _mapper.Map<SharedOwnedGamesResponse>((ownedGames, steamId));
+
+            var randomGameResult = await GetRandomGameAsync(ownedGames);
+            if (randomGameResult.IsError)
+            {
+                return randomGameResult.Errors;
+            }
+
+            return _mapper.Map<
+                Shared.Contracts.RandomSteamGame.RandomGameResponse>(
+                (ownedGamesResponse, randomGameResult.Value));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error getting random Steam game for SteamID: {SteamId}",
+                steamId);
+
+            return Errors.Steam.SteamApiFailed;
+        }
+    }
+
+    private async Task<ErrorOr<Shared.Contracts.Steam.AppData>>
+    GetRandomGameAsync(ClientOwnedGames ownedGames)
+    {
+        if (ownedGames.Games.Count == 0)
+        {
+            return Errors.Steam.EmptyLibrary;
         }
 
-        var randomGameResult = await GetRandomGameBySteamIdAsync(steamId);
-        if (randomGameResult.IsError)
+        var response = await GetAppDataAsync(ownedGames);
+
+        if (response?.AppData is null)
         {
-            return randomGameResult.Errors;
+            return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
         }
 
-        var response = _mapper.Map<RandomSteamGameBlazor.Shared.Contracts.RandomSteamGame.RandomGameResponse>((ownedGamesResult.Value, randomGameResult.Value));
-        return response;
+        response.AppData.AboutTheGame =
+            _htmlSanitizer.Sanitize(response.AppData.AboutTheGame);
+
+        response.AppData.DetailedDescription =
+            _htmlSanitizer.Sanitize(response.AppData.DetailedDescription);
+
+        return _mapper.Map<Shared.Contracts.Steam.AppData>(
+            response.AppData);
     }
 
     private async Task<AppDetailsResponse?> GetAppDataAsync(ClientOwnedGames ownedGames)
@@ -131,7 +179,7 @@ public class SteamService : ISteamService
             if (!response.Success)
             {
                 attempts++;
-                if (attempts >= MaxAttempts)
+                if (attempts >= MAX_ATTEMPTS)
                 {
                     return null;
                 }
