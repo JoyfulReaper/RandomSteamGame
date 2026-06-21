@@ -30,6 +30,7 @@ public static class ServerDependencyInjection
         services.AddScoped<ISteamService, SteamService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
+        services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
 
         services.AddMapster();
         services.AddAuthentication(configuration);
