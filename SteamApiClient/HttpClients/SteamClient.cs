@@ -1,8 +1,15 @@
-﻿using System.Net.Http.Headers;
+﻿/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.Exceptions;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Caching.Distributed;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace SteamApiClient.HttpClients;
@@ -48,8 +55,8 @@ public class SteamClient : ISteamClient
             }
 
             var ownedGamesString =
-        await _httpClient.GetStringAsync(
-            $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json{arguments}");
+                await _httpClient.GetStringAsync(
+                $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json{arguments}&l=english"); // TODO: Add support for other languages
 
             await _cache.SetStringAsync($"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}", ownedGamesString, _cacheEntryOptions);
             var ownedGames =

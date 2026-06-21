@@ -1,9 +1,16 @@
-﻿using System.Net.Http.Headers;
-using SteamApiClient.Contracts.SteamStoreApi;
-using System.Text.Json;
+﻿/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
+using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.Exceptions;
+using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace SteamApiClient.HttpClients;
 
@@ -32,7 +39,7 @@ public class SteamStoreClient : ISteamStoreClient
         var cachedAppDataString = await _cache.GetStringAsync($"appId_{appId}");
         if (cachedAppDataString is null)
         {
-            var jsonResponse = await _httpClient.GetStringAsync($"/api/appdetails?appids={appId}");
+            var jsonResponse = await _httpClient.GetStringAsync($"/api/appdetails?appids={appId}&l=english"); // TODO: Add support for other languages
 
             await _cache.SetStringAsync($"appId_{appId}", jsonResponse, _cacheEntryOptions);
 
