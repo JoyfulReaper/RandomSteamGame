@@ -138,6 +138,10 @@ public class SteamService : ISteamService
 
                 _logger.LogWarning("Unable to get app details for {AppId}. Attempt: {attempt}", game.AppId, attempts);
             }
+            else
+            {
+                response.AppData?.SteamAppId = game.AppId;
+            }
         }
 
         return response;

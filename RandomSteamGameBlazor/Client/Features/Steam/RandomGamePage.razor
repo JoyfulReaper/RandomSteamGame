@@ -46,7 +46,7 @@ else
                         }
                         @(_isBusy ? "Loading..." : "Choose Again")
                     </button>
-                    <a href="steam://run/@_appData.SteamAppid/" class="btn btn-success" id="steamUrl">Run game</a> <br />
+                    <a href="steam://run/@_appData.SteamAppId/" class="btn btn-success" id="steamUrl">Run game</a> <br />
                 </div>
             </div>
         </div>
@@ -116,7 +116,7 @@ else
         {
             _errorMessage = "Failed to load background image :(";
             await RemoveBackground();
-            _logger.LogError(ex, "Error getting background image for {steamAppid}.", _appData.SteamAppid);
+            _logger.LogError(ex, "Error getting background image for {steamAppid}.", _appData.SteamAppId);
         }
 
         _isBusy = false;
