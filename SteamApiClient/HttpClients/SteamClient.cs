@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.Exceptions;
+using SteamApiClient.Settings;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
@@ -19,31 +20,25 @@ public class SteamClient : ISteamClient
 {
     private readonly HttpClient _httpClient;
     private readonly IDistributedCache _cache;
-    private readonly DistributedCacheEntryOptions _cacheEntryOptions;
     private readonly SteamOptions _steamOptions;
     private readonly ILogger _logger;
+
+    private readonly CacheSettings _cacheSettings;
 
     private const int STEAM_VANITY_SUCCESS = 1;
     private const int STEAM_VANITY_NO_MATCH = 42;
     private const string STAEM_VANITY_NOTFOUND = "NOT_FOUND";
-
-    private const int NotFoundCacheAbsoulteExpirtationMin = 5;
-
-    private static readonly DistributedCacheEntryOptions NotFoundCacheOptions = new()
-    {
-        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(NotFoundCacheAbsoulteExpirtationMin)
-    };
 
     public SteamClient(
         HttpClient httpClient,
         IOptions<SteamOptions> steamOptions,
         IDistributedCache cache,
         ILogger<SteamClient> logger,
-        IOptions<DistributedCacheEntryOptions> cacheEntryOptions)
+        IOptions<CacheSettings> cacheSettings)
     {
         _httpClient = httpClient;
         _cache = cache;
-        _cacheEntryOptions = cacheEntryOptions.Value;
+        _cacheSettings = cacheSettings.Value;
         _steamOptions = steamOptions.Value;
         _logger = logger;
 
@@ -55,7 +50,9 @@ public class SteamClient : ISteamClient
 
     public async Task<OwnedGames> GetOwnedGames(long steamId, bool includeAppInfo = true, bool includePlayedFreeGames = true)
     {
-        var cachedGamesString = await _cache.GetStringAsync($"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}");
+        var cachedGamesString = await _cache.GetStringAsync(
+            $"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}");
+
         if (cachedGamesString is null)
         {
             var arguments = string.Empty;
@@ -73,7 +70,13 @@ public class SteamClient : ISteamClient
                 await _httpClient.GetStringAsync(
                 $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json{arguments}&l=english"); // TODO: Add support for other languages
 
-            await _cache.SetStringAsync($"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}", ownedGamesString, _cacheEntryOptions);
+            var successOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow =
+                    TimeSpan.FromMinutes(_cacheSettings.OwnedGames.AbsoluteMinutes)
+            };
+
+            await _cache.SetStringAsync($"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}", ownedGamesString, successOptions);
             var ownedGames =
                 JsonSerializer.Deserialize<OwnedGamesResponse>(ownedGamesString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
@@ -112,10 +115,16 @@ public class SteamClient : ISteamClient
                 "Steam vanity URL not found: {VanityUrl}",
                 vanityUrl);
 
+            var notFoundOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow =
+                    TimeSpan.FromMinutes(_cacheSettings.VanityNotFound.AbsoluteMinutes)
+            };
+
             await _cache.SetStringAsync(
                 cacheKey,
                 STAEM_VANITY_NOTFOUND,
-                NotFoundCacheOptions
+                notFoundOptions
             );
 
             return 0;
@@ -129,10 +138,16 @@ public class SteamClient : ISteamClient
 
         var steamId = response.Response.SteamId!;
 
+        var successOptions = new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow =
+                TimeSpan.FromMinutes(_cacheSettings.VanitySuccess.AbsoluteMinutes)
+        };
+
         await _cache.SetStringAsync(
             cacheKey,
             steamId,
-            _cacheEntryOptions
+            successOptions
         );
 
         return long.Parse(steamId);

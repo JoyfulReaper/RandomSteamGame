@@ -9,6 +9,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.Exceptions;
+using SteamApiClient.Settings;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
@@ -18,16 +19,16 @@ public class SteamStoreClient : ISteamStoreClient
 {
     private readonly HttpClient _httpClient;
     private readonly IDistributedCache _cache;
-    private readonly DistributedCacheEntryOptions _cacheEntryOptions;
+    private readonly CacheSettings _cacheSettings;
 
     public SteamStoreClient(
         HttpClient httpClient,
         IDistributedCache cache,
-        IOptions<DistributedCacheEntryOptions> cacheEntryOptions)
+        IOptions<CacheSettings> cacheSettings)
     {
         _httpClient = httpClient;
         _cache = cache;
-        _cacheEntryOptions = cacheEntryOptions.Value;
+        _cacheSettings = cacheSettings.Value;
         _httpClient.BaseAddress = new Uri("https://store.steampowered.com");
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(SteamClientConstants.UserAgent, SteamClientConstants.Version));
@@ -41,7 +42,13 @@ public class SteamStoreClient : ISteamStoreClient
         {
             var jsonResponse = await _httpClient.GetStringAsync($"/api/appdetails?appids={appId}&l=english"); // TODO: Add support for other languages
 
-            await _cache.SetStringAsync($"appId_{appId}", jsonResponse, _cacheEntryOptions);
+            var successOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow =
+                    TimeSpan.FromMinutes(_cacheSettings.AppDetails.AbsoluteMinutes)
+            };
+
+            await _cache.SetStringAsync($"appId_{appId}", jsonResponse, successOptions);
 
             var withoutRoot = JsonDocument.Parse(jsonResponse).RootElement.GetProperty(appId.ToString());
             var output = JsonSerializer.Deserialize<AppDetailsResponse>(withoutRoot);
