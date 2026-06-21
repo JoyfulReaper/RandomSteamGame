@@ -6,6 +6,7 @@
  */
 
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using SteamApiClient.Settings;
 using System.Text.Json;
 
@@ -14,12 +15,18 @@ namespace SteamApiClient.Services;
 public class CacheService : ICacheService
 {
     private readonly IDistributedCache _cache;
+
+    private readonly ILogger<CacheService> _logger;
+
     private readonly JsonSerializerOptions _jsonOptions =
         new(JsonSerializerDefaults.Web);
 
-    public CacheService(IDistributedCache cache)
+    public CacheService(
+        IDistributedCache cache,
+        ILogger<CacheService> logger)
     {
         _cache = cache;
+        _logger = logger;
     }
 
     public async Task<T?> GetAsync<T>(string key)
@@ -35,8 +42,9 @@ public class CacheService : ICacheService
         {
             return JsonSerializer.Deserialize<T>(value, _jsonOptions);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Cache deserialization failed for {Key}", key);
             return default;
         }
     }
