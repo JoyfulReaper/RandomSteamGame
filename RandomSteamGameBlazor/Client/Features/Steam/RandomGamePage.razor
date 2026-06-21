@@ -84,24 +84,23 @@ else
 
     private async Task UpdateData()
     {
-        //var backgroundClient = _clientFactory.CreateClient();
         _errorMessage = null;
         _isBusy = true;
         StateHasChanged();
 
-        try
-        {
-            _appData = await _client.GetFromJsonAsync<AppData>($"api/Steam/RandomGameBySteamId/{SteamId}") ??
-                throw new Exception("Unable to retreive games.");
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = ex.Message;
-            _logger.LogError(ex, "Error getting random game for {steamId}.", SteamId);
-        }
+        try {
+            var response = await _client.GetAsync($"api/Steam/RandomGameBySteamId/{SteamId}");
+            if(!response.IsSuccessStatusCode)
+            {
+                var problem = await response.Content.ReadFromJsonAsync<ApiProblem>();
+                _errorMessage = problem?.Title ?? "An unexpected error occurred.";
 
-        try
-        {
+                return;
+            }
+
+            _appData = await response.Content.ReadFromJsonAsync<AppData>()
+                ?? throw new Exception("Unable to retrive game");
+
             if (_appData.Background is not null)
             {
                 _background = _appData.Background;
@@ -111,15 +110,15 @@ else
             {
                 await RemoveBackground();
             }
-        }
-        catch (Exception ex)
+        } catch (Exception ex)
         {
-            _errorMessage = "Failed to load background image :(";
-            await RemoveBackground();
-            _logger.LogError(ex, "Error getting background image for {steamAppid}.", _appData.SteamAppId);
+            _logger.LogError(ex, "Error getting random game for {SteamId}", SteamId);
+            _errorMessage = ex.Message;
         }
-
-        _isBusy = false;
+        finally
+        {
+            _isBusy = false;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
