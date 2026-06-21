@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using NeoSmart.Caching.Sqlite;
 using SteamApiClient.HttpClients;
+using SteamApiClient.Services;
+using SteamApiClient.Settings;
 
 namespace SteamApiClient;
 
@@ -13,19 +13,20 @@ public static class SteamApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var steamOptions = new SteamOptions();
-        configuration.Bind(nameof(steamOptions), steamOptions);
-        services.AddSingleton(Options.Create(steamOptions));
+        services.Configure<SteamOptions>(
+            configuration.GetSection("SteamOptions"));
 
-        services.Configure<DistributedCacheEntryOptions>(
-            configuration.GetSection(nameof(DistributedCacheEntryOptions)));
+        services.Configure<CacheSettings>(
+            configuration.GetSection("Cache"));
 
         services.AddHttpClient<ISteamClient, SteamClient>();
         services.AddHttpClient<ISteamStoreClient, SteamStoreClient>();
+        services.AddScoped<ICacheService, CacheService>();
 
         var cacheProvider = configuration.GetValue<string>("CacheProvider") ?? "SqlServer";
 
         // Use SQLite
+        // Set CacheProvider to "Sqlite" in appsettings.json
         if (cacheProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
         {
             var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
@@ -44,9 +45,11 @@ public static class SteamApiDependencyInjection
         {
             services.AddDistributedSqlServerCache(opts =>
             {
-                opts.ConnectionString = configuration.GetConnectionString(steamOptions.ConnectionString);
-                opts.SchemaName = steamOptions.CacheSchema;
-                opts.TableName = steamOptions.CacheTable;
+                opts.ConnectionString =
+                    configuration.GetConnectionString("SqlServerConnection");
+
+                opts.SchemaName = "dbo";
+                opts.TableName = "Cache";
             });
         }
 

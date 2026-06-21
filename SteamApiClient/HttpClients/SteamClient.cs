@@ -5,34 +5,44 @@
  * Licensed under the MIT License.
  */
 
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.Exceptions;
+using SteamApiClient.Services;
+using SteamApiClient.Settings;
 using System.Net.Http.Headers;
 using System.Text.Json;
+
 
 namespace SteamApiClient.HttpClients;
 
 public class SteamClient : ISteamClient
 {
     private readonly HttpClient _httpClient;
-    private readonly IDistributedCache _cache;
-    private readonly DistributedCacheEntryOptions _cacheEntryOptions;
     private readonly SteamOptions _steamOptions;
     private readonly ILogger _logger;
+
+    private readonly ICacheService _cache;
+    private readonly CacheSettings _cacheSettings;
+
+    private const int STEAM_VANITY_SUCCESS = 1;
+    private const int STEAM_VANITY_NO_MATCH = 42;
+    private const string STAEM_VANITY_NOTFOUND = "NOT_FOUND";
+
+    private static readonly JsonSerializerOptions _jsonOptions =
+        new(JsonSerializerDefaults.Web);
 
     public SteamClient(
         HttpClient httpClient,
         IOptions<SteamOptions> steamOptions,
-        IDistributedCache cache,
+        ICacheService cache,
         ILogger<SteamClient> logger,
-        IOptions<DistributedCacheEntryOptions> cacheEntryOptions)
+        IOptions<CacheSettings> cacheSettings)
     {
         _httpClient = httpClient;
         _cache = cache;
-        _cacheEntryOptions = cacheEntryOptions.Value;
+        _cacheSettings = cacheSettings.Value;
         _steamOptions = steamOptions.Value;
         _logger = logger;
 
@@ -44,70 +54,79 @@ public class SteamClient : ISteamClient
 
     public async Task<OwnedGames> GetOwnedGames(long steamId, bool includeAppInfo = true, bool includePlayedFreeGames = true)
     {
-        var cachedGamesString = await _cache.GetStringAsync($"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}");
-        if (cachedGamesString is null)
+        var cacheKey = $"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}";
+
+        var cached = await _cache.GetAsync<OwnedGames>(cacheKey);
+        if (cached is not null)
         {
-            var arguments = string.Empty;
-            if (includeAppInfo)
-            {
-                arguments += "&include_appinfo=1";
-            }
-
-            if (includePlayedFreeGames)
-            {
-                arguments += "&include_played_free_games=1";
-            }
-
-            var ownedGamesString =
-                await _httpClient.GetStringAsync(
-                $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json{arguments}&l=english"); // TODO: Add support for other languages
-
-            await _cache.SetStringAsync($"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}", ownedGamesString, _cacheEntryOptions);
-            var ownedGames =
-                JsonSerializer.Deserialize<OwnedGamesResponse>(ownedGamesString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-            return ownedGames!.Response;
+            return cached;
         }
 
-        var cachedGames =
-            JsonSerializer.Deserialize<OwnedGamesResponse>(cachedGamesString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        return cachedGames!.Response;
+        var arguments = string.Empty;
+        if (includeAppInfo)
+        {
+            arguments += "&include_appinfo=1";
+        }
+
+        if (includePlayedFreeGames)
+        {
+            arguments += "&include_played_free_games=1";
+        }
+
+        var jsonResponse =
+            await _httpClient.GetStringAsync(
+                $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json{arguments}&l=english");
+
+        var response = JsonSerializer.Deserialize<OwnedGamesResponse>(jsonResponse, _jsonOptions)
+            ?? throw new Exception("Failed to deserialize Steam response");
+
+        await _cache.SetAsync(
+            cacheKey,
+            response.Response,
+            _cacheSettings.OwnedGames);
+
+        return response.Response;
     }
 
     public async Task<long> GetSteamIdFromVanityUrl(string vanityUrl)
     {
+        var cacheKey = $"vanity_{vanityUrl}";
+        var cached = await _cache.GetAsync<string>(cacheKey);
+
+        if (cached is not null)
+        {
+            if (cached == STAEM_VANITY_NOTFOUND)
+                return 0;
+
+            return long.Parse(cached);
+        }
+
         var encodedVanity = Uri.EscapeDataString(vanityUrl);
 
-        var cachedSteamIdString = await _cache.GetStringAsync($"vanity_{vanityUrl}");
-        if (cachedSteamIdString is null)
+        var json = await _httpClient.GetStringAsync(
+            $"/ISteamUser/ResolveVanityURL/v0001/?key={_steamOptions.ApiKey}&vanityurl={encodedVanity}&format=json");
+
+        var response = JsonSerializer.Deserialize<ResolveVanityUrlResponse>(json, _jsonOptions)
+            ?? throw new VanityResolutionException("Invalid response");
+
+        if (response.Response.Success == STEAM_VANITY_NO_MATCH)
         {
-            var outputString = await _httpClient.GetStringAsync(
-                $"/ISteamUser/ResolveVanityURL/v0001/?key={_steamOptions.ApiKey}&vanityurl={encodedVanity}&format=json");
+            await _cache.SetAsync(
+                cacheKey,
+                STAEM_VANITY_NOTFOUND,
+                _cacheSettings.VanityNotFound);
 
-            var output = JsonSerializer.Deserialize<ResolveVanityUrlResponse>(outputString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-            if (output?.Response?.Success == 42)
-            {
-                _logger.LogInformation("Vanity URL {VanityUrl} not found.", vanityUrl);
-                return 0;
-            }
-
-            if (output?.Response?.Success != 1)
-            {
-                throw new VanityResolutionException($"Steam API returned unexpected success code: {output?.Response?.Success}");
-            }
-
-            await _cache.SetStringAsync($"vanity_{vanityUrl}", outputString, _cacheEntryOptions);
-            return long.Parse(output.Response.SteamId!);
+            return 0;
         }
 
-        var cachedSteamId =
-            JsonSerializer.Deserialize<ResolveVanityUrlResponse>(cachedSteamIdString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        if (response.Response.Success != STEAM_VANITY_SUCCESS)
+            throw new VanityResolutionException("Unexpected Steam response");
 
-        if (cachedSteamId is null)
-        {
-            throw new CacheException("Failed to deserialize cached data");
-        }
+        await _cache.SetAsync(
+            cacheKey,
+            response.Response.SteamId!,
+            _cacheSettings.VanitySuccess);
 
-        return long.Parse(cachedSteamId.Response.SteamId);
+        return long.Parse(response.Response.SteamId!);
     }
 }

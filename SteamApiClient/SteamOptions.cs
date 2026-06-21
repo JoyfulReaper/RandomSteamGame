@@ -1,4 +1,11 @@
-﻿namespace SteamApiClient;
+﻿/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
+namespace SteamApiClient;
 
 public class SteamOptions
 {
