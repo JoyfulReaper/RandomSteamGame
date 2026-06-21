@@ -14,7 +14,8 @@ namespace SteamApiClient.Services;
 public class CacheService : ICacheService
 {
     private readonly IDistributedCache _cache;
-    private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly JsonSerializerOptions _jsonOptions =
+        new(JsonSerializerDefaults.Web);
 
     public CacheService(IDistributedCache cache)
     {
@@ -24,14 +25,33 @@ public class CacheService : ICacheService
     public async Task<T?> GetAsync<T>(string key)
     {
         var value = await _cache.GetStringAsync(key);
-        return value is null ? default : JsonSerializer.Deserialize<T>(value, _jsonOptions);
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return default;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(value, _jsonOptions);
+        }
+        catch
+        {
+            return default;
+        }
     }
 
     public async Task SetAsync<T>(string key, T value, CachePolicy policy)
     {
+        if (value is null)
+        {
+            return;
+        }
+
         var options = new DistributedCacheEntryOptions
         {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(policy.AbsoluteMinutes)
+            AbsoluteExpirationRelativeToNow =
+                TimeSpan.FromMinutes(policy.AbsoluteMinutes)
         };
 
         var json = JsonSerializer.Serialize(value, _jsonOptions);
