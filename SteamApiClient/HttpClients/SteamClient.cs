@@ -6,6 +6,7 @@
  */
 
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.Exceptions;
@@ -20,17 +21,20 @@ public class SteamClient : ISteamClient
     private readonly IDistributedCache _cache;
     private readonly DistributedCacheEntryOptions _cacheEntryOptions;
     private readonly SteamOptions _steamOptions;
+    private readonly ILogger _logger;
 
     public SteamClient(
         HttpClient httpClient,
         IOptions<SteamOptions> steamOptions,
         IDistributedCache cache,
+        ILogger<SteamClient> logger,
         IOptions<DistributedCacheEntryOptions> cacheEntryOptions)
     {
         _httpClient = httpClient;
         _cache = cache;
         _cacheEntryOptions = cacheEntryOptions.Value;
         _steamOptions = steamOptions.Value;
+        _logger = logger;
 
         _httpClient.BaseAddress = new Uri("https://api.steampowered.com");
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -72,19 +76,24 @@ public class SteamClient : ISteamClient
 
     public async Task<long> GetSteamIdFromVanityUrl(string vanityUrl)
     {
+        var encodedVanity = Uri.EscapeDataString(vanityUrl);
+
         var cachedSteamIdString = await _cache.GetStringAsync($"vanity_{vanityUrl}");
         if (cachedSteamIdString is null)
         {
-            var outputString =
-            await _httpClient.GetStringAsync(
-                $"/ISteamUser/ResolveVanityURL/v0001/?key={_steamOptions.ApiKey}&vanityurl={vanityUrl}&format=json");
+            var outputString = await _httpClient.GetStringAsync(
+                $"/ISteamUser/ResolveVanityURL/v0001/?key={_steamOptions.ApiKey}&vanityurl={encodedVanity}&format=json");
 
-            var output =
-                JsonSerializer.Deserialize<ResolveVanityUrlResponse>(outputString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-            if (output!.Response.Success != 1)
+            var output = JsonSerializer.Deserialize<ResolveVanityUrlResponse>(outputString, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            if (output?.Response?.Success == 42)
             {
-                throw new VanityResolutionException("Unable to resolve vanity url");
+                _logger.LogInformation("Vanity URL {VanityUrl} not found.", vanityUrl);
+                return 0;
+            }
+
+            if (output?.Response?.Success != 1)
+            {
+                throw new VanityResolutionException($"Steam API returned unexpected success code: {output?.Response?.Success}");
             }
 
             await _cache.SetStringAsync($"vanity_{vanityUrl}", outputString, _cacheEntryOptions);

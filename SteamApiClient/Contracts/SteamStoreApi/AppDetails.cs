@@ -8,7 +8,7 @@ public class AppDetailsResponse
     [JsonPropertyName("success")]
 
     public bool Success { get; set; }
-    
+
     [JsonPropertyName("data")]
     public AppData? AppData { get; set; }
 }
@@ -22,6 +22,7 @@ public class AppData
     public string Name { get; set; } = default!;
 
     [JsonPropertyName("steam_appid")]
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     public int SteamAppId { get; set; }
 
     //TODO:Figure out how to deal with this
@@ -48,7 +49,7 @@ public class AppData
 
     [JsonPropertyName("header_image")]
     public string HeaderImage { get; set; } = default!;
-    
+
     [JsonPropertyName("website")]
     public string? Website { get; set; }
 
@@ -61,7 +62,7 @@ public class AppData
 
     //[JsonPropertyName("linux_requirements")]
     //public LinuxRequirements LinuxRequirements { get; set; }
-    
+
     [JsonPropertyName("developers")]
     public List<string> Developers { get; set; } = new();
 
@@ -70,16 +71,16 @@ public class AppData
 
     [JsonPropertyName("price_overview")]
     public PriceOverview? PriceOverview { get; set; }
-    
+
     public int[]? Packages { get; set; }
-    
+
     //[JsonPropertyName("package_groups")]
     //public PackageGroups[] PackageGroups { get; set; }
-    
+
     public Platforms? Platforms { get; set; }
-    
+
     public Metacritic? Metacritic { get; set; }
-    
+
     [JsonPropertyName("categories")]
     public List<Category> Categories { get; set; } = new();
 
@@ -88,23 +89,23 @@ public class AppData
 
     [JsonPropertyName("screenshots")]
     public List<Screenshot> screenshots { get; set; } = new();
-    
+
     public Recommendations? Recommendations { get; set; }
-    
+
     public Achievements? Achievements { get; set; }
-    
+
     [JsonPropertyName("release_date")]
     public ReleaseDate ReleaseDate { get; set; } = default!;
 
     [JsonPropertyName("support_info")]
     public SupportInfo? SupportInfo { get; set; }
-    
+
     [JsonPropertyName("background")]
     public string? Background { get; set; } = default!;
 
     [JsonPropertyName("background_raw")]
     public string BackgroundRaw { get; set; } = default!;
-    
+
     [JsonPropertyName("content_descriptors")]
     public ContentDescriptors? ContentDescriptors { get; set; }
 }

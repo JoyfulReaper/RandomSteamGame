@@ -36,7 +36,6 @@ public class SteamService : ISteamService
         _logger = logger;
     }
 
-    // Explicitly returning the Shared Contracts variant to satisfy ISteamService
     public async Task<ErrorOr<SharedOwnedGamesResponse>> GetOwnedGamesAsync(long steamId)
     {
         try
@@ -61,16 +60,21 @@ public class SteamService : ISteamService
         try
         {
             var steamId = await _steamClient.GetSteamIdFromVanityUrl(vanityUrl);
+            if (steamId == 0)
+            {
+                _logger.LogWarning("Steam API returned 0 (Not Found) for vanity URL: {VanityUrl}", vanityUrl);
+                return Errors.Steam.VanityResolutonFailed;
+            }
+
             return steamId;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error resolving vanity URL: {VanityUrl}", vanityUrl);
+            _logger.LogError(ex, "CRITICAL: Exception while resolving vanity URL {VanityUrl}. Message: {Message}", vanityUrl, ex.Message);
             return Errors.Steam.VanityResolutonFailed;
         }
     }
 
-    // Explicitly define the return type to use your Shared Contract
     public async Task<ErrorOr<RandomSteamGameBlazor.Shared.Contracts.Steam.AppData>> GetRandomGameBySteamIdAsync(long steamId)
     {
         try
@@ -88,7 +92,6 @@ public class SteamService : ISteamService
                 return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
             }
 
-            // Map the raw Steam API model to your Shared Contract model
             return _mapper.Map<RandomSteamGameBlazor.Shared.Contracts.Steam.AppData>(response.AppData);
         }
         catch (Exception ex)
@@ -134,6 +137,10 @@ public class SteamService : ISteamService
                 }
 
                 _logger.LogWarning("Unable to get app details for {AppId}. Attempt: {attempt}", game.AppId, attempts);
+            }
+            else
+            {
+                response.AppData?.SteamAppId = game.AppId;
             }
         }
 
