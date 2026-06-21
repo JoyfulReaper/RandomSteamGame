@@ -1,21 +1,58 @@
-# Random Steam Game
+# 🎮 Random Steam Game
 
-A fun application to choose a random steam game to play!  
-See a live preview at https://randomsteam.kgivler.com
+**Stop scrolling your library. Start playing your games.**
 
-The Solution file contains the following projects:
-- RandomSteamGame: My initial project, an MVP (Minimum Viable Product) that I do plan to refactor and improve. The background does not always behave correctly when changing games. Otherwise it does work correctly.
-- RandomSteamGameBlazor.Client: Blazor Wasm UI. Enter your SteamId or Steam Vanity URL and you will be rewarded with a random game from your Steam library.
-- RandomSteamGameBlazor.Server: Backend API for the Blazor Wasm client. Utilizies the SteamApiClient to return a random game.
-  - Uses MediatR
-- SteamApiClient: Used by both the Blazor and MVC projects to communicate with the Steam API.
-  - Uses IDistributedCache to cache the results of the calls to the SteamAPI
+[Random Steam Game](https://randomsteam.kgivler.com) is a web application designed to help you conquer your backlog. Simply enter your SteamId or Vanity URL, and let the app pick your next gaming adventure.
 
-# In Planning/Under Development:
-- Ability to register and login to save your favorite games (in develoment)
-  - Identity, JWT Tokens (in development)
-  - Save favorite Games (planned)
-  - Exclude games from random game list (planned)
-  - Save a list of games you want to play next (planned)
-- Filters for refining the games picked. (planned)
-  - Ex: Games I never played, games I played less than x hours, games I played more than x hours
+---
+
+## 🚀 Live Demo
+
+**[Visit the App →](https://randomsteam.kgivler.com)**
+
+---
+
+## 🛠 Tech Stack
+
+Built with the latest .NET technologies:
+
+* **Frontend:** Blazor WebAssembly
+* **Backend:** ASP.NET Core API
+* **Caching:** Distributed Cache (SQLite or Sql Server)
+* **Authentication:** ASP.NET Identity & JWT (registration and logins currently disabled)
+
+---
+
+## 📂 Project Structure
+
+* **`RandomSteamGameBlazor.Client`**: The Blazor Wasm UI.
+* **`RandomSteamGameBlazor.Server`**: The backend API responsible for identity, database access, and serving the client.
+* **`SteamApiClient`**: A dedicated library for seamless communication with the Steam Web API and Steam Store API.
+* **`RandomSteamGame`**: The MVP core
+
+---
+
+## 🚧 Roadmap
+
+### 🏗️ In Development
+
+* [ ] **User Accounts:** Registration and Login systems.
+* [ ] **Authentication:** JWT Token integration for secure sessions.
+
+### 📋 Planned Features
+
+* [ ] **Favorites:** Save and manage your favorite games.
+* [ ] **Exclusions:** Hide specific games you never want the randomizer to pick.
+* [ ] **Queue:** A "Play Next" list to track your backlog.
+* [ ] **Advanced Filters:** - Filter by play time (e.g., "Played less than 1 hour").
+* Filter by completion status.
+* Exclude specific genres or tags.
+
+
+
+---
+
+## 📝 License
+
+Copyright (c) 2026 Kyle Givler.
+Licensed under the [MIT License](https://opensource.org/license/mit).
