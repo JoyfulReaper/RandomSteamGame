@@ -55,8 +55,8 @@ public class SteamClient : ISteamClient
             }
 
             var ownedGamesString =
-        await _httpClient.GetStringAsync(
-            $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json{arguments}");
+                await _httpClient.GetStringAsync(
+                $"/IPlayerService/GetOwnedGames/v0001/?key={_steamOptions.ApiKey}&steamid={steamId}&format=json{arguments}&l=english"); // TODO: Add support for other languages
 
             await _cache.SetStringAsync($"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}", ownedGamesString, _cacheEntryOptions);
             var ownedGames =
