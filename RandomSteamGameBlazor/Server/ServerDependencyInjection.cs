@@ -78,13 +78,16 @@ public static class ServerDependencyInjection
     public static IServiceCollection AddIdentity(this IServiceCollection services, IConfiguration configuration)
     {
         var databaseProvider = configuration.GetValue<string>("DatabaseProvider") ?? "Sqlite";
+        var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
 
         services.AddDbContext<RandomSteamContext>(opts =>
         {
             if (databaseProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
             {
-                // SQLite connection string
-                opts.UseSqlite(configuration.GetConnectionString("SqliteConnection"));
+                var dbFile = configuration.GetConnectionString("SqliteConnection");
+                var fullPath = Path.Combine(baseDirectory, dbFile);
+
+                opts.UseSqlite($"Data Source={fullPath}");
             }
             else
             {

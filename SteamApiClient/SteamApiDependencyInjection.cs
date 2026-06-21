@@ -25,12 +25,17 @@ public static class SteamApiDependencyInjection
 
         var cacheProvider = configuration.GetValue<string>("CacheProvider") ?? "SqlServer";
 
+
+        var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        var cacheFile = configuration.GetConnectionString("SqliteCacheConnection");
+        var cachePath = Path.Combine(baseDirectory, cacheFile);
+
         // Use SQLite
         if (cacheProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
         {
             services.AddSqliteCache(options =>
             {
-                options.CachePath = configuration.GetConnectionString("SqliteCacheConnection") ?? "steam_cache.db";
+                options.CachePath = cachePath;
             });
         }
         else // Default to SQL Server

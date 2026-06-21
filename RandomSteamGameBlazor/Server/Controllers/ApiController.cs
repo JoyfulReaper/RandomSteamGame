@@ -1,6 +1,4 @@
 ﻿using ErrorOr;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using RandomSteamGameBlazor.Server.Common.Http;
@@ -8,7 +6,6 @@ using RandomSteamGameBlazor.Server.Common.Http;
 namespace RandomSteamGameBlazor.Server.Controllers;
 
 [ApiController]
-[Authorize]
 public class ApiController : ControllerBase
 {
     protected IActionResult Problem(List<Error> errors)
