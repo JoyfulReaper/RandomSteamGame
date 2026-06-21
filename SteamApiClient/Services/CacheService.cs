@@ -15,7 +15,6 @@ namespace SteamApiClient.Services;
 public class CacheService : ICacheService
 {
     private readonly IDistributedCache _cache;
-
     private readonly ILogger<CacheService> _logger;
 
     private readonly JsonSerializerOptions _jsonOptions =
@@ -35,8 +34,11 @@ public class CacheService : ICacheService
 
         if (string.IsNullOrWhiteSpace(value))
         {
+            _logger.LogDebug("Cache miss: {Key}", key);
             return default;
         }
+
+        _logger.LogDebug("Cache hit: {Key}", key);
 
         try
         {
@@ -44,7 +46,7 @@ public class CacheService : ICacheService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Cache deserialization failed for {Key}", key);
+            _logger.LogWarning(ex, "Cache deserialization failed: {Key}", key);
             return default;
         }
     }
@@ -52,9 +54,7 @@ public class CacheService : ICacheService
     public async Task SetAsync<T>(string key, T value, CachePolicy policy)
     {
         if (value is null)
-        {
             return;
-        }
 
         var options = new DistributedCacheEntryOptions
         {
@@ -65,5 +65,7 @@ public class CacheService : ICacheService
         var json = JsonSerializer.Serialize(value, _jsonOptions);
 
         await _cache.SetStringAsync(key, json, options);
+
+        _logger.LogDebug("Cache set: {Key} (TTL {Minutes}m)", key, policy.AbsoluteMinutes);
     }
 }

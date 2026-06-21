@@ -6,7 +6,6 @@
  */
 
 // TODO: replace Concurrent dictitonary with IMemoryCache with entry eviction
-// TODO: Verify logging for cache misses cnad API falires
 // TODO: Retry policy
 
 using Microsoft.Extensions.Logging;
@@ -25,7 +24,6 @@ public class SteamClient : ISteamClient
     private readonly HttpClient _httpClient;
     private readonly SteamOptions _steamOptions;
     private readonly ILogger<SteamClient> _logger;
-
     private readonly ICacheService _cache;
     private readonly CacheSettings _cacheSettings;
 
@@ -68,8 +66,7 @@ public class SteamClient : ISteamClient
             key,
             _ => new Lazy<Task<object?>>(
                 () => Wrap(factory),
-                LazyThreadSafetyMode.ExecutionAndPublication)
-        );
+                LazyThreadSafetyMode.ExecutionAndPublication));
 
         return AwaitAndCleanup<T>(key, lazy);
     }
@@ -86,9 +83,17 @@ public class SteamClient : ISteamClient
         }
     }
 
-    private static async Task<object?> Wrap<T>(Func<Task<T>> factory)
+    private async Task<object?> Wrap<T>(Func<Task<T>> factory)
     {
-        return await factory();
+        try
+        {
+            return await factory();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "SteamClient wrapped failure in single-flight pipeline");
+            throw;
+        }
     }
 
     public async Task<OwnedGames> GetOwnedGames(
@@ -101,7 +106,12 @@ public class SteamClient : ISteamClient
 
         var cached = await _cache.GetAsync<OwnedGames>(cacheKey);
         if (cached is not null)
+        {
+            _logger.LogDebug("Cache hit: OwnedGames {CacheKey}", cacheKey);
             return cached;
+        }
+
+        _logger.LogDebug("Cache miss: OwnedGames {CacheKey}", cacheKey);
 
         return await SingleFlight(cacheKey, async () =>
         {
@@ -117,13 +127,28 @@ public class SteamClient : ISteamClient
             using var response = await _httpClient.GetAsync(url, ct);
 
             if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Steam API failure (OwnedGames). SteamId={SteamId}, StatusCode={StatusCode}",
+                    steamId,
+                    response.StatusCode);
+
                 return new OwnedGames();
+            }
 
             var json = await response.Content.ReadAsStringAsync(ct);
-
             var parsed = JsonSerializer.Deserialize<OwnedGamesResponse>(json, _jsonOptions);
 
-            var result = parsed?.Response ?? new OwnedGames();
+            if (parsed?.Response is null)
+            {
+                _logger.LogWarning(
+                    "Steam API invalid JSON (OwnedGames). SteamId={SteamId}",
+                    steamId);
+
+                return new OwnedGames();
+            }
+
+            var result = parsed.Response;
 
             await _cache.SetAsync(cacheKey, result, _cacheSettings.OwnedGames);
 
@@ -140,7 +165,12 @@ public class SteamClient : ISteamClient
         var cached = await _cache.GetAsync<string>(cacheKey);
 
         if (cached is not null)
+        {
+            _logger.LogDebug("Cache hit: VanityUrl {VanityUrl}", vanityUrl);
             return cached == "NOT_FOUND" ? 0 : long.Parse(cached);
+        }
+
+        _logger.LogDebug("Cache miss: VanityUrl {VanityUrl}", vanityUrl);
 
         return await SingleFlight(cacheKey, async () =>
         {
@@ -154,20 +184,48 @@ public class SteamClient : ISteamClient
             using var response = await _httpClient.GetAsync(url, ct);
 
             if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Steam API failure (VanityUrl). VanityUrl={VanityUrl}, StatusCode={StatusCode}",
+                    vanityUrl,
+                    response.StatusCode);
+
                 return 0;
+            }
 
             var json = await response.Content.ReadAsStringAsync(ct);
 
-            var parsed =
-                JsonSerializer.Deserialize<ResolveVanityUrlResponse>(json, _jsonOptions);
+            var parsed = JsonSerializer.Deserialize<ResolveVanityUrlResponse>(json, _jsonOptions);
 
             var r = parsed?.Response;
 
-            if (r is null || r.Success == STEAM_VANITY_NO_MATCH)
+            if (r is null)
+            {
+                _logger.LogWarning(
+                    "Steam API invalid response (VanityUrl). VanityUrl={VanityUrl}",
+                    vanityUrl);
+
                 return 0;
+            }
+
+            if (r.Success == STEAM_VANITY_NO_MATCH)
+            {
+                _logger.LogInformation(
+                    "Vanity URL not found: {VanityUrl}",
+                    vanityUrl);
+
+                return 0;
+            }
 
             if (r.Success != STEAM_VANITY_SUCCESS)
+            {
+                _logger.LogWarning(
+                    "Steam API failure status (VanityUrl). VanityUrl={VanityUrl}, Success={Success}",
+                    vanityUrl,
+                    r.Success);
+
                 return 0;
+            }
 
             var id = long.Parse(r.SteamId!);
 
