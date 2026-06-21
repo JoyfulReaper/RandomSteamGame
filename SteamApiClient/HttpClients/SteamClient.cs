@@ -1,8 +1,15 @@
-﻿using System.Net.Http.Headers;
+﻿/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.Exceptions;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Caching.Distributed;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace SteamApiClient.HttpClients;
