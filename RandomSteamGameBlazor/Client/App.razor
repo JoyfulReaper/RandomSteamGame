@@ -8,37 +8,38 @@
         <NotFound>
             <PageTitle>404: OBJECT NOT FOUND</PageTitle>
             <LayoutView>
-                <div class="terminal-theme" style="min-height: 100vh; background-color: #0b0f19; margin: 0; padding: 0; color: #e2e8f0; font-family: monospace;">
-                    <div class="main-container py-5">
-                        <div class="terminal-window mx-auto" style="max-width: 800px;">
-                            <div class="terminal-header">
-                                <span class="terminal-dot close-dot"></span>
-                                <span class="terminal-dot minimize-dot"></span>
-                                <span class="terminal-dot expand-dot"></span>
-                                <span class="terminal-title">bash — error_handler.sh</span>
+                <div class="not-found-wrapper">
+                    <div class="term-window">
+                        <div class="term-header">
+                            <div class="term-dots">
+                                <span class="term-dot" style="background-color: #ef4444;"></span>
+                                <span class="term-dot" style="background-color: #f59e0b;"></span>
+                                <span class="term-dot" style="background-color: #10b981;"></span>
+                            </div>
+                            <span class="term-title">bash — error_handler.sh</span>
+                        </div>
+
+                        <div class="term-body">
+                            <div class="cmd-text">
+                                <span class="cmd-prompt">kyle@kgivler:~$</span> curl -I https://randomsteam.kgivler.com/requested_route
                             </div>
 
-                            <div class="terminal-body text-center py-5">
-                                <div class="mb-4">
-                                    <p class="cmd-line text-start"><span class="prompt">kyle@kgivler:~$</span> curl -I https://randomsteam.kgivler.com/requested_route</p>
-                                    <h1 class="display-1 fw-bold text-danger dynamic-pulse mt-3">404</h1>
-                                    <p class="terminal-lead text-white fw-bold">HTTP_STATUS_NOT_FOUND</p>
-                                    <p class="text-muted font-monospace px-3">The requested vector does not exist or has been detached from the host array. Did you mistype the URI, or did the garbage collector get to it first?</p>
-                                </div>
+                            <h1 class="display-1 fw-bold text-danger mt-3" style="text-shadow: 0 0 10px rgba(220,53,69,0.3);">404</h1>
+                            <p class="h4 fw-bold text-white mt-2">HTTP_STATUS_NOT_FOUND</p>
+                            <p class="text-muted px-3 mt-3" style="font-size: 0.9rem;">The requested vector does not exist or has been detached from the host array. Did you mistype the URI, or did the garbage collector get to it first?</p>
 
-                                <div class="text-start mx-auto font-monospace project-terminal-badge my-4 p-3" style="max-width: 600px; background-color: rgba(220, 53, 69, 0.05); border: 1px solid #dc3545 !important;">
-                                    <span class="text-danger">[SIGSEGV] SEGMENTATION FAULT</span><br>
-                                    <span style="color: #888892;">Dereferencing null pointer at address 0x0000000000000000</span><br>
-                                    <span style="color: #e2e8f0;">Reason: The client router returned an empty reference. Capitalist interference suspected. Structural integrity intact but severely offended.</span>
-                                </div>
+                            <div class="err-badge">
+                                <span class="text-danger fw-bold">[SIGSEGV] SEGMENTATION FAULT</span><br>
+                                <span style="color: #6b7280; font-size: 0.85rem;">Dereferencing null pointer at address 0x0000000000000000</span><br>
+                                <span style="color: #d1d5db; font-size: 0.9rem; margin-top: 0.5rem; display: block;">Reason: The client router returned an empty reference. Capitalist interference suspected. Structural integrity intact but severely offended.</span>
+                            </div>
 
-                                <hr class="terminal-divider my-4">
+                            <hr style="border-top: 1px solid #374151; margin: 2rem 0;">
 
-                                <div class="py-3">
-                                    <a href="/" class="terminal-btn">
-                                        <i class="fas fa-undo me-2"></i>return_to_mainframe.exe
-                                    </a>
-                                </div>
+                            <div>
+                                <a href="/" class="term-btn">
+                                    <i class="fas fa-undo me-2"></i>return_to_mainframe.exe
+                                </a>
                             </div>
                         </div>
                     </div>
