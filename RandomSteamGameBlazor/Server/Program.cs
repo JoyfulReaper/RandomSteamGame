@@ -54,7 +54,8 @@ var builder = WebApplication.CreateBuilder(args);
     {
         if (app.Environment.IsDevelopment())
         {
-            app.UseWebAssemblyDebugging();
+            //app.UseWebAssemblyDebugging();
+            app.UseExceptionHandler("/error");
         }
         else
         {
@@ -104,6 +105,20 @@ var builder = WebApplication.CreateBuilder(args);
         app.MapRazorPages();
         app.MapControllers();
         app.MapFallbackToFile("index.html");
+
+        app.MapGet("/crash", () =>
+        {
+            throw new Exception("Server-side catastrophe!");
+        });
+
+        // Custom 500 page
+        app.MapGet("/error", async context =>
+        {
+            context.Response.ContentType = "text/html";
+            context.Response.StatusCode = 500;
+
+            await context.Response.SendFileAsync("wwwroot/error.html");
+        });
 
         app.Run();
     }
