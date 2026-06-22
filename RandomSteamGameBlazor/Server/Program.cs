@@ -22,18 +22,28 @@ var builder = WebApplication.CreateBuilder(args);
 
     builder.Services.AddCors(options =>
     {
-        var allowedOrigins = builder.Configuration
+        var configuredOrigins = builder.Configuration
             .GetSection("Cors:AllowedOrigins")
             .Get<string[]>() ?? [];
 
-        if (allowedOrigins.Length == 0)
+        var allowedOrigins = new List<string>(configuredOrigins);
+
+        // Dynamically inject local development tools if running locally
+        if (builder.Environment.IsDevelopment())
+        {
+            allowedOrigins.Add("http://localhost:5500");   // VS Code Live Server
+            allowedOrigins.Add("http://127.0.0.1:5500");   // Local loopback address
+            allowedOrigins.Add("http://localhost:3000");   // Typical SPA dev port
+        }
+
+        if (allowedOrigins.Count == 0)
         {
             throw new InvalidOperationException("No CORS origins configured.");
         }
 
         options.AddPolicy("DefaultCors", policy =>
         {
-            policy.WithOrigins(allowedOrigins)
+            policy.WithOrigins(allowedOrigins.ToArray())
                   .WithMethods("GET", "POST")
                   .WithHeaders("Content-Type", "Authorization");
         });
