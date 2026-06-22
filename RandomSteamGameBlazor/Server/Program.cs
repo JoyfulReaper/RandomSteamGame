@@ -61,7 +61,7 @@ var builder = WebApplication.CreateBuilder(args);
             app.UseExceptionHandler("/error");
         }
 
-        app.UseHttpsRedirection();
+        //app.UseHttpsRedirection(); // We don't need this, the Cloudflare proxy takes care of it
         app.UseBlazorFrameworkFiles();
         app.UseStaticFiles();
 
