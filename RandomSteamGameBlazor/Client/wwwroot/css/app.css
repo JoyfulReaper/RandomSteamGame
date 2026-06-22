@@ -6,6 +6,11 @@ html, body {
     margin: 0;
 }
 
+body {
+    background-color: #0b0f19;
+    color: #e5e7eb;
+}
+
 h1:focus {
     outline: none;
 }
@@ -21,6 +26,38 @@ h1:focus {
 .validation-message {
     color: red;
 }
+
+.main-card {
+    background-color: #111827;
+    border: 1px solid #374151;
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    color: #e5e7eb;
+}
+
+.modern-input {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    color: white !important;
+}
+
+    .modern-input:focus {
+        background-color: #1f2937 !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 0 0.2rem rgba(56, 189, 248, 0.25) !important;
+    }
+
+.btn-steam {
+    background-color: #2563eb;
+    border: none;
+    color: white;
+    font-weight: 600;
+}
+
+    .btn-steam:hover {
+        background-color: #1d4ed8;
+    }
 
 /* --- LOADER STYLES --- */
 .loader-container {
