@@ -1,30 +1,36 @@
 <!DOCTYPE html>
 <html lang="en" class="h-100">
-
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game" />
-    <meta name="description" content="Random Steam Game Picker. A fun application that picks a random
-        game from your Steam Library for you to play." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
+    <meta name="description" content="Random Steam Game Picker. A fun application that picks a random game from your Steam Library for you to play." />
     <meta name="author" content="Kyle Givler" />
     <title>Random Steam Game Picker</title>
+
     <base href="/" />
-    <link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
-    <link href="css/app.css" rel="stylesheet" />
-    <link href="RandomSteamGameBlazor.Client.styles.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="stylesheet" href="RandomSteamGameBlazor.Client.styles.css" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 
-<body class="h-100" id="body">
+<body class="h-100 m-0">
+
     <div id="app">
-        <div class="row justify-content-center">
-            <div class="col-12 col-md-6 p-2 my-5 border shadow">
-                <div class="text-center">
-                    <h1>Random Steam Game Picker</h1>
-                    <h2>Loading...</h2>
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
+        <div class="loader-container">
+            <div class="terminal-loader-box">
+                <div class="spinner-line text-start">
+                    <span style="color: #38bdf8;">kyle@kgivler:~$</span> dotnet run WASM_Client...
+                </div>
+                <div class="text-start mt-3" style="color: #e2e8f0; font-size: 0.95rem;">
+                    <i class="fas fa-circle-notch fa-spin me-2" style="color: #38bdf8;"></i> Initializing framework runtime <span class="blinking-cursor"></span>
+                </div>
+                <div class="loader-subtext text-start border-top border-secondary mt-3 pt-2">
+                    Allocating local buffers & parsing assemblies...
                 </div>
             </div>
         </div>
@@ -35,19 +41,7 @@
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
     </div>
+
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 </html>
-
-<script>
-    window.setBackground = (background) => {
-        const body = document.getElementById('body');
-        body.style.backgroundColor = '#000';
-        body.style.backgroundImage = `url('${background}')`;
-    }
-    window.resetBackground = () => {
-        const body = document.getElementById('body');
-        body.style.backgroundImage = 'none';
-        body.style.backgroundColor = '#fff';
-    }
-</script>

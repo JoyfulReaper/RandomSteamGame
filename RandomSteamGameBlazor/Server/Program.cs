@@ -5,6 +5,7 @@
  * Licensed under the MIT License.
  */
 
+using Microsoft.AspNetCore.HttpOverrides;
 using RandomSteamGameBlazor.Server;
 using RandomSteamGameBlazor.Server.Services;
 using SteamApiClient;
@@ -53,13 +54,43 @@ var builder = WebApplication.CreateBuilder(args);
     {
         if (app.Environment.IsDevelopment())
         {
-            app.UseWebAssemblyDebugging();
+            //app.UseWebAssemblyDebugging();
+            app.UseExceptionHandler("/error");
         }
         else
         {
             app.UseHsts();
             app.UseExceptionHandler("/error");
         }
+
+        // Cloudfare Configuration
+        var forwardedOptions = new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        };
+
+        forwardedOptions.KnownIPNetworks.Clear();
+        forwardedOptions.KnownProxies.Clear();
+
+        // Explicitly trust the local loopback adapters so local proxy headers are respected
+        forwardedOptions.KnownProxies.Add(System.Net.IPAddress.Loopback);
+        forwardedOptions.KnownProxies.Add(System.Net.IPAddress.IPv6Loopback);
+
+        // Cloudflare CF-Visitor parsing middleware
+        app.Use((context, next) =>
+        {
+            if (context.Request.Headers.TryGetValue("CF-Visitor", out var cfVisitor))
+            {
+                if (cfVisitor.ToString().Contains("\"scheme\":\"https\""))
+                {
+                    context.Request.Headers["X-Forwarded-Proto"] = "https";
+                }
+            }
+            return next();
+        });
+
+        // hand off the modified headers to the native Forwarded Headers middleware
+        app.UseForwardedHeaders(forwardedOptions);
 
         //app.UseHttpsRedirection(); // We don't need this, the Cloudflare proxy takes care of it
         app.UseBlazorFrameworkFiles();
@@ -74,6 +105,20 @@ var builder = WebApplication.CreateBuilder(args);
         app.MapRazorPages();
         app.MapControllers();
         app.MapFallbackToFile("index.html");
+
+        app.MapGet("/crash", () =>
+        {
+            throw new Exception("Server-side catastrophe!");
+        });
+
+        // Custom 500 page
+        app.MapGet("/error", async context =>
+        {
+            context.Response.ContentType = "text/html";
+            context.Response.StatusCode = 500;
+
+            await context.Response.SendFileAsync("wwwroot/error.html");
+        });
 
         app.Run();
     }
