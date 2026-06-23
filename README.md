@@ -28,7 +28,6 @@ Built with the latest .NET technologies:
 * **`RandomSteamGameBlazor.Client`**: The Blazor Wasm UI.
 * **`RandomSteamGameBlazor.Server`**: The backend API responsible for identity, database access, and serving the client.
 * **`SteamApiClient`**: A dedicated library for seamless communication with the Steam Web API and Steam Store API.
-* **`RandomSteamGame`**: The MVP core
 
 ---
 
