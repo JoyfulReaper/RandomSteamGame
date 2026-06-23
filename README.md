@@ -6,10 +6,17 @@
 
 ---
 
+
 ## 🚀 Live Demo
 
 **[Visit the App →](https://randomsteam.kgivler.com)**
 
+## Screenshots
+Home Page:
+![Home Page](docs/images/RandomSteam_Main.png)
+
+Random Game Results:
+![Results](docs/images/RandomSteam_Game.png)
 ---
 
 ## 🛠 Tech Stack
@@ -28,7 +35,6 @@ Built with the latest .NET technologies:
 * **`RandomSteamGameBlazor.Client`**: The Blazor Wasm UI.
 * **`RandomSteamGameBlazor.Server`**: The backend API responsible for identity, database access, and serving the client.
 * **`SteamApiClient`**: A dedicated library for seamless communication with the Steam Web API and Steam Store API.
-* **`RandomSteamGame`**: The MVP core
 
 ---
 
@@ -47,8 +53,6 @@ Built with the latest .NET technologies:
 * [ ] **Advanced Filters:** - Filter by play time (e.g., "Played less than 1 hour").
 * Filter by completion status.
 * Exclude specific genres or tags.
-
-
 
 ---
 
