@@ -6,10 +6,17 @@
 
 ---
 
+
 ## 🚀 Live Demo
 
 **[Visit the App →](https://randomsteam.kgivler.com)**
 
+## Screenshots
+Home Page:
+![Home Page](docs/images/RandomSteam_Main.png)
+
+Random Game Results:
+![Results](docs/images/RandomSteam_Game.png)
 ---
 
 ## 🛠 Tech Stack
@@ -46,8 +53,6 @@ Built with the latest .NET technologies:
 * [ ] **Advanced Filters:** - Filter by play time (e.g., "Played less than 1 hour").
 * Filter by completion status.
 * Exclude specific genres or tags.
-
-
 
 ---
 
