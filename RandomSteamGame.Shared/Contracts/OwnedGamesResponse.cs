@@ -1,4 +1,4 @@
-﻿namespace RandomSteamGame.Shared.Contracts.RandomSteamGame;
+﻿namespace RandomSteamGame.Shared.Contracts;
 
 public record OwnedGamesResponse(
     long SteamId,
