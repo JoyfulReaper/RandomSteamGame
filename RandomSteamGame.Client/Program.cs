@@ -7,6 +7,9 @@
 
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Mythetech.LocalStorage;
+using RandomSteamGame.Client.Services;
+using RandomSteamGame.Client.Services.Interfaces;
+
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
@@ -27,11 +30,9 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddLocalStorage();
 
 // ==========================================
-// TO BE PORTED LATER
+// APPLICATION API CLIENT
 // ==========================================
-// builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
-// builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
-// builder.Services.AddScoped<ISteamStoreClient, ClientWasmStoreClient>();
-// builder.Services.AddScoped<ISteamClient, ClientWasmSteamClient>();
+builder.Services.AddScoped<IGameApiClient, GameApiClient>();
+builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
 await builder.Build().RunAsync();
