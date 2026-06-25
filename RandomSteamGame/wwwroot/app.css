@@ -1,5 +1,9 @@
-/* Core Layout & Cinematic Background Base */
+/* ==========================================================================
+   CORE LAYOUT & GLOBAL THEME
+   ========================================================================== */
 html, body {
+    height: 100%;
+    margin: 0;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     background-color: #0b111e;
     color: #f3f4f6;
@@ -17,7 +21,9 @@ a, .btn-link {
         text-decoration: underline;
     }
 
-/* Custom Styled Primary Buttons to Match Mockup */
+/* ==========================================================================
+   UI COMPONENTS
+   ========================================================================== */
 .btn-primary {
     color: #ffffff;
     background-color: #2563eb;
@@ -31,7 +37,6 @@ a, .btn-link {
         border-color: #1d4ed8;
     }
 
-/* Form Controls & Focused States */
 .form-control {
     background-color: #1f2937;
     border: 1px solid #374151;
@@ -49,7 +54,17 @@ a, .btn-link {
     box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
 }
 
-/* Validation System State Overrides */
+.content {
+    padding-top: 1.1rem;
+}
+
+h1:focus {
+    outline: none;
+}
+
+/* ==========================================================================
+   VALIDATION & ERROR HANDLING
+   ========================================================================== */
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #10b981;
 }
@@ -64,18 +79,9 @@ a, .btn-link {
     margin-top: 0.25rem;
 }
 
-/* Content & Structural Spacing */
-.content {
-    padding-top: 1.1rem;
-}
-
-h1:focus {
-    outline: none;
-}
-
-/* Blazor Framework Error Boundary - Styled to match your dark/red theme */
+/* Blazor Framework Error Boundary */
 .blazor-error-boundary {
-    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4HNCA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzIDkzLjUxMyAyOTEgOTQuMDgxNSAyOTEgOTQuNjc4MiAyOTEgOTcuMDY1MSAyODkuMDM4IDk5LDI4Ni42MTcgOTlMMjQwLjMzODMgOTlDMjM3Ljk2MyA5OSAyMzYgOTcuMDY1MSAyMzYgOTQuNjc4MiAyMzYgOTQuMzc5OSAyMzYuMDMxIDQ0LjA4ODYgMjM2LjA4OSA5My44MDcyTDIzNi4zMzggOTMuMDE2MiAyMzYuODU4IDkyLjEzMTQgMjU5LjQ3MyA1My42Mjk0IDI1OS45NjEgNTIuNzk4NSAyNjAuNDA3IDUyLjI2NThDMjYxLjIgNTEuNDgzNyAyNjIuMjk2IDUxIDI2My41MDYgNTFaTTI2My41ODYgNjYuMDE4M0MyNjAuNzM3IDY2LjAxODMgMjU5LjMxMyA2Ny4xMjQ1IDI1OS4zMTMgNjkuMzM3IDI1OS4zMTMgNjkuNjEwMiAyNTkuMzMyIDY5Ljg2MDggMjU5LjM3MSA3MC4wODg3TDI2MS43OTUgODQuMDE2MSAyNjUuMzggODQuMDE2MSAyNjcuODIxIDY5Ljc0NzVDMjY3Ljg2IDY5LjczMDkgMjY3Ljg3OSA2OS41ODc3IDI2Ny44NzkgNjkuMzE3OSAyNjcuODc5IDY3LjExODIgMjY2LjQ0OCA2Ni4wMTgzIDI2My41ODYgNjYuMDE4M1pNMjYzLjU3NiA4Ni4wNTQ3QzI2MS4wNDkgODYuMDU0NyAyNTkuNzg2IDg3LjMwMDUgMjU5Lzg2IDg5Ljc5MjEgMjU5Ljc4NiA5Mi4yODM3IDI2MS4wNDkgOTMuNTI5NSAyNjMuNTc2IDkzLjUyOTUgMjY2LjExNiA5My41Mjk1IDI2Ny4zODcgOTIuMjgzNyAyNjcuMzg3IDg5Ljc5MjEgMjY3LjM4NyA4Ny4zMDA1IDI2Ni4xMTYgODYuMDU0NyAyNjMuNTc2IDg2LjA1NDdaIiBmaWxsPSIjRkZFNTAwIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz49L2c+PC9zdmc+) no-repeat 1rem/1.8rem, #991b1b;
+    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4HNCA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzIDkzLjUxMyAyOTEgOTQuMDgxNSAyOTEgOTQuNjc4MiAyOTEgOTcuMDY1MSAyODkuMDM4IDk5LDI4Ni42MTcgOTlMMjQwLjMzODMgOTlDMjM3Ljk2MyA5OSAyMzYgOTcuMDY1MSAyMzYgOTQuNjc4MiAyMzYgOTQuMzc5OSAyMzYuMDMxIDQ0LjA4ODYgMjM2LjA4OSA5My44MDcyTDIzNi4zMzggOTMuMDE2MiAyMzYuODU4IDkyLjEzMTQgMjU5LjQ3MyA1My42Mjk0IDI1OS45NjEgNTIuNzk4NSAyNjAuNDA3IDUyLjI2NThDMjYxLjIgNTEuNDgzNyAyNjIuMjk2IDUxIDI2My41MDYgNTFaTTI2My41ODYgNjYuMDE4M0MyNjAuNzM3IDY2LjAxODMgMjU5LjMxMyA2Ny4xMjQ1IDI1OS4zMTMgNjkuMzM3IDI1OS4zMTMgNjkuNjEwMiAyNTkuMzMyIDY5Ljg2MDggMjU5LjM3MSA3MC4wODg3TDI2MS43OTUgODQuMDE2MSAyNjUuMzggODQuMDE2MSAyNjcuODIxIDY5Ljc0NzVDMjY3Ljg2IDY5LjczMDkgMjY3Ljg3OSA2OS41ODc3IDI2Ny44NzkgNjkuMzE3OSAyNjcuODc5IDY3LjExODIgMjY2LjQ0OCA2Ni4wMTgzIDI2My41ODYgNjYuMDE4M1pNMjYzLjU3NiA4Ni4wNTQ3QzI2MS4wNDkgODYuMDU0NyAyNTkuNzg2IDg3LjMwMDUgMjU5Lzg2IDg5Ljc5MjEgMjU5Ljc4NiA5Mi4yODM3IDI2MS4wNDkgOTMuNTI5NSAyNjMuNTc2IDkzLjUyOTUgMjY2LjExNiA5My41Mjk1IDI2Ny4zODcgOTIuMjgzNyAyNjcuMzg3IDg5Ljc5MjEgMjY3Ljc4NyA4Ny4zMDA1IDI2Ni4xMTYgODYuMDU0NyAyNjMuNTc2IDg2LjA1NDdaIiBmaWxsPSIjRkZFNTAwIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz49L2c+PC9zdmc+) no-repeat 1rem/1.8rem, #991b1b;
     padding: 1rem 1rem 1rem 3.7rem;
     color: #ffffff;
     border-radius: 6px;
@@ -86,25 +92,166 @@ h1:focus {
         content: "A critical framework error has occurred."
     }
 
-/* Custom Checkbox Alignment */
-.darker-border-checkbox.form-check-input {
-    border-color: #4b5563;
-    background-color: #1f2937;
+/* Native Blazor Error UI */
+#blazor-error-ui {
+    background: #fef3c7;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
 }
 
-    .darker-border-checkbox.form-check-input:checked {
-        background-color: #2563eb;
-        border-color: #2563eb;
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
     }
 
-/* Floating Form Label Alignment Utilities */
-.form-floating > .form-control-plaintext::placeholder,
-.form-floating > .form-control::placeholder {
-    color: #9ca3af;
-    text-align: end;
+/* ==========================================================================
+   APP-SPECIFIC UI (LOADER, TERMINAL 404, ETC)
+   ========================================================================== */
+
+/* --- LOGIN FORM STYLES --- */
+.main-card {
+    background-color: #111827;
+    border: 1px solid #374151;
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    color: #e5e7eb;
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder,
-.form-floating > .form-control:focus::placeholder {
-    text-align: start;
+.modern-input {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    color: white !important;
 }
+
+    .modern-input:focus {
+        background-color: #1f2937 !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 0 0.2rem rgba(56, 189, 248, 0.25) !important;
+    }
+
+.btn-steam {
+    background-color: #2563eb;
+    border: none;
+    color: white;
+    font-weight: 600;
+}
+
+    .btn-steam:hover {
+        background-color: #1d4ed8;
+    }
+
+.loader-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #0b111e;
+    color: #38bdf8;
+    font-family: monospace;
+}
+
+.terminal-loader-box {
+    background-color: #111827;
+    border: 1px solid #374151;
+    border-radius: 0.5rem;
+    width: 100%;
+    max-width: 500px;
+    padding: 2rem;
+}
+
+.spinner-line {
+    color: #4ade80;
+    font-weight: bold;
+    font-size: 1.15rem;
+}
+
+.blinking-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 17px;
+    background-color: #4ade80;
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    50% {
+        background-color: transparent;
+    }
+}
+
+.not-found-wrapper {
+    background-color: #0b111e;
+    min-height: 100vh;
+    font-family: monospace, sans-serif;
+    color: #e2e8f0;
+    padding: 3rem 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.term-window {
+    background-color: #111827;
+    border: 1px solid #374151;
+    border-radius: 0.5rem;
+    width: 100%;
+    max-width: 800px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.term-header {
+    background-color: #1f2937;
+    border-bottom: 1px solid #374151;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.term-body {
+    padding: 3rem 2rem;
+    text-align: center;
+}
+
+.cmd-prompt {
+    color: #4ade80;
+}
+
+.cmd-text {
+    color: #38bdf8;
+    text-align: left;
+    margin-bottom: 1.5rem;
+}
+
+.err-badge {
+    background-color: rgba(220, 53, 69, 0.05);
+    border: 1px solid #dc3545;
+    padding: 1rem;
+    max-width: 600px;
+    margin: 2rem auto;
+    text-align: left;
+}
+
+.term-btn {
+    display: inline-block;
+    padding: 0.5rem 1.5rem;
+    color: #dc3545;
+    border: 1px solid #dc3545;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: 0.2s;
+}
+
+    .term-btn:hover {
+        background-color: #dc3545;
+        color: #fff;
+    }
