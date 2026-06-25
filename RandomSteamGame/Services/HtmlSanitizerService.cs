@@ -6,6 +6,7 @@
  */
 
 using Ganss.Xss;
+using RandomSteamGame.Services.Interfaces;
 
 namespace RandomSteamGame.Services;
 

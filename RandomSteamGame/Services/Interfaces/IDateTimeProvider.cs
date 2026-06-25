@@ -5,7 +5,7 @@
  * Licensed under the MIT License.
  */
 
-namespace RandomSteamGame.Services;
+namespace RandomSteamGame.Services.Interfaces;
 
 public interface IDateTimeProvider
 {

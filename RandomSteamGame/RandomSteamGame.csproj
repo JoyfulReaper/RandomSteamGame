@@ -19,8 +19,4 @@
     <PackageReference Include="NeoSmart.Caching.Sqlite.AspNetCore" Version="9.0.1" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Features\" />
-  </ItemGroup>
-
 </Project>

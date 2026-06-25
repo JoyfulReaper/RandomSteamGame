@@ -6,7 +6,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RandomSteamGame.Services;
+using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 
 namespace RandomSteamGame.Controllers;

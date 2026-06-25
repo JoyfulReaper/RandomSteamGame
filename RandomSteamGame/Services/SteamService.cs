@@ -8,6 +8,7 @@
 using ErrorOr;
 using Microsoft.Extensions.Caching.Distributed;
 using RandomSteamGame.Common.Errors;
+using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;

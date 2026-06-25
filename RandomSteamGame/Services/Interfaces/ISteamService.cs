@@ -8,7 +8,7 @@
 using ErrorOr;
 using RandomSteamGame.Shared.Contracts;
 
-namespace RandomSteamGame.Services;
+namespace RandomSteamGame.Services.Interfaces;
 
 public interface ISteamService
 {

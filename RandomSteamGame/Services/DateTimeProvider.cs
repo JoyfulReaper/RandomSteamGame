@@ -1,4 +1,6 @@
-﻿namespace RandomSteamGame.Services;
+﻿using RandomSteamGame.Services.Interfaces;
+
+namespace RandomSteamGame.Services;
 
 public class DateTimeProvider : IDateTimeProvider
 {
