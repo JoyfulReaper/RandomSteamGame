@@ -20,16 +20,25 @@ public static class SteamApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Bind settings
         services.Configure<SteamClientApiOptions>(configuration.GetSection("SteamOptions"));
 
-        // Register core clients and wrappers
-        services.AddHttpClient<ISteamStoreClient, SteamStoreClient>();
-        services.AddHttpClient<ISteamClient, SteamClient>();
+        services.AddHttpClient<ISteamStoreClient, SteamStoreClient>()
+            .AddStandardResilienceHandler(options =>
+            {
+                options.Retry.MaxRetryAttempts = 3;
+                options.Retry.Delay = TimeSpan.FromSeconds(2);
+                options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
+            });
+
+        services.AddHttpClient<ISteamClient, SteamClient>()
+            .AddStandardResilienceHandler(options =>
+            {
+                options.Retry.MaxRetryAttempts = 3;
+                options.Retry.Delay = TimeSpan.FromSeconds(2);
+                options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
+            });
 
         services.AddScoped<ICacheService, CacheService>();
-
-        // Enable Hybrid Caching
         services.AddHybridCache();
 
         return services;
