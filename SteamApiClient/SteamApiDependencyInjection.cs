@@ -21,15 +21,21 @@ public static class SteamApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Configuration
         var steamSection = configuration.GetSection("SteamClientApiOptions");
         services.Configure<SteamClientApiOptions>(steamSection);
 
         var options = new SteamClientApiOptions();
         steamSection.Bind(options);
 
+        // Services
         services.AddHttpClient<ISteamStoreClient, SteamStoreClient>();
+        services.AddHttpClient<ISteamClient, SteamClient>();
         services.AddScoped<ICacheService, CacheService>();
 
+        services.AddHybridCache();
+
+        // Cache Provider
         var cacheProvider = configuration.GetValue<string>("CacheProvider");
         if (string.IsNullOrWhiteSpace(cacheProvider))
         {

@@ -5,7 +5,6 @@
  * Licensed under the MIT License.
  */
 
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamStoreApi;
@@ -20,7 +19,6 @@ public class SteamStoreClient : ISteamStoreClient
     private readonly HttpClient _httpClient;
     private readonly ICacheService _cache;
     private readonly SteamClientApiOptions _steamOptions;
-    private readonly IMemoryCache _memo;
     private readonly ILogger<SteamStoreClient> _logger;
 
     private static readonly JsonSerializerOptions _jsonOptions =
@@ -30,13 +28,11 @@ public class SteamStoreClient : ISteamStoreClient
         HttpClient httpClient,
         ICacheService cache,
         IOptions<SteamClientApiOptions> steamOptions,
-        IMemoryCache memo,
         ILogger<SteamStoreClient> logger)
     {
         _httpClient = httpClient;
         _cache = cache;
         _steamOptions = steamOptions.Value;
-        _memo = memo;
         _logger = logger;
 
         _httpClient.BaseAddress = new Uri("https://store.steampowered.com");
@@ -46,14 +42,12 @@ public class SteamStoreClient : ISteamStoreClient
     {
         var cacheKey = $"app:{appId}";
 
-        return MemoizeAsync(cacheKey, async () =>
+        return _cache.GetOrCreateAsync(cacheKey, async (token) =>
         {
-            var cached = await _cache.GetAsync<AppDetailsResponse>(cacheKey);
-            if (cached is not null)
-                return cached;
+            _logger.LogDebug("Cache miss or expired. Fetching AppDetails from Steam Store API for AppId: {AppId}", appId);
 
             using var response = await _httpClient.GetAsync(
-                $"/api/appdetails?appids={appId}&l=english", ct);
+                $"/api/appdetails?appids={appId}&l=english", token);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -65,7 +59,7 @@ public class SteamStoreClient : ISteamStoreClient
                 return new AppDetailsResponse(false, null);
             }
 
-            var json = await response.Content.ReadAsStringAsync(ct);
+            var json = await response.Content.ReadAsStringAsync(token);
 
             using var doc = JsonDocument.Parse(json);
 
@@ -78,34 +72,9 @@ public class SteamStoreClient : ISteamStoreClient
                 return new AppDetailsResponse(false, null);
             }
 
-            var result = JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions)
+            return JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions)
                          ?? new AppDetailsResponse(false, null);
 
-            if (result.Success && result.AppData is not null)
-            {
-                await _cache.SetAsync(cacheKey, result, _steamOptions.Cache.AppDetails);
-            }
-
-            return result;
-
-        }, _steamOptions.Cache.AppDetails.Duration);
-    }
-
-    private Task<T> MemoizeAsync<T>(
-        string key,
-        Func<Task<T>> factory,
-        TimeSpan ttl)
-    {
-        return _memo.GetOrCreate(key, entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = ttl;
-
-            entry.Value = new Lazy<Task<T>>(
-                factory,
-                LazyThreadSafetyMode.ExecutionAndPublication);
-
-            return ((Lazy<Task<T>>)entry.Value).Value;
-
-        })!;
+        }, _steamOptions.Cache.AppDetails, ct);
     }
 }
