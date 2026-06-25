@@ -1,12 +1,16 @@
 /*
  * Random Steam Game
- * * Copyright (c) 2026 Kyle Givler
+ * 
+ *  Copyright (c) 2026 Kyle Givler
  * Licensed under the MIT License.
  */
 
 using Microsoft.AspNetCore.HttpOverrides;
+using Mythetech.LocalStorage;
 using NeoSmart.Caching.Sqlite;
 using RandomSteamGame.Components;
+using RandomSteamGame.Services;
+using RandomSteamGame.Shared.Interfaces;
 using SteamApiClient; //.AddSteamApiClient()
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,14 +25,17 @@ builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
 
 
-builder.Services.AddSteamApiClient(builder.Configuration);
+builder.Services.AddSteamApiClient(builder.Configuration); // Steam Api Client
+builder.Services.AddScoped<ISteamIdentityService, ServerSteamIdentityService>();
 
+builder.Services.AddLocalStorage(); // TODO: Think about possibly rolling our own or finding a different solution
+
+// Cache Provider
 var cacheProvider = builder.Configuration.GetValue<string>("CacheProvider");
-
 if (cacheProvider?.Equals("Sqlite", StringComparison.OrdinalIgnoreCase) == true)
 {
     var dataFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
-    Directory.CreateDirectory(dataFolder); // Ensure the folder exists
+    Directory.CreateDirectory(dataFolder);
 
     builder.Services.AddSqliteCache(options =>
     {
