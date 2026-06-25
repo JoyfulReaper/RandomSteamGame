@@ -1,5 +1,19 @@
 ﻿@inherits LayoutComponentBase
 
+<div class="page-wrapper">
+    <header class="global-header">
+        <NavMenu />
+    </header>
+
+    <main class="main-content-area">
+        <div class="content-container">
+            @Body
+        </div>
+    </main>
+</div>
+
+@* @inherits LayoutComponentBase
+
 <div class="page">
     <div class="sidebar">
         <NavMenu />
@@ -21,3 +35,4 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+ *@
