@@ -22,6 +22,7 @@ builder.Services.AddRazorComponents()
 
 
 builder.Services.AddSteamApiClient(builder.Configuration);
+
 var cacheProvider = builder.Configuration.GetValue<string>("CacheProvider");
 
 if (cacheProvider?.Equals("Sqlite", StringComparison.OrdinalIgnoreCase) == true)
@@ -48,6 +49,35 @@ else
     throw new InvalidOperationException("Valid 'CacheProvider' (Sqlite or SqlServer) must be configured.");
 }
 
+// CORS Configuration
+builder.Services.AddCors(options =>
+{
+    var configuredOrigins = builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>() ?? [];
+
+    var allowedOrigins = new List<string>(configuredOrigins);
+
+    // Dynamically inject local development tools if running locally
+    if (builder.Environment.IsDevelopment())
+    {
+        allowedOrigins.Add("http://localhost:5500");   // VS Code Live Server
+        allowedOrigins.Add("http://127.0.0.1:5500");   // Local loopback address
+        allowedOrigins.Add("http://localhost:3000");   // Typical SPA dev port
+    }
+
+    if (allowedOrigins.Count == 0)
+    {
+        throw new InvalidOperationException("No CORS origins configured.");
+    }
+
+    options.AddPolicy("DefaultCors", policy =>
+    {
+        policy.WithOrigins(allowedOrigins.ToArray())
+              .WithMethods("GET", "POST")
+              .WithHeaders("Content-Type", "Authorization");
+    });
+});
 
 var app = builder.Build();
 
