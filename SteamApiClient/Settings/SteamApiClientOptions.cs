@@ -36,6 +36,9 @@ public record SteamClientApiOptions
     public string CacheTable { get; init; } = default!;
 
     [Required]
+    public string CacheProvider { get; init; } = default!;
+
+    [Required]
     public CacheSettings Cache { get; init; } = new();
 }
 

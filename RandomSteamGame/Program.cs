@@ -12,7 +12,8 @@ using RandomSteamGame.Components;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
-using SteamApiClient; //.AddSteamApiClient()
+using SteamApiClient;
+using SteamApiClient.Settings; //.AddSteamApiClient()
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,29 +37,34 @@ builder.Services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
 builder.Services.AddLocalStorage(); // TODO: Think about possibly rolling our own or finding a different solution
 
 // Cache Provider
-var cacheProvider = builder.Configuration.GetValue<string>("CacheProvider");
-if (cacheProvider?.Equals("Sqlite", StringComparison.OrdinalIgnoreCase) == true)
+var steamOptions = builder.Configuration.GetSection("Steam").Get<SteamClientApiOptions>()
+                   ?? throw new InvalidOperationException("Steam configuration is missing.");
+
+// Cache Provider Logic
+if (steamOptions.CacheProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase))
 {
+    // Extract filename from "Data Source=filename.db"
+    var fileName = steamOptions.ConnectionString.Replace("Data Source=", "", StringComparison.OrdinalIgnoreCase).Trim();
     var dataFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
     Directory.CreateDirectory(dataFolder);
 
     builder.Services.AddSqliteCache(options =>
     {
-        options.CachePath = Path.Combine(dataFolder, "cache.db");
+        options.CachePath = Path.Combine(dataFolder, fileName);
     });
 }
-else if (cacheProvider?.Equals("SqlServer", StringComparison.OrdinalIgnoreCase) == true)
+else if (steamOptions.CacheProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddDistributedSqlServerCache(options =>
     {
-        options.ConnectionString = builder.Configuration.GetConnectionString("SqlServerConnection");
-        options.SchemaName = "dbo";
-        options.TableName = "Cache";
+        options.ConnectionString = steamOptions.ConnectionString;
+        options.SchemaName = steamOptions.CacheSchema;
+        options.TableName = steamOptions.CacheTable;
     });
 }
 else
 {
-    throw new InvalidOperationException("Valid 'CacheProvider' (Sqlite or SqlServer) must be configured.");
+    throw new InvalidOperationException($"Unsupported CacheProvider: {steamOptions.CacheProvider}. Use 'SQLite' or 'SqlServer'.");
 }
 
 // CORS Configuration
