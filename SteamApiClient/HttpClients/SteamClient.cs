@@ -5,7 +5,6 @@
  * Licensed under the MIT License.
  */
 
-// TODO: Retry policy
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamApi;
