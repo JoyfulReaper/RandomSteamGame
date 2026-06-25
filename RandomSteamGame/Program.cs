@@ -1,4 +1,10 @@
-using RandomSteamGame.Client.Pages;
+/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
 using RandomSteamGame.Components;
 
 var builder = WebApplication.CreateBuilder(args);

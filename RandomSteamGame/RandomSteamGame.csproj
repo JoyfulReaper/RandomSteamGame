@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RandomSteamGame.Client\RandomSteamGame.Client.csproj" />
+    <ProjectReference Include="..\RandomSteamGame.Shared\RandomSteamGame.Shared.csproj" />
+    <ProjectReference Include="..\SteamApiClient\SteamApiClient.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
   </ItemGroup>
 
