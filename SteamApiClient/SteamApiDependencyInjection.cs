@@ -26,7 +26,10 @@ public static class SteamApiDependencyInjection
             .Validate(options => !string.IsNullOrEmpty(options.ApiKey), "Steam API Key is required")
             .ValidateOnStart();
 
-        services.AddHttpClient<ISteamStoreClient, SteamStoreClient>()
+        services.AddHttpClient<ISteamStoreClient, SteamStoreClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://store.steampowered.com/");
+        })
             .AddStandardResilienceHandler(options =>
             {
                 options.Retry.MaxRetryAttempts = 3;
@@ -34,7 +37,10 @@ public static class SteamApiDependencyInjection
                 options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
             });
 
-        services.AddHttpClient<ISteamClient, SteamClient>()
+        services.AddHttpClient<ISteamClient, SteamClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.steampowered.com/");
+        })
             .AddStandardResilienceHandler(options =>
             {
                 options.Retry.MaxRetryAttempts = 3;

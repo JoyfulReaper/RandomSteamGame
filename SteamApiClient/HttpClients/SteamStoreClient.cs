@@ -34,8 +34,6 @@ public class SteamStoreClient : ISteamStoreClient
         _cache = cache;
         _steamOptions = steamOptions.Value;
         _logger = logger;
-
-        _httpClient.BaseAddress = new Uri("https://store.steampowered.com");
     }
 
     public Task<AppDetailsResponse> GetAppData(int appId, CancellationToken ct = default)
@@ -47,7 +45,7 @@ public class SteamStoreClient : ISteamStoreClient
             _logger.LogDebug("Cache miss or expired. Fetching AppDetails from Steam Store API for AppId: {AppId}", appId);
 
             using var response = await _httpClient.GetAsync(
-                $"/api/appdetails?appids={appId}&l=english", token);
+                $"api/appdetails?appids={appId}&l=english", token);
 
             if (!response.IsSuccessStatusCode)
             {

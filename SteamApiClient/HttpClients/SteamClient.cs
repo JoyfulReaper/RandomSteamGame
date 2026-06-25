@@ -39,8 +39,6 @@ public class SteamClient : ISteamClient
         _cache = cache;
         _logger = logger;
 
-        _httpClient.BaseAddress = new Uri("https://api.steampowered.com");
-
         _httpClient.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -65,7 +63,7 @@ public class SteamClient : ISteamClient
             _logger.LogDebug("Cache miss or expired. Fetching OwnedGames from Steam API for SteamId={SteamId}", steamId);
 
             var url =
-                $"/IPlayerService/GetOwnedGames/v0001/" +
+                $"IPlayerService/GetOwnedGames/v0001/" +
                 $"?key={_steamOptions.ApiKey}" +
                 $"&steamid={steamId}" +
                 $"&format=json" +
@@ -114,7 +112,7 @@ public class SteamClient : ISteamClient
 
             var encoded = Uri.EscapeDataString(vanityUrl);
             var url =
-                $"/ISteamUser/ResolveVanityURL/v0001/" +
+                $"ISteamUser/ResolveVanityURL/v0001/" +
                 $"?key={_steamOptions.ApiKey}" +
                 $"&vanityurl={encoded}&format=json";
 

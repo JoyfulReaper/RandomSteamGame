@@ -17,12 +17,20 @@ public class SteamObjectOrEmptyArrayConverter<T> : JsonConverter<T?> where T : c
 {
     public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        // Broken Array
         if (reader.TokenType == JsonTokenType.StartArray)
         {
             reader.Skip();
             return null;
         }
 
+        // number to string
+        if (typeof(T) == typeof(string) && reader.TokenType == JsonTokenType.Number)
+        {
+            return reader.GetInt32().ToString() as T;
+        }
+
+        // default
         return JsonSerializer.Deserialize<T>(ref reader, options);
     }
 
