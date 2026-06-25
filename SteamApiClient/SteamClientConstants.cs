@@ -1,5 +1,5 @@
 ﻿/*
- * Random Steam Game
+ * Steam Api Client
  * 
  * Copyright (c) 2026 Kyle Givler
  * Licensed under the MIT License.

@@ -1,4 +1,12 @@
-﻿using SteamApiClient.Converters;
+﻿/*
+ * Steam Api Client
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
+
+using SteamApiClient.Converters;
 using System.Text.Json.Serialization;
 
 namespace SteamApiClient.Contracts.SteamStoreApi;
