@@ -21,12 +21,19 @@ public class ManualSteamIdentityService : ISteamIdentityService
     }
 
     public async Task<long?> GetSteamIdAsync()
-        => await _localStorage.GetItemAsync<long?>(LocalStorageKeys.SteamId);
+    {
+        return await _localStorage.GetItemAsync<long?>(LocalStorageKeys.SteamId);
+    }
 
     public async Task SetIdentityAsync(long steamId, string? vanityUrl)
     {
         await _localStorage.SetItemAsync(LocalStorageKeys.SteamId, steamId);
         await _localStorage.SetItemAsStringAsync(LocalStorageKeys.VanityUrl, vanityUrl ?? "");
+    }
+    public async Task<string?> GetVanityUrlAsync()
+    {
+        var val = await _localStorage.GetItemAsync<string>(LocalStorageKeys.VanityUrl);
+        return val ?? string.Empty;
     }
 
     public async Task LogoutAsync()

@@ -98,7 +98,7 @@ public class SteamService : ISteamService
             {
                 Id = appData.SteamAppId,
                 Name = appData.Name,
-                Description = _htmlSanitizer.Sanitize(appData.ShortDescription),
+                Description = _htmlSanitizer.Sanitize(appData.AboutTheGame),
                 HeaderImage = appData.HeaderImage
             };
         }

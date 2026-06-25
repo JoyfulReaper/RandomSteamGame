@@ -10,5 +10,6 @@ public interface ISteamIdentityService
 {
     Task<long?> GetSteamIdAsync();
     Task SetIdentityAsync(long steamId, string? vanityUrl);
+    Task<string?> GetVanityUrlAsync();
     Task LogoutAsync();
 }

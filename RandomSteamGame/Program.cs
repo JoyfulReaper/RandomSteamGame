@@ -10,6 +10,7 @@ using Mythetech.LocalStorage;
 using NeoSmart.Caching.Sqlite;
 using RandomSteamGame.Components;
 using RandomSteamGame.Services;
+using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
 using SteamApiClient; //.AddSteamApiClient()
 
@@ -24,9 +25,13 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents();
 
+builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSteamApiClient(builder.Configuration); // Steam Api Client
 builder.Services.AddScoped<ISteamIdentityService, ServerSteamIdentityService>();
+builder.Services.AddScoped<ISteamService, SteamService>();
+builder.Services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
 
 builder.Services.AddLocalStorage(); // TODO: Think about possibly rolling our own or finding a different solution
 
@@ -125,7 +130,7 @@ app.Use((context, next) =>
     return next();
 });
 app.UseForwardedHeaders(forwardedOptions);
-
+app.UseCors("DefaultCors");
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseAntiforgery();
 app.MapStaticAssets();
@@ -133,6 +138,8 @@ app.MapStaticAssets();
 // ==========================================
 // ENDPOINTS & ROUTING
 // ==========================================
+
+app.MapControllers();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

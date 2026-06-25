@@ -20,23 +20,34 @@
 //    }
 //}
 
+using System.ComponentModel.DataAnnotations;
+
 namespace SteamApiClient.Settings;
 
 public record SteamClientApiOptions
 {
+    [Required(ErrorMessage = "Steam API Key is missing!")]
     public string ApiKey { get; init; } = default!;
+    [Required]
     public string ConnectionString { get; init; } = default!;
+    [Required]
     public string CacheSchema { get; init; } = default!;
+    [Required]
     public string CacheTable { get; init; } = default!;
 
+    [Required]
     public CacheSettings Cache { get; init; } = new();
 }
 
 public record CacheSettings
 {
+    [Required]
     public CachePolicy OwnedGames { get; init; } = default!;
+    [Required]
     public CachePolicy AppDetails { get; init; } = default!;
+    [Required]
     public CachePolicy VanitySuccess { get; init; } = default!;
+    [Required]
     public CachePolicy VanityNotFound { get; init; } = default!;
 }
 

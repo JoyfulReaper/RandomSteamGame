@@ -20,7 +20,11 @@ public static class SteamApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<SteamClientApiOptions>(configuration.GetSection("SteamOptions"));
+        services.AddOptions<SteamClientApiOptions>()
+            .Bind(configuration.GetSection("Steam"))
+            .ValidateDataAnnotations()
+            .Validate(options => !string.IsNullOrEmpty(options.ApiKey), "Steam API Key is required")
+            .ValidateOnStart();
 
         services.AddHttpClient<ISteamStoreClient, SteamStoreClient>()
             .AddStandardResilienceHandler(options =>
