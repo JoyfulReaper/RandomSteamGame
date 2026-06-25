@@ -9,6 +9,10 @@ html, body {
     color: #f3f4f6;
 }
 
+.text-muted {
+    color: #6c757d!important
+}
+
 /* Global Navigation & Text Links */
 a, .btn-link {
     color: #3b82f6;

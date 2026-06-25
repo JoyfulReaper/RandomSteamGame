@@ -17,10 +17,10 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 // ==========================================
 // CORE NETWORKING
 // ==========================================
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
-
-// Named/Factory HttpClient support for client-side web requests
-builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("ApiClient", client =>
+{
+    client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
+});
 
 // ==========================================
 // CORE SECURITY & STORAGE FOUNDATIONS

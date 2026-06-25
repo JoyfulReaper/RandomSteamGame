@@ -1,8 +1,8 @@
 ﻿@page "/"
 @inject ILocalStorageService _localStorageService
 @inject NavigationManager _navigationManager
-@inject HttpClient _client
 @inject ISteamIdentityService _steamIdentityService
+@inject IHttpClientFactory _clientFactory
 
 <PageTitle>Random Steam Game Picker</PageTitle>
 
@@ -84,6 +84,7 @@
             }
             try
             {
+                var _client = _clientFactory.CreateClient("ApiClient");
                 _homePageModel.SteamId = await _client.GetFromJsonAsync<long>($"api/Steam/ResolveVanityUrl/{Uri.EscapeDataString(_homePageModel.VanityUrl)}");
             }
             catch (Exception ex)

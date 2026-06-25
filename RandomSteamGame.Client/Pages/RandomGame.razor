@@ -1,9 +1,6 @@
 ﻿@page "/random-game/{SteamId:long}"
 
-@*TODO: Use Serilog or something*@
 @inject ILogger<RandomGame> _logger
-
-@inject HttpClient _client
 @inject IHttpClientFactory _clientFactory
 @inject NavigationManager _navigationManager
 
@@ -78,6 +75,7 @@ else
 
         try
         {
+            var _client = _clientFactory.CreateClient("ApiClient");
             var response = await _client.GetAsync($"api/Steam/RandomGameBySteamId/{SteamId}");
 
             if (!response.IsSuccessStatusCode)
