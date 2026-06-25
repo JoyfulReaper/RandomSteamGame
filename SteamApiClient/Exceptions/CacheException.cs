@@ -1,4 +1,11 @@
-﻿namespace SteamApiClient.Exceptions;
+﻿/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
+namespace SteamApiClient.Exceptions;
 
 public class CacheException : Exception
 {

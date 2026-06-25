@@ -12,6 +12,7 @@ using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
 
+
 namespace SteamApiClient;
 
 public static class SteamApiDependencyInjection
@@ -20,44 +21,60 @@ public static class SteamApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<SteamOptions>(
-            configuration.GetSection("SteamOptions"));
+        var steamSection = configuration.GetSection("SteamClientApiOptions");
+        services.Configure<SteamClientApiOptions>(steamSection);
 
-        services.Configure<CacheSettings>(
-            configuration.GetSection("Cache"));
+        var options = new SteamClientApiOptions();
+        steamSection.Bind(options);
 
-        services.AddHttpClient<ISteamClient, SteamClient>();
         services.AddHttpClient<ISteamStoreClient, SteamStoreClient>();
         services.AddScoped<ICacheService, CacheService>();
 
-        var cacheProvider = configuration.GetValue<string>("CacheProvider") ?? "SqlServer";
+        var cacheProvider = configuration.GetValue<string>("CacheProvider");
+        if (string.IsNullOrWhiteSpace(cacheProvider))
+        {
+            throw new InvalidOperationException(
+                "The configuration key 'CacheProvider' is missing or empty. " +
+                "You must explicitly set it to either 'Sqlite' or 'SqlServer'.");
+        }
 
-        // Use SQLite
-        // Set CacheProvider to "Sqlite" in appsettings.json
         if (cacheProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
         {
             var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
             var dataFolder = Path.Combine(baseDirectory, "Data");
             Directory.CreateDirectory(dataFolder);
 
-            var cacheFile = configuration.GetConnectionString("SqliteCacheConnection");
-            var cachePath = Path.Combine(dataFolder, cacheFile);
-
-            services.AddSqliteCache(options =>
+            if (string.IsNullOrWhiteSpace(options.ConnectionString))
             {
-                options.CachePath = cachePath;
+                throw new InvalidOperationException("Sqlite caching is enabled but the ConnectionString is missing from configuration.");
+            }
+
+            var cachePath = Path.Combine(dataFolder, options.ConnectionString);
+
+            services.AddSqliteCache(opts =>
+            {
+                opts.CachePath = cachePath;
             });
         }
-        else // Default to SQL Server
+        else if (cacheProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
         {
+            if (string.IsNullOrWhiteSpace(options.ConnectionString))
+            {
+                throw new InvalidOperationException("SQL Server caching is enabled but the ConnectionString is missing from configuration.");
+            }
+
             services.AddDistributedSqlServerCache(opts =>
             {
-                opts.ConnectionString =
-                    configuration.GetConnectionString("SqlServerConnection");
-
-                opts.SchemaName = "dbo";
-                opts.TableName = "Cache";
+                opts.ConnectionString = options.ConnectionString;
+                opts.SchemaName = string.IsNullOrWhiteSpace(options.CacheSchema) ? "dbo" : options.CacheSchema;
+                opts.TableName = string.IsNullOrWhiteSpace(options.CacheTable) ? "Cache" : options.CacheTable;
             });
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                $"Unsupported CacheProvider configuration value: '{cacheProvider}'. " +
+                "Valid options are 'Sqlite' or 'SqlServer'.");
         }
 
         return services;

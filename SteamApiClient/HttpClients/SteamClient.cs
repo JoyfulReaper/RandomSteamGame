@@ -21,10 +21,9 @@ namespace SteamApiClient.HttpClients;
 public class SteamClient : ISteamClient
 {
     private readonly HttpClient _httpClient;
-    private readonly SteamOptions _steamOptions;
+    private readonly SteamClientApiOptions _steamOptions;
     private readonly ILogger<SteamClient> _logger;
     private readonly ICacheService _cache;
-    private readonly CacheSettings _cacheSettings;
 
     private static readonly JsonSerializerOptions _jsonOptions =
         new(JsonSerializerDefaults.Web);
@@ -36,16 +35,14 @@ public class SteamClient : ISteamClient
 
     public SteamClient(
         HttpClient httpClient,
-        IOptions<SteamOptions> steamOptions,
+        IOptions<SteamClientApiOptions> steamOptions,
         ICacheService cache,
-        ILogger<SteamClient> logger,
-        IOptions<CacheSettings> cacheSettings)
+        ILogger<SteamClient> logger)
     {
         _httpClient = httpClient;
         _steamOptions = steamOptions.Value;
         _cache = cache;
         _logger = logger;
-        _cacheSettings = cacheSettings.Value;
 
         _httpClient.BaseAddress = new Uri("https://api.steampowered.com");
 
@@ -149,7 +146,7 @@ public class SteamClient : ISteamClient
 
             var result = parsed.Response;
 
-            await _cache.SetAsync(cacheKey, result, _cacheSettings.OwnedGames);
+            await _cache.SetAsync(cacheKey, result, _steamOptions.Cache.OwnedGames);
 
             return result;
         });
@@ -228,7 +225,7 @@ public class SteamClient : ISteamClient
 
             var id = long.Parse(r.SteamId!);
 
-            await _cache.SetAsync(cacheKey, r.SteamId!, _cacheSettings.VanitySuccess);
+            await _cache.SetAsync(cacheKey, r.SteamId!, _steamOptions.Cache.VanitySuccess);
 
             return id;
         });

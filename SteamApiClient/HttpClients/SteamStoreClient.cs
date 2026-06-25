@@ -19,7 +19,7 @@ public class SteamStoreClient : ISteamStoreClient
 {
     private readonly HttpClient _httpClient;
     private readonly ICacheService _cache;
-    private readonly CacheSettings _cacheSettings;
+    private readonly SteamClientApiOptions _steamOptions;
     private readonly IMemoryCache _memo;
     private readonly ILogger<SteamStoreClient> _logger;
 
@@ -29,13 +29,13 @@ public class SteamStoreClient : ISteamStoreClient
     public SteamStoreClient(
         HttpClient httpClient,
         ICacheService cache,
-        IOptions<CacheSettings> cacheSettings,
+        IOptions<SteamClientApiOptions> steamOptions,
         IMemoryCache memo,
         ILogger<SteamStoreClient> logger)
     {
         _httpClient = httpClient;
         _cache = cache;
-        _cacheSettings = cacheSettings.Value;
+        _steamOptions = steamOptions.Value;
         _memo = memo;
         _logger = logger;
 
@@ -83,12 +83,12 @@ public class SteamStoreClient : ISteamStoreClient
 
             if (result.Success && result.AppData is not null)
             {
-                await _cache.SetAsync(cacheKey, result, _cacheSettings.AppDetails);
+                await _cache.SetAsync(cacheKey, result, _steamOptions.Cache.AppDetails);
             }
 
             return result;
 
-        }, _cacheSettings.AppDetails.Duration);
+        }, _steamOptions.Cache.AppDetails.Duration);
     }
 
     private Task<T> MemoizeAsync<T>(
