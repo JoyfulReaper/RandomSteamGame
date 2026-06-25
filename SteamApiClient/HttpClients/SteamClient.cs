@@ -7,7 +7,6 @@
 
 // TODO: replace Concurrent dictitonary with IMemoryCache with entry eviction
 // TODO: Retry policy
-
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamApi;
@@ -133,7 +132,7 @@ public class SteamClient : ISteamClient
                     steamId,
                     response.StatusCode);
 
-                return new OwnedGames();
+                return new OwnedGames(0, []);
             }
 
             var json = await response.Content.ReadAsStringAsync(ct);
@@ -145,7 +144,7 @@ public class SteamClient : ISteamClient
                     "Steam API invalid JSON (OwnedGames). SteamId={SteamId}",
                     steamId);
 
-                return new OwnedGames();
+                return new OwnedGames(0, []);
             }
 
             var result = parsed.Response;

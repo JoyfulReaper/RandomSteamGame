@@ -9,10 +9,11 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamStoreApi;
-using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
 using System.Text.Json;
+
+namespace SteamApiClient.HttpClients;
 
 public class SteamStoreClient : ISteamStoreClient
 {
@@ -61,7 +62,7 @@ public class SteamStoreClient : ISteamStoreClient
                     appId,
                     response.StatusCode);
 
-                return new AppDetailsResponse { Success = false };
+                return new AppDetailsResponse(false, null);
             }
 
             var json = await response.Content.ReadAsStringAsync(ct);
@@ -74,11 +75,12 @@ public class SteamStoreClient : ISteamStoreClient
                     "Steam Store API malformed response (missing app key). AppId: {AppId}",
                     appId);
 
-                return new AppDetailsResponse { Success = false };
+                return new AppDetailsResponse(false, null);
             }
 
             var result = JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions)
-                         ?? new AppDetailsResponse { Success = false };
+                         ?? new AppDetailsResponse(false, null);
+
             if (result.Success && result.AppData is not null)
             {
                 await _cache.SetAsync(cacheKey, result, _cacheSettings.AppDetails);

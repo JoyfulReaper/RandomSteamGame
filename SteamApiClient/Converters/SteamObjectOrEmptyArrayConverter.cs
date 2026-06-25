@@ -1,0 +1,33 @@
+﻿/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace SteamApiClient.Converters;
+
+/// <summary>
+/// Fixes Steam's broken API design where empty objects/missing data are returned as empty arrays ([])
+/// </summary>
+public class SteamObjectOrEmptyArrayConverter<T> : JsonConverter<T?> where T : class
+{
+    public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.StartArray)
+        {
+            reader.Skip();
+            return null;
+        }
+
+        return JsonSerializer.Deserialize<T>(ref reader, options);
+    }
+
+    public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options)
+    {
+        JsonSerializer.Serialize(writer, value, options);
+    }
+}
