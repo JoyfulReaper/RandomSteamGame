@@ -17,9 +17,20 @@
 
             @if (_isDataLoading)
             {
-                <div class="text-center text-white my-5">
-                    <div class="spinner-border" role="status"></div>
-                    <p class="mt-2">Loading...</p>
+                <div id="app">
+                    <div class="loader-container">
+                        <div class="terminal-loader-box">
+                            <div class="spinner-line text-start">
+                                <span style="color: #38bdf8;">kyle@kgivler:~$</span> dotnet run WASM_Client...
+                            </div>
+                            <div class="text-start mt-3" style="color: #e2e8f0; font-size: 0.95rem;">
+                                <i class="fas fa-circle-notch fa-spin me-2" style="color: #38bdf8;"></i> Initializing framework runtime <span class="blinking-cursor"></span>
+                            </div>
+                            <div class="loader-subtext text-start border-top border-secondary mt-3 pt-2">
+                                Allocating local buffers & parsing assemblies...
+                            </div>
+                        </div>
+                    </div>
                 </div>
             }
             else
