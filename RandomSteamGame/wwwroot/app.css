@@ -195,7 +195,6 @@ h1:focus {
 
 .not-found-wrapper {
     background-color: #0b111e;
-    min-height: 100vh;
     font-family: monospace, sans-serif;
     color: #e2e8f0;
     padding: 3rem 1rem;
