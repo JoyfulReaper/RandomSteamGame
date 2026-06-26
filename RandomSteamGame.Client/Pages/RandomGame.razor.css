@@ -1,50 +1,6 @@
-﻿/* Core Layout */
+﻿/* --- Core Layout --- */
 html, body {
     overflow-x: hidden;
-}
-
-/* The container column needs to be a flex container */
-.d-flex.flex-column {
-    display: flex;
-    flex-direction: column;
-    height: 100%; /* Important: forces the column to fill the row height */
-}
-
-/* Title area: grows to fill space, pushing buttons to the bottom */
-#randomGame {
-    flex-grow: 1;
-    min-height: 150px;
-}
-
-    /* Constrain the title */
-    #randomGame h1 {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        font-size: 2.5rem;
-    }
-
-/* Button footer: anchored to bottom, won't grow/squish */
-.button-footer {
-    margin-top: auto;
-    padding-top: 1rem;
-    flex-shrink: 0;
-}
-
-/* Constrain the Title size, reduce font slightly, and keep it consistent */
-#randomGame h1 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    font-size: 2.5rem;
-}
-
-/* Force the randomGame div to take available space */
-#randomGame {
-    flex-grow: 1;
-    min-height: 150px; /* Ensures space for title even if short */
 }
 
 .game-page-wrapper {
@@ -57,15 +13,43 @@ html, body {
     background-repeat: no-repeat;
     background-attachment: fixed;
     transition: background-image 0.5s ease-in-out;
-    padding-top: 3rem;
-    padding-bottom: 3rem;
+    padding: 3rem 0.5rem;
     overflow-y: auto;
-    overflow-x: hidden;
     color: #e5e7eb;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
 }
 
+/* --- Columns & Alignment --- */
+.d-flex.flex-column {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+#randomGame {
+    flex-grow: 1;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+}
+
+    #randomGame h1 {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: 2.5rem;
+        line-height: 1.2;
+        padding-bottom: 0.3rem;
+        margin-bottom: 0.5rem;
+    }
+
+.button-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    flex-shrink: 0;
+}
+
+/* --- Global Elements & Description Styling --- */
 h1, h2 {
     color: #ffffff !important;
     text-shadow: 0 2px 4px rgba(0,0,0,0.5);
@@ -74,16 +58,13 @@ h1, h2 {
 #gameDescription {
     color: #cbd5e1;
     line-height: 1.6;
-    overflow-x: hidden;
     width: 100%;
 }
 
     #gameDescription ::deep img {
         max-width: 100% !important;
-        width: 100% !important;
         height: auto !important;
         display: block;
-        box-sizing: border-box;
         margin: 1rem auto;
     }
 
@@ -94,16 +75,7 @@ h1, h2 {
         white-space: nowrap;
     }
 
-    #gameDescription ::deep a {
-        overflow-wrap: break-word;
-        word-wrap: break-word;
-        word-break: break-word;
-    }
-
-    #gameDescription ::deep div,
-    #gameDescription ::deep p,
-    #gameDescription ::deep span {
-        max-width: 100%;
+    #gameDescription ::deep a, #gameDescription ::deep div, #gameDescription ::deep p, #gameDescription ::deep span {
         word-wrap: break-word;
         overflow-wrap: break-word;
     }

@@ -15,31 +15,41 @@
                 <div class="alert alert-danger mb-4" role="alert">@_errorMessage</div>
             }
 
-            <div class="main-card">
-                <h2 class="text-center mb-4 text-white">Random Steam Picker</h2>
+            @if (_isDataLoading)
+            {
+                <div class="text-center text-white my-5">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2">Loading...</p>
+                </div>
+            }
+            else
+            {
+                <div class="main-card">
+                    <h2 class="text-center mb-4 text-white">Random Steam Picker</h2>
 
-                <EditForm Model="_homePageModel" OnValidSubmit="HandleValidSubmit">
-                    <div class="mb-3">
-                        <label class="form-label">17 Digit Steam ID</label>
-                        <InputNumber class="form-control modern-input" @bind-Value="_homePageModel.SteamId" />
-                    </div>
+                    <EditForm Model="_homePageModel" OnValidSubmit="HandleValidSubmit">
+                        <div class="mb-3">
+                            <label class="form-label">17 Digit Steam ID</label>
+                            <InputNumber class="form-control modern-input" @bind-Value="_homePageModel.SteamId" />
+                        </div>
 
-                    <div class="text-center fw-bold my-2 text-muted">OR</div>
+                        <div class="text-center fw-bold my-2 text-muted">OR</div>
 
-                    <div class="mb-4">
-                        <label class="form-label">Steam Vanity/Custom URL</label>
-                        <InputText class="form-control modern-input" @bind-Value="_homePageModel.VanityUrl" />
-                    </div>
+                        <div class="mb-4">
+                            <label class="form-label">Steam Vanity/Custom URL</label>
+                            <InputText class="form-control modern-input" @bind-Value="_homePageModel.VanityUrl" />
+                        </div>
 
-                    <button type="submit" class="btn btn-steam w-100 py-2" disabled="@_isBusy">
-                        @if (_isBusy)
-                        {
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                        }
-                        Generate Random Game
+                        <button type="submit" class="btn btn-steam w-100 py-2" disabled="@_isBusy">
+                            @if (_isBusy)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Generate Random Game
                     </button>
                 </EditForm>
             </div>
+            }
 
             <div class="text-center mt-4 text-muted small">
                 <p>
@@ -56,6 +66,7 @@
     private HomeModel _homePageModel = new HomeModel();
     private string? _errorMessage;
     private bool _isBusy = false;
+    private bool _isDataLoading = true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -64,6 +75,7 @@
             _homePageModel.SteamId = await _steamIdentityService.GetSteamIdAsync();
             _homePageModel.VanityUrl = await _steamIdentityService.GetVanityUrlAsync();
 
+            _isDataLoading = false;
             StateHasChanged();
         }
     }
@@ -74,33 +86,42 @@
         _isBusy = true;
         StateHasChanged();
 
-        if (_homePageModel.SteamId is null)
+        try
         {
-            if (string.IsNullOrWhiteSpace(_homePageModel.VanityUrl))
-            {
-                _errorMessage = "Please provide a SteamId or Vanity Url";
-                _isBusy = false;
-                return;
-            }
-            try
+            if (_homePageModel.SteamId is null && !string.IsNullOrWhiteSpace(_homePageModel.VanityUrl))
             {
                 var _client = _clientFactory.CreateClient("ApiClient");
-                _homePageModel.SteamId = await _client.GetFromJsonAsync<long>($"api/Steam/ResolveVanityUrl/{Uri.EscapeDataString(_homePageModel.VanityUrl)}");
+                var response = await _client.GetAsync($"api/Steam/ResolveVanityUrl/{Uri.EscapeDataString(_homePageModel.VanityUrl)}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _homePageModel.SteamId = await response.Content.ReadFromJsonAsync<long>();
+                }
+                else
+                {
+                    throw new Exception("Unable to resolve vanity URL. Check the URL and try again.");
+                }
             }
-            catch (Exception ex)
+
+            if (_homePageModel.SteamId.HasValue)
             {
-                #if DEBUG
-                _errorMessage = $"Failed to resolve vantiy URL: {ex.Message}";
-                #else
-                _errorMessage = "Failed to resolve vantiy URL";
-                #endif
-                _isBusy = false;
-                return;
+                await _steamIdentityService.SetIdentityAsync(_homePageModel.SteamId.Value, _homePageModel.VanityUrl);
+                _navigationManager.NavigateTo($"/random-game/{_homePageModel.SteamId.Value}");
+            }
+            else
+            {
+                _errorMessage = "Please enter a valid Steam ID or Vanity URL.";
             }
         }
-
-        await _steamIdentityService.SetIdentityAsync(_homePageModel.SteamId.Value, _homePageModel.VanityUrl);
-        _navigationManager.NavigateTo($"/random-game/{_homePageModel.SteamId}");
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isBusy = false;
+            StateHasChanged();
+        }
     }
 
     private async Task Logout()
