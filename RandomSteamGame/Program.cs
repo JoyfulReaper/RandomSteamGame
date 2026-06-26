@@ -118,6 +118,23 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
+// Api key validation
+if (string.IsNullOrWhiteSpace(steamOptions.ApiKey) ||
+    steamOptions.ApiKey == "STEAM_API_KEY" ||
+    steamOptions.ApiKey.Length < 32)
+{
+
+    throw new InvalidOperationException(
+        $"CRITICAL STARTUP FAILURE: Invalid Steam API Key detected. " +
+        $"The current key length is {steamOptions.ApiKey?.Length ?? 0}. " +
+        $"Ensure the Steam__ApiKey environment variable is set and IIS has been reset.");
+}
+
+// DEBUG
+var steamSection = builder.Configuration.GetSection("Steam");
+var key = steamSection["ApiKey"];
+Console.WriteLine($"DEBUG: API Key length is {key?.Length ?? 0}");
+
 var app = builder.Build();
 
 // ==========================================
