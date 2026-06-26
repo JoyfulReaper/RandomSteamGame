@@ -1,4 +1,12 @@
-﻿using SteamApiClient.Contracts.SteamApi;
+﻿/*
+ * Steam Api Client
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
+
+using SteamApiClient.Contracts.SteamApi;
 
 namespace SteamApiClient.HttpClients;
 

@@ -1,5 +1,5 @@
 ﻿/*
- * Random Steam Game
+ * Steam Api Client
  * 
  * Copyright (c) 2026 Kyle Givler
  * Licensed under the MIT License.
@@ -7,10 +7,10 @@
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using NeoSmart.Caching.Sqlite;
 using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
+
 
 namespace SteamApiClient;
 
@@ -20,45 +20,36 @@ public static class SteamApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<SteamOptions>(
-            configuration.GetSection("SteamOptions"));
+        services.AddOptions<SteamClientApiOptions>()
+            .Bind(configuration.GetSection("Steam"))
+            .ValidateDataAnnotations()
+            .Validate(options => !string.IsNullOrEmpty(options.ApiKey), "Steam API Key is required")
+            .ValidateOnStart();
 
-        services.Configure<CacheSettings>(
-            configuration.GetSection("Cache"));
+        services.AddHttpClient<ISteamStoreClient, SteamStoreClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://store.steampowered.com/");
+        })
+            .AddStandardResilienceHandler(options =>
+            {
+                options.Retry.MaxRetryAttempts = 3;
+                options.Retry.Delay = TimeSpan.FromSeconds(2);
+                options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
+            });
 
-        services.AddHttpClient<ISteamClient, SteamClient>();
-        services.AddHttpClient<ISteamStoreClient, SteamStoreClient>();
+        services.AddHttpClient<ISteamClient, SteamClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.steampowered.com/");
+        })
+            .AddStandardResilienceHandler(options =>
+            {
+                options.Retry.MaxRetryAttempts = 3;
+                options.Retry.Delay = TimeSpan.FromSeconds(2);
+                options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
+            });
+
         services.AddScoped<ICacheService, CacheService>();
-
-        var cacheProvider = configuration.GetValue<string>("CacheProvider") ?? "SqlServer";
-
-        // Use SQLite
-        // Set CacheProvider to "Sqlite" in appsettings.json
-        if (cacheProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
-        {
-            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            var dataFolder = Path.Combine(baseDirectory, "Data");
-            Directory.CreateDirectory(dataFolder);
-
-            var cacheFile = configuration.GetConnectionString("SqliteCacheConnection");
-            var cachePath = Path.Combine(dataFolder, cacheFile);
-
-            services.AddSqliteCache(options =>
-            {
-                options.CachePath = cachePath;
-            });
-        }
-        else // Default to SQL Server
-        {
-            services.AddDistributedSqlServerCache(opts =>
-            {
-                opts.ConnectionString =
-                    configuration.GetConnectionString("SqlServerConnection");
-
-                opts.SchemaName = "dbo";
-                opts.TableName = "Cache";
-            });
-        }
+        services.AddHybridCache();
 
         return services;
     }

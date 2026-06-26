@@ -1,0 +1,26 @@
+﻿@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <div class="alert @ErrorClass" role="alert">
+        @ErrorMessage
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(SuccessMessage))
+{
+    <div class="alert @SuccessClass" role="alert">
+        @SuccessMessage
+    </div>
+}
+@code {
+    [Parameter]
+    public string? ErrorMessage { get; set; }
+
+    [Parameter]
+    public string ErrorClass { get; set; } = "alert-warning";
+
+    [Parameter]
+    public string? SuccessMessage { get; set; }
+
+    [Parameter]
+    public string SuccessClass { get; set; } = "alert-success";
+}

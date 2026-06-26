@@ -1,0 +1,113 @@
+﻿@page "/random-game/{SteamId:long}"
+
+@inject ILogger<RandomGame> _logger
+@inject IHttpClientFactory _clientFactory
+@inject NavigationManager _navigationManager
+
+@if (_gameDetails is not null)
+{
+    <PageTitle>Random Game: @_gameDetails.Name</PageTitle>
+}
+else
+{
+    <PageTitle>Random Game</PageTitle>
+}
+
+<div class="game-page-wrapper" style="--bg-url: url('@_background')">
+    <div class="container-fluid px-3 px-md-5 py-5">
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-warning">@_errorMessage</div>
+        }
+
+        @if (_gameDetails is not null && string.IsNullOrEmpty(_errorMessage) && !_isBusy)
+        {
+            <div class="row">
+                <div class="col-12 col-md-5 d-flex flex-column" style="min-height: 300px;">
+
+                    <div id="randomGame" class="flex-grow-1">
+                        <h4 class="text-info">You should play:</h4>
+                        <h1 class="h2" style="font-size: 1.8rem; line-height: 1.2;">@_gameDetails.Name</h1>
+                    </div>
+
+                    <div class="button-footer">
+                        <button class="btn btn-primary btn-lg" @onclick="UpdateData">Choose Again</button>
+                        <a href="steam://run/@_gameDetails.Id/" class="btn btn-success btn-lg ms-2">Run game</a>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-7">
+                    <h3 class="mb-3">About the Game</h3>
+                    <div id="gameDescription">
+                        @((MarkupString)_gameDetails.Description)
+                    </div>
+                </div>
+            </div>
+        }
+        else if (_isBusy)
+        {
+            <div class="text-center text-white">
+                <h1>Picking a game!</h1>
+                <div class="spinner-border" role="status"></div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public long? SteamId { get; set; }
+
+    private GameDetails _gameDetails = default!;
+    private bool _isBusy = false;
+    private string? _errorMessage;
+    private string _background = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await UpdateData();
+    }
+
+    private async Task UpdateData()
+    {
+        _errorMessage = null;
+        _isBusy = true;
+        StateHasChanged();
+
+        try
+        {
+            var _client = _clientFactory.CreateClient("ApiClient");
+            var response = await _client.GetAsync($"api/Steam/RandomGameBySteamId/{SteamId}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == (System.Net.HttpStatusCode)429)
+                {
+                    _errorMessage = "Wow dude, you're like me you like to smash the button. Nicely done you are trying for more than one click per second! Please wait a little?";
+                }
+                else
+                {
+                    var problem = await response.Content.ReadFromJsonAsync<ApiProblem>();
+                    _errorMessage = problem?.Title ?? "An unexpected error occurred.";
+                }
+
+                return;
+            }
+
+            _gameDetails = await response.Content.ReadFromJsonAsync<GameDetails>()
+                ?? throw new Exception("Unable to retrieve game");
+
+            _background = _gameDetails.HeaderImage ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting random game for {SteamId}", SteamId);
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+}

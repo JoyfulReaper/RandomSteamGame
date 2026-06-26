@@ -1,71 +1,67 @@
 ﻿/*
- * Random Steam Game
+ * Steam Api Client
  * 
  * Copyright (c) 2026 Kyle Givler
  * Licensed under the MIT License.
  */
 
-using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using SteamApiClient.Settings;
-using System.Text.Json;
 
 namespace SteamApiClient.Services;
 
 public class CacheService : ICacheService
 {
-    private readonly IDistributedCache _cache;
+    private readonly HybridCache _cache;
     private readonly ILogger<CacheService> _logger;
 
-    private readonly JsonSerializerOptions _jsonOptions =
-        new(JsonSerializerDefaults.Web);
-
     public CacheService(
-        IDistributedCache cache,
+        HybridCache cache,
         ILogger<CacheService> logger)
     {
         _cache = cache;
         _logger = logger;
     }
 
-    public async Task<T?> GetAsync<T>(string key)
+    public async Task<T> GetOrCreateAsync<T>(
+        string key,
+        Func<CancellationToken, Task<T>> factory,
+        CachePolicy policy,
+        CancellationToken ct = default)
     {
-        var value = await _cache.GetStringAsync(key);
-
-        if (string.IsNullOrWhiteSpace(value))
+        var options = new HybridCacheEntryOptions
         {
-            _logger.LogDebug("Cache miss: {Key}", key);
-            return default;
-        }
-
-        _logger.LogDebug("Cache hit: {Key}", key);
-
-        try
-        {
-            return JsonSerializer.Deserialize<T>(value, _jsonOptions);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Cache deserialization failed: {Key}", key);
-            return default;
-        }
-    }
-
-    public async Task SetAsync<T>(string key, T value, CachePolicy policy)
-    {
-        if (value is null)
-            return;
-
-        var options = new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow =
-                TimeSpan.FromMinutes(policy.AbsoluteMinutes)
+            // set expiration lifetimes for RAM (L1) and DB (L2)
+            Expiration = policy.Duration,
+            LocalCacheExpiration = policy.Duration
         };
 
-        var json = JsonSerializer.Serialize(value, _jsonOptions);
+        _logger.LogDebug("HybridCache executing lookups for key: {Key}", key);
 
-        await _cache.SetStringAsync(key, json, options);
+        // handles checking L1, fallback to L2 DB, and Single-Flight token locking
+        return await _cache.GetOrCreateAsync(
+            key,
+            async token => await factory(token),
+            options,
+            cancellationToken: ct);
+    }
 
-        _logger.LogDebug("Cache set: {Key} (TTL {Minutes}m)", key, policy.AbsoluteMinutes);
+    public async Task SetAsync<T>(
+        string key,
+        T value,
+        CachePolicy policy,
+        CancellationToken ct = default)
+    {
+        if (value is null) return;
+
+        var options = new HybridCacheEntryOptions
+        {
+            Expiration = policy.Duration,
+            LocalCacheExpiration = policy.Duration
+        };
+
+        await _cache.SetAsync(key, value, options, cancellationToken: ct);
+        _logger.LogDebug("HybridCache direct write: {Key}", key);
     }
 }

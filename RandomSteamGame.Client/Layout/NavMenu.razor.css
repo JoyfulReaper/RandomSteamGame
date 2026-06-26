@@ -1,0 +1,49 @@
+/* Container alignment */
+.rsg-nav-container {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+}
+
+/* Navbar background */
+.navbar {
+    background-color: #2F3033 !important;
+    border-bottom: 1px solid #1f2937;
+    padding: 0.5rem 0;
+}
+
+.navbar-brand {
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+/* Link and Icon styling */
+.nav-link {
+    color: #9ca3af !important;
+    font-size: 0.95rem !important;
+    padding: 0.5rem 1rem !important;
+    display: flex !important;
+    align-items: center;
+}
+
+    .nav-link:hover, .nav-link.active {
+        color: #ffffff !important;
+    }
+
+    .nav-link .bi {
+        margin-right: 0.5rem !important;
+        color: #9ca3af !important;
+    }
+
+    .nav-link:hover .bi, .nav-link.active .bi {
+        color: #ffffff !important;
+    }
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .navbar-collapse {
+        padding-top: 1rem;
+    }
+}

@@ -1,25 +1,24 @@
 ﻿/*
- * Random Steam Game
+ * Steam Api Client
  * 
  * Copyright (c) 2026 Kyle Givler
  * Licensed under the MIT License.
  */
 
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamStoreApi;
-using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
 using System.Text.Json;
+
+namespace SteamApiClient.HttpClients;
 
 public class SteamStoreClient : ISteamStoreClient
 {
     private readonly HttpClient _httpClient;
     private readonly ICacheService _cache;
-    private readonly CacheSettings _cacheSettings;
-    private readonly IMemoryCache _memo;
+    private readonly SteamClientApiOptions _steamOptions;
     private readonly ILogger<SteamStoreClient> _logger;
 
     private static readonly JsonSerializerOptions _jsonOptions =
@@ -28,31 +27,25 @@ public class SteamStoreClient : ISteamStoreClient
     public SteamStoreClient(
         HttpClient httpClient,
         ICacheService cache,
-        IOptions<CacheSettings> cacheSettings,
-        IMemoryCache memo,
+        IOptions<SteamClientApiOptions> steamOptions,
         ILogger<SteamStoreClient> logger)
     {
         _httpClient = httpClient;
         _cache = cache;
-        _cacheSettings = cacheSettings.Value;
-        _memo = memo;
+        _steamOptions = steamOptions.Value;
         _logger = logger;
-
-        _httpClient.BaseAddress = new Uri("https://store.steampowered.com");
     }
 
     public Task<AppDetailsResponse> GetAppData(int appId, CancellationToken ct = default)
     {
         var cacheKey = $"app:{appId}";
 
-        return MemoizeAsync(cacheKey, async () =>
+        return _cache.GetOrCreateAsync(cacheKey, async (token) =>
         {
-            var cached = await _cache.GetAsync<AppDetailsResponse>(cacheKey);
-            if (cached is not null)
-                return cached;
+            _logger.LogDebug("Cache miss or expired. Fetching AppDetails from Steam Store API for AppId: {AppId}", appId);
 
             using var response = await _httpClient.GetAsync(
-                $"/api/appdetails?appids={appId}&l=english", ct);
+                $"api/appdetails?appids={appId}&l=english", token);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -61,10 +54,10 @@ public class SteamStoreClient : ISteamStoreClient
                     appId,
                     response.StatusCode);
 
-                return new AppDetailsResponse { Success = false };
+                return new AppDetailsResponse(false, null);
             }
 
-            var json = await response.Content.ReadAsStringAsync(ct);
+            var json = await response.Content.ReadAsStringAsync(token);
 
             using var doc = JsonDocument.Parse(json);
 
@@ -74,36 +67,12 @@ public class SteamStoreClient : ISteamStoreClient
                     "Steam Store API malformed response (missing app key). AppId: {AppId}",
                     appId);
 
-                return new AppDetailsResponse { Success = false };
+                return new AppDetailsResponse(false, null);
             }
 
-            var result = JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions)
-                         ?? new AppDetailsResponse { Success = false };
-            if (result.Success && result.AppData is not null)
-            {
-                await _cache.SetAsync(cacheKey, result, _cacheSettings.AppDetails);
-            }
+            return JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions)
+                         ?? new AppDetailsResponse(false, null);
 
-            return result;
-
-        }, _cacheSettings.AppDetails.Duration);
-    }
-
-    private Task<T> MemoizeAsync<T>(
-        string key,
-        Func<Task<T>> factory,
-        TimeSpan ttl)
-    {
-        return _memo.GetOrCreate(key, entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = ttl;
-
-            entry.Value = new Lazy<Task<T>>(
-                factory,
-                LazyThreadSafetyMode.ExecutionAndPublication);
-
-            return ((Lazy<Task<T>>)entry.Value).Value;
-
-        })!;
+        }, _steamOptions.Cache.AppDetails, ct);
     }
 }

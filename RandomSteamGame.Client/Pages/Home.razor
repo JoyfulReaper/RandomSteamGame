@@ -1,0 +1,134 @@
+﻿@page "/"
+@inject ILocalStorageService _localStorageService
+@inject NavigationManager _navigationManager
+@inject ISteamIdentityService _steamIdentityService
+@inject IHttpClientFactory _clientFactory
+
+<PageTitle>Random Steam Game Picker</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="alert alert-danger mb-4" role="alert">@_errorMessage</div>
+            }
+
+            @if (_isDataLoading)
+            {
+                <div class="text-center text-white my-5">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2">Loading...</p>
+                </div>
+            }
+            else
+            {
+                <div class="main-card">
+                    <h2 class="text-center mb-4 text-white">Random Steam Picker</h2>
+
+                    <EditForm Model="_homePageModel" OnValidSubmit="HandleValidSubmit">
+                        <div class="mb-3">
+                            <label class="form-label">17 Digit Steam ID</label>
+                            <InputNumber class="form-control modern-input" @bind-Value="_homePageModel.SteamId" />
+                        </div>
+
+                        <div class="text-center fw-bold my-2 text-muted">OR</div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Steam Vanity/Custom URL</label>
+                            <InputText class="form-control modern-input" @bind-Value="_homePageModel.VanityUrl" />
+                        </div>
+
+                        <button type="submit" class="btn btn-steam w-100 py-2" disabled="@_isBusy">
+                            @if (_isBusy)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Generate Random Game
+                    </button>
+                </EditForm>
+            </div>
+            }
+
+            <div class="text-center mt-4 text-muted small">
+                <p>
+                    Need help finding your Steam ID? Check the <a href="https://help.steampowered.com/en/faqs/view/2816-BE67-5B69-0FEC" target="_blank" class="text-info">Steam ID guide</a>.
+                    Ensure your <a href="https://help.steampowered.com/en/faqs/view/588C-C67D-0251-C276" target="_blank" class="text-info">profile is public</a>.
+                </p>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@code {
+    private HomeModel _homePageModel = new HomeModel();
+    private string? _errorMessage;
+    private bool _isBusy = false;
+    private bool _isDataLoading = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _homePageModel.SteamId = await _steamIdentityService.GetSteamIdAsync();
+            _homePageModel.VanityUrl = await _steamIdentityService.GetVanityUrlAsync();
+
+            _isDataLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        _errorMessage = null;
+        _isBusy = true;
+        StateHasChanged();
+
+        try
+        {
+            if (_homePageModel.SteamId is null && !string.IsNullOrWhiteSpace(_homePageModel.VanityUrl))
+            {
+                var _client = _clientFactory.CreateClient("ApiClient");
+                var response = await _client.GetAsync($"api/Steam/ResolveVanityUrl/{Uri.EscapeDataString(_homePageModel.VanityUrl)}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _homePageModel.SteamId = await response.Content.ReadFromJsonAsync<long>();
+                }
+                else
+                {
+                    throw new Exception("Unable to resolve vanity URL. Check the URL and try again.");
+                }
+            }
+
+            if (_homePageModel.SteamId.HasValue)
+            {
+                await _steamIdentityService.SetIdentityAsync(_homePageModel.SteamId.Value, _homePageModel.VanityUrl);
+                _navigationManager.NavigateTo($"/random-game/{_homePageModel.SteamId.Value}");
+            }
+            else
+            {
+                _errorMessage = "Please enter a valid Steam ID or Vanity URL.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Logout()
+    {
+        await _localStorageService.RemoveItemsAsync(new List<string> {
+            LocalStorageKeys.Token,
+            LocalStorageKeys.RefreshToken
+        });
+    }
+}
