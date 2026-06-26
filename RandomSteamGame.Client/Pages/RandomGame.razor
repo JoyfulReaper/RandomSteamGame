@@ -82,8 +82,16 @@ else
 
             if (!response.IsSuccessStatusCode)
             {
-                var problem = await response.Content.ReadFromJsonAsync<ApiProblem>();
-                _errorMessage = problem?.Title ?? "An unexpected error occurred.";
+                if (response.StatusCode == (System.Net.HttpStatusCode)429)
+                {
+                    _errorMessage = "Wow dude, you're like me you like to smash the button. Nicely done you are trying for more than one click per second! Please wait a little?";
+                }
+                else
+                {
+                    var problem = await response.Content.ReadFromJsonAsync<ApiProblem>();
+                    _errorMessage = problem?.Title ?? "An unexpected error occurred.";
+                }
+
                 return;
             }
 

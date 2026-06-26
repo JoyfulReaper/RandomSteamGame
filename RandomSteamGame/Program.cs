@@ -6,6 +6,7 @@
  */
 
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Mythetech.LocalStorage;
 using NeoSmart.Caching.Sqlite;
 using RandomSteamGame.Components;
@@ -13,7 +14,8 @@ using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
 using SteamApiClient;
-using SteamApiClient.Settings; //.AddSteamApiClient()
+using SteamApiClient.Settings;
+using System.Threading.RateLimiting; //.AddSteamApiClient()
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -97,6 +99,25 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Rate Limting TODO: Make it configurable through appsettings
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("steam_api_limiter", limiterOptions =>
+    {
+        limiterOptions.Window = TimeSpan.FromSeconds(10); // 10 second window
+        limiterOptions.PermitLimit = 10;                  // Max 10 requests per window
+        limiterOptions.QueueLimit = 0;                   // Reject requests immediately if over limit
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+
+    // Custom response when rate limited
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsync("Too many requests. Please slow down and try again in a few seconds.", token);
+    };
+});
+
 var app = builder.Build();
 
 // ==========================================
@@ -135,11 +156,13 @@ app.Use((context, next) =>
     }
     return next();
 });
+
 app.UseForwardedHeaders(forwardedOptions);
 app.UseCors("DefaultCors");
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseAntiforgery();
 app.MapStaticAssets();
+app.UseRateLimiter();
 
 // ==========================================
 // ENDPOINTS & ROUTING

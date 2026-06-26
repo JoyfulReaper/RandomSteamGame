@@ -6,6 +6,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 
@@ -14,6 +15,7 @@ namespace RandomSteamGame.Controllers;
 [Route("api/[controller]")]
 [AllowAnonymous]
 [ApiController]
+[EnableRateLimiting("steam_api_limiter")]
 public class SteamController : ApiController
 {
     private readonly ISteamService _steamService;
