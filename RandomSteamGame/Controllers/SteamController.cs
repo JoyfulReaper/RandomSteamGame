@@ -48,7 +48,7 @@ public class SteamController : ApiController
     }
 
     [HttpGet("RandomGameBySteamId/{steamId}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GameDetails))] // Fixed: Aligned with GameDetails return type
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GameDetails))]
     public async Task<IActionResult> RandomGameBySteamId(long steamId)
     {
         var result = await _steamService.GetRandomGameBySteamIdAsync(steamId);
@@ -59,7 +59,7 @@ public class SteamController : ApiController
     }
 
     [HttpGet("RandomGameByVanityUrl/{vanityUrl}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GameDetails))] // Fixed: Aligned with GameDetails return type
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GameDetails))]
     public async Task<IActionResult> RandomGameByVanityUrl(string vanityUrl)
     {
         var steamIdResult = await _steamService.ResolveVanityUrlAsync(vanityUrl);
