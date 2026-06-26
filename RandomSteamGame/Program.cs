@@ -100,7 +100,7 @@ builder.Services.AddCors(options =>
 });
 
 // Rate Limting
-var rateLimitLimit = builder.Configuration.GetValue<int>("RateLimiting:PermitLimit", 10);
+var rateLimitLimit = builder.Configuration.GetValue<int>("RateLimiting:PermitLimit", 20);
 var rateLimitWindow = builder.Configuration.GetValue<int>("RateLimiting:WindowSeconds", 10);
 
 builder.Services.AddRateLimiter(options =>
@@ -108,7 +108,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddFixedWindowLimiter("steam_api_limiter", limiterOptions =>
     {
         limiterOptions.Window = TimeSpan.FromSeconds(rateLimitWindow); // 10 second window
-        limiterOptions.PermitLimit = rateLimitLimit;                  // Max 10 requests per window
+        limiterOptions.PermitLimit = rateLimitLimit;                  // Max 20 requests per window
         limiterOptions.QueueLimit = 0;                   // Reject requests immediately if over limit
         limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
     });

@@ -15,10 +15,10 @@ else
 
 <div class="game-page-wrapper" style="--bg-url: url('@_background')">
     <div class="container-fluid px-3 px-md-5 py-5">
-
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
             <div class="alert alert-warning">@_errorMessage</div>
+            <button class="btn btn-primary btn-lg" @onclick="UpdateData">Try Again</button>
         }
 
         @if (_gameDetails is not null && string.IsNullOrEmpty(_errorMessage) && !_isBusy)
@@ -84,7 +84,7 @@ else
             {
                 if (response.StatusCode == (System.Net.HttpStatusCode)429)
                 {
-                    _errorMessage = "Wow dude, you're like me you like to smash the button. Nicely done you are trying for more than one click per second! Please wait a little?";
+                    _errorMessage = "Wow dude, you're like me you like to smash the button. Nicely done you are trying for more than two clicks per second! Please wait a little?";
                 }
                 else
                 {
