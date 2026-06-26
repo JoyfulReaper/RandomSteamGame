@@ -5,8 +5,12 @@
  * Licensed under the MIT License.
  */
 
+// TODO - Split up this file
+
+using JoyfulReaperLib.JRData;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Data.Sqlite;
 using Mythetech.LocalStorage;
 using NeoSmart.Caching.Sqlite;
 using RandomSteamGame.Components;
@@ -18,6 +22,14 @@ using SteamApiClient.Settings;
 using System.Threading.RateLimiting; //.AddSteamApiClient()
 
 var builder = WebApplication.CreateBuilder(args);
+
+var schema = @"
+            CREATE TABLE IF NOT EXISTS Visitors (
+                IpAddress TEXT PRIMARY KEY,
+                Hits INTEGER DEFAULT 1,
+                LastSeen TEXT
+            );";
+var connectionString = SqliteHelper.InitializeSqlite("kgivler_com.db", schema);
 
 // ==========================================
 // SERVICES CONFIGURATION (DI CONTAINER)
@@ -35,6 +47,8 @@ builder.Services.AddSteamApiClient(builder.Configuration); // Steam Api Client
 builder.Services.AddScoped<ISteamIdentityService, ServerSteamIdentityService>();
 builder.Services.AddScoped<ISteamService, SteamService>();
 builder.Services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
+builder.Services.AddScoped<SqliteConnection>(_ =>
+            new SqliteConnection(connectionString));
 
 builder.Services.AddLocalStorage(); // TODO: Think about possibly rolling our own or finding a different solution
 
