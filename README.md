@@ -11,6 +11,11 @@
 
 The **Random Steam Game (RSG)** utility is a high-performance heuristic decision-making engine designed to eliminate decision paralysis within the Steam software environment. This module interfaces directly with the Steam API to query, aggregate, and randomize local user assets, serving the next logical execution path for the user’s gaming cycle.
 
+## 1.1 DEPLOYMENT
+The operational instance of the RSG utility is hosted and accessible at the following secure URI:
+
+**[https://randomsteam.kgivler.com](https://randomsteam.kgivler.com)**
+
 ## 2.0 ARCHITECTURAL COMPONENTS
 
 The system is comprised of three primary subsystems interacting within the .NET ecosystem:
