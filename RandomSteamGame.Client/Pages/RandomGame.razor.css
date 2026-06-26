@@ -1,5 +1,50 @@
-﻿html, body {
+﻿/* Core Layout */
+html, body {
     overflow-x: hidden;
+}
+
+/* The container column needs to be a flex container */
+.d-flex.flex-column {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Important: forces the column to fill the row height */
+}
+
+/* Title area: grows to fill space, pushing buttons to the bottom */
+#randomGame {
+    flex-grow: 1;
+    min-height: 150px;
+}
+
+    /* Constrain the title */
+    #randomGame h1 {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: 2.5rem;
+    }
+
+/* Button footer: anchored to bottom, won't grow/squish */
+.button-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    flex-shrink: 0;
+}
+
+/* Constrain the Title size, reduce font slightly, and keep it consistent */
+#randomGame h1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 2.5rem;
+}
+
+/* Force the randomGame div to take available space */
+#randomGame {
+    flex-grow: 1;
+    min-height: 150px; /* Ensures space for title even if short */
 }
 
 .game-page-wrapper {
