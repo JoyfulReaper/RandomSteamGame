@@ -14,7 +14,7 @@
     <ProjectReference Include="..\SteamApiClient\SteamApiClient.csproj" />
     <PackageReference Include="ErrorOr" Version="2.1.1" />
     <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
-    <PackageReference Include="JoyfulReaperLib" Version="0.0.1" />
+    <PackageReference Include="JoyfulReaperLib" Version="0.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
