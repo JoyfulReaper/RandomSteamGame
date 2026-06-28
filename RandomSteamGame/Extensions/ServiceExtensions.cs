@@ -5,6 +5,7 @@
  * Licensed under the MIT License.
  */
 
+using JoyfulReaperLib.JRData;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
 using Mythetech.LocalStorage;
@@ -23,12 +24,13 @@ public static class ServiceExtensions
     public static IServiceCollection AddApplicationServices(
         this IServiceCollection services,
         IConfiguration config,
-        IWebHostEnvironment env,
-        string connectionString)
+        IWebHostEnvironment env)
     {
         // ==========================================
         // SERVICES CONFIGURATION (DI CONTAINER)
         // ==========================================
+
+        var connectionString = SqliteHelper.InitializeSqlite("kgivler_com.db", null);
 
         // Blazor Interactive Auto Render Mode Engines
         services.AddRazorComponents()
