@@ -163,4 +163,9 @@ public class SteamClient : ISteamClient
 
         }, _steamOptions.Cache.VanitySuccess, tags, ct);
     }
+
+    public async Task InvalidateOwnedGamesCacheAsync(long steamId)
+    {
+        await _cache.InvalidateByTagAsync($"steam_user_{steamId}");
+    }
 }

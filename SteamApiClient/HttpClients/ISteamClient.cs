@@ -21,4 +21,6 @@ public interface ISteamClient
     Task<long> GetSteamIdFromVanityUrl(
         string vanityUrl,
         CancellationToken ct = default);
+
+    Task InvalidateOwnedGamesCacheAsync(long steamId);
 }

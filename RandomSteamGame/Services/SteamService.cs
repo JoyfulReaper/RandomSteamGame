@@ -23,8 +23,8 @@ public class SteamService : ISteamService
     private readonly ISteamStoreClient _steamStoreClient;
     private readonly ILogger<SteamService> _logger;
     private readonly IHtmlSanitizerService _htmlSanitizer;
-    private readonly ICacheService _cacheService;
     private readonly SteamClientApiOptions _steamOptions;
+    private readonly ICacheService _cacheService;
 
     private const int MAX_ATTEMPTS = 3;
 
@@ -41,40 +41,27 @@ public class SteamService : ISteamService
         _htmlSanitizer = htmlSanitizerService;
         _steamClient = steamClient;
         _steamStoreClient = steamStoreClient;
-        _cacheService = cacheService;
         _logger = logger;
+        _cacheService = cacheService;
         _steamOptions = steamOptions.Value;
     }
 
     public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long steamId)
     {
-        try
-        {
-            var ownedGames = await _cacheService.GetOrCreateAsync(
-                $"owned_games:{steamId}",
-                async ct => await _steamClient.GetOwnedGames(steamId),
-                _steamOptions.Cache.OwnedGames,
-                tags: new[] { "owned_games" }
-            );
+        var ownedGames = await _steamClient.GetOwnedGames(steamId);
 
-            if (ownedGames?.Games == null || ownedGames.Games.Count == 0)
-            {
-                return Errors.Steam.EmptyLibrary;
-            }
-
-            return MapToOwnedGamesResponse(steamId, ownedGames);
-        }
-        catch (Exception ex)
+        if (ownedGames?.Games == null || ownedGames.Games.Count == 0)
         {
-            _logger.LogError(ex, "Error getting owned games for SteamID: {SteamId}", steamId);
-            return Errors.Steam.SteamApiFailed;
+            return Errors.Steam.EmptyLibrary;
         }
+
+        return MapToOwnedGamesResponse(steamId, ownedGames);
     }
 
     public async Task RefreshOwnedGamesCacheAsync()
     {
+        // You can keep the CacheService injected here, or add a method to ISteamClient
         await _cacheService.InvalidateByTagAsync("owned_games");
-        _logger.LogInformation("Owned games cache manually invalidated.");
     }
 
     public async Task<ErrorOr<long>> ResolveVanityUrlAsync(string vanityUrl)

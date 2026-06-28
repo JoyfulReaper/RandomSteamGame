@@ -28,7 +28,6 @@ public static class ServiceExtensions
         // ==========================================
         // SERVICES CONFIGURATION (DI CONTAINER)
         // ==========================================
-
         var connectionString = SqliteHelper.InitializeSqlite("kgivler_com.db", null);
 
         // Blazor Interactive Auto Render Mode Engines
