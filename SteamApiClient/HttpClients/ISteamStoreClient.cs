@@ -14,5 +14,6 @@ public interface ISteamStoreClient
 {
     Task<AppDetailsResponse> GetAppData(
         int appId,
+        IEnumerable<string>? tags = null,
         CancellationToken ct = default);
 }

@@ -25,25 +25,25 @@ public class CacheService : ICacheService
     }
 
     public async Task<T> GetOrCreateAsync<T>(
-        string key,
-        Func<CancellationToken, Task<T>> factory,
-        CachePolicy policy,
-        CancellationToken ct = default)
+            string key,
+            Func<CancellationToken, Task<T>> factory,
+            CachePolicy policy,
+            IEnumerable<string>? tags = null,
+            CancellationToken ct = default)
     {
         var options = new HybridCacheEntryOptions
         {
-            // set expiration lifetimes for RAM (L1) and DB (L2)
             Expiration = policy.Duration,
             LocalCacheExpiration = TimeSpan.FromMinutes(5)
         };
 
-        _logger.LogDebug("HybridCache executing lookups for key: {Key}", key);
+        //_logger.LogDebug("HybridCache executing lookups for key: {Key}", key);
 
-        // handles checking L1, fallback to L2 DB, and Single-Flight token locking
         return await _cache.GetOrCreateAsync(
             key,
             async token => await factory(token),
             options,
+            tags,
             cancellationToken: ct);
     }
 
@@ -51,6 +51,7 @@ public class CacheService : ICacheService
         string key,
         T value,
         CachePolicy policy,
+        IEnumerable<string>? tags = null,
         CancellationToken ct = default)
     {
         if (value is null)
@@ -62,7 +63,13 @@ public class CacheService : ICacheService
             LocalCacheExpiration = TimeSpan.FromMinutes(5)
         };
 
-        await _cache.SetAsync(key, value, options, cancellationToken: ct);
-        _logger.LogDebug("HybridCache direct write: {Key}", key);
+        await _cache.SetAsync(key, value, options, tags, cancellationToken: ct);
+        // _logger.LogDebug("HybridCache direct write: {Key}", key);
+    }
+
+    public async Task InvalidateByTagAsync(string tag, CancellationToken ct = default)
+    {
+        _logger.LogDebug("Invalidating cache for tag: {Tag}", tag);
+        await _cache.RemoveByTagAsync(tag, cancellationToken: ct);
     }
 }

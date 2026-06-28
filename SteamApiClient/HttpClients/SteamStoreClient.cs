@@ -36,13 +36,16 @@ public class SteamStoreClient : ISteamStoreClient
         _logger = logger;
     }
 
-    public Task<AppDetailsResponse> GetAppData(int appId, CancellationToken ct = default)
+    public Task<AppDetailsResponse> GetAppData(int appId, IEnumerable<string>? tags = null, CancellationToken ct = default)
     {
         var cacheKey = $"app:{appId}";
+        var entryTags = tags?.ToList() ?? new List<string>();
+        entryTags.Add("app_details");
+        entryTags.Add($"app_{appId}");
 
         return _cache.GetOrCreateAsync(cacheKey, async (token) =>
         {
-            _logger.LogDebug("Cache miss or expired. Fetching AppDetails from Steam Store API for AppId: {AppId}", appId);
+            // _logger.LogDebug("Cache miss or expired. Fetching AppDetails from Steam Store API for AppId: {AppId}", appId);
 
             using var response = await _httpClient.GetAsync(
                 $"api/appdetails?appids={appId}&l=english", token);
@@ -73,6 +76,6 @@ public class SteamStoreClient : ISteamStoreClient
             return JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions)
                          ?? new AppDetailsResponse(false, null);
 
-        }, _steamOptions.Cache.AppDetails, ct);
+        }, _steamOptions.Cache.AppDetails, entryTags, ct);
     }
 }

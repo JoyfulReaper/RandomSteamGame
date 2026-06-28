@@ -56,11 +56,12 @@ public class SteamClient : ISteamClient
         CancellationToken ct = default)
     {
         var cacheKey = $"owned_{steamId}_{includeAppInfo}_{includePlayedFreeGames}";
+        var tags = new[] { $"steam_user_{steamId}", "owned_games" };
 
         // checks RAM (L1), falls back to DB (L2) enforces single flight
         return await _cache.GetOrCreateAsync(cacheKey, async (token) =>
         {
-            _logger.LogDebug("Cache miss or expired. Fetching OwnedGames from Steam API for SteamId={SteamId}", steamId);
+            // _logger.LogDebug("Cache miss or expired. Fetching OwnedGames from Steam API for SteamId={SteamId}", steamId);
 
             var url =
                 $"IPlayerService/GetOwnedGames/v0001/" +
@@ -97,7 +98,7 @@ public class SteamClient : ISteamClient
 
             return parsed.Response;
 
-        }, _steamOptions.Cache.OwnedGames, ct);
+        }, _steamOptions.Cache.OwnedGames, tags, ct);
     }
 
     public async Task<long> GetSteamIdFromVanityUrl(
@@ -105,10 +106,11 @@ public class SteamClient : ISteamClient
         CancellationToken ct = default)
     {
         var cacheKey = $"vanity_{vanityUrl}";
+        var tags = new[] { $"vanity_{vanityUrl}", "vanity_urls" };
 
         return await _cache.GetOrCreateAsync(cacheKey, async (token) =>
         {
-            _logger.LogDebug("Cache miss or expired. Resolving VanityUrl from Steam API: {VanityUrl}", vanityUrl);
+            // _logger.LogDebug("Cache miss or expired. Resolving VanityUrl from Steam API: {VanityUrl}", vanityUrl);
 
             var encoded = Uri.EscapeDataString(vanityUrl);
             var url =
@@ -143,7 +145,7 @@ public class SteamClient : ISteamClient
 
             if (r.Success == STEAM_VANITY_NO_MATCH)
             {
-                _logger.LogInformation("Vanity URL not found: {VanityUrl}", vanityUrl);
+                // _logger.LogInformation("Vanity URL not found: {VanityUrl}", vanityUrl);
                 return 0L;
             }
 
@@ -159,6 +161,6 @@ public class SteamClient : ISteamClient
 
             return long.Parse(r.SteamId!);
 
-        }, _steamOptions.Cache.VanitySuccess, ct);
+        }, _steamOptions.Cache.VanitySuccess, tags, ct);
     }
 }

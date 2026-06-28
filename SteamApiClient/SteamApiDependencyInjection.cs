@@ -95,7 +95,6 @@ public static class SteamApiDependencyInjection
             });
 
         services.AddScoped<ICacheService, CacheService>();
-        services.AddHybridCache();
 
         return services;
     }
