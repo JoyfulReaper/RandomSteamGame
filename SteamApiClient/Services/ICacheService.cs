@@ -25,5 +25,7 @@ public interface ICacheService
         IEnumerable<string>? tags = null,
         CancellationToken ct = default);
 
+    Task<T?> GetAsync<T>(string key, CancellationToken ct = default);
+
     Task InvalidateByTagAsync(string tag, CancellationToken ct = default);
 }

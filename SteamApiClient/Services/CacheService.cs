@@ -7,6 +7,7 @@
 
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
+using SteamApiClient.Extensions;
 using SteamApiClient.Settings;
 
 namespace SteamApiClient.Services;
@@ -66,6 +67,9 @@ public class CacheService : ICacheService
         await _cache.SetAsync(key, value, options, tags, cancellationToken: ct);
         // _logger.LogDebug("HybridCache direct write: {Key}", key);
     }
+
+    public Task<T?> GetAsync<T>(string key, CancellationToken ct = default)
+        => _cache.GetAsync<T>(key, ct);
 
     public async Task InvalidateByTagAsync(string tag, CancellationToken ct = default)
     {

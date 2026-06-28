@@ -6,12 +6,13 @@
  */
 
 using ErrorOr;
-using Microsoft.Extensions.Caching.Distributed;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
+using SteamApiClient.Services;
+using SteamApiClient.Settings;
 
 namespace RandomSteamGame.Services;
 
@@ -21,22 +22,22 @@ public class SteamService : ISteamService
     private readonly ISteamStoreClient _steamStoreClient;
     private readonly ILogger<SteamService> _logger;
     private readonly IHtmlSanitizerService _htmlSanitizer;
-    private readonly IDistributedCache _cache;
+    private readonly ICacheService _cacheService;
 
     private const int MAX_ATTEMPTS = 3;
 
     public SteamService(
         ISteamClient steamClient,
         ISteamStoreClient steamStoreClient,
-        IDistributedCache cache,
         IHtmlSanitizerService htmlSanitizerService,
+        ICacheService cacheService,
         ILogger<SteamService> logger)
     {
         _htmlSanitizer = htmlSanitizerService;
         _steamClient = steamClient;
         _steamStoreClient = steamStoreClient;
+        _cacheService = cacheService;
         _logger = logger;
-        _cache = cache;
     }
 
     public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long steamId)
@@ -163,40 +164,36 @@ public class SteamService : ISteamService
         int attempts = 0;
         var triedThisRequest = new HashSet<int>();
 
+        // Cache policy for 30 days TODO appsettings
+        var policy = new CachePolicy { AbsoluteMinutes = (int)TimeSpan.FromDays(30).TotalMinutes };
+
         while (attempts < MAX_ATTEMPTS && triedThisRequest.Count < ownedGames.Games.Count)
         {
-            int index = Random.Shared.Next(0, ownedGames.Games.Count);
-            var selectedGame = ownedGames.Games[index];
-
-            if (!triedThisRequest.Add(selectedGame.AppId))
-            {
-                continue;
-            }
+            var selectedGame = ownedGames.Games[Random.Shared.Next(0, ownedGames.Games.Count)];
+            if (!triedThisRequest.Add(selectedGame.AppId)) continue;
 
             string cacheKey = $"dead_app:{selectedGame.AppId}";
-            var isKnownDead = await _cache.GetStringAsync(cacheKey);
-            if (isKnownDead != null)
-            {
-                _logger.LogDebug("Skipping known dead AppId {AppId} (Found in persistent blacklist cache).", selectedGame.AppId);
-                continue;
-            }
 
-            var response = await _steamStoreClient.GetAppData(selectedGame.AppId);
-            if (response?.Success == true && response.AppData != null)
+            var status = await _cacheService.GetOrCreateAsync(
+                cacheKey,
+                async ct =>
+                {
+                    var response = await _steamStoreClient.GetAppData(selectedGame.AppId, tags: new[] { "dead_apps" }, ct);
+                    return (response?.Success == true && response.AppData != null) ? "exists" : "dead";
+                },
+                policy,
+                tags: new[] { "dead_apps" }
+            );
+
+            if (status == "exists")
             {
-                return response.AppData;
+                var response = await _steamStoreClient.GetAppData(selectedGame.AppId);
+                return response?.AppData;
             }
 
             attempts++;
-            _logger.LogDebug("Steam store confirmed AppId {AppId} is unavailable. Blacklisting in cache...", selectedGame.AppId);
-
-            var cacheOptions = new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) // TODO: Make configurable
-            };
-            await _cache.SetStringAsync(cacheKey, "false", cacheOptions);
+            _logger.LogDebug("Steam store confirmed AppId {AppId} is unavailable.", selectedGame.AppId);
         }
-
         return null;
     }
 
