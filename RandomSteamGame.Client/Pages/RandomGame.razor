@@ -1,16 +1,23 @@
 ﻿@page "/random-game/{SteamId:long}"
-
+@implements IDisposable
+@inject PersistentComponentState ApplicationState
 @inject ILogger<RandomGame> _logger
 @inject IHttpClientFactory _clientFactory
 @inject NavigationManager _navigationManager
 
+<HeadContent>
+    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
+    <meta name="description" content="Discover your next game with our Random Steam Game Picker. Fast, easy, and built for your library." />
+    <meta name="author" content="Kyle Givler" />
+</HeadContent>
+
 @if (_gameDetails is not null)
 {
-    <PageTitle>Random Game: @_gameDetails.Name</PageTitle>
+    <PageTitle>Random Steam Game Picker - @_gameDetails.Name</PageTitle>
 }
 else
 {
-    <PageTitle>Random Game</PageTitle>
+    <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 }
 
 <div class="game-page-wrapper" style="--bg-url: url('@_background')">
@@ -62,18 +69,37 @@ else
     private GameDetails _gameDetails = default!;
     private bool _isBusy = false;
     private string? _errorMessage;
-    private string _background = default!;
+    private string _background = string.Empty;
+    private PersistingComponentStateSubscription _subscription;
 
     protected override async Task OnInitializedAsync()
     {
-        await UpdateData();
+        //Try to restore from prerendered state
+        if (!ApplicationState.TryTakeFromJson<GameDetails>("game-details", out var restored))
+        {
+            await UpdateData();
+        }
+        else
+        {
+            _gameDetails = restored;
+            _background = _gameDetails?.HeaderImage ?? string.Empty;
+        }
+
+        // Register for persistence
+        _subscription = ApplicationState.RegisterOnPersisting(PersistState);
+    }
+
+    private Task PersistState()
+    {
+        if (_gameDetails != null)
+            ApplicationState.PersistAsJson("game-details", _gameDetails);
+        return Task.CompletedTask;
     }
 
     private async Task UpdateData()
     {
         _errorMessage = null;
         _isBusy = true;
-        StateHasChanged();
 
         try
         {
@@ -110,4 +136,7 @@ else
             _isBusy = false;
         }
     }
+
+    public void Dispose() =>
+        _subscription.Dispose();
 }

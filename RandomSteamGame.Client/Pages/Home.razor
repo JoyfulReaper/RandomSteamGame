@@ -1,10 +1,18 @@
 ﻿@page "/"
+@implements IDisposable
+@inject PersistentComponentState ApplicationState
 @inject ILocalStorageService _localStorageService
 @inject NavigationManager _navigationManager
 @inject ISteamIdentityService _steamIdentityService
 @inject IHttpClientFactory _clientFactory
 
-<PageTitle>Random Steam Game Picker</PageTitle>
+<HeadContent>
+    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
+    <meta name="description" content="Discover your next game with our Random Steam Game Picker. Fast, easy, and built for your library." />
+    <meta name="author" content="Kyle Givler" />
+</HeadContent>
+
+<PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
 <div class="container mt-5">
     <div class="row justify-content-center">
@@ -75,20 +83,36 @@
 
 @code {
     private HomeModel _homePageModel = new HomeModel();
+    private PersistingComponentStateSubscription _subscription;
     private string? _errorMessage;
     private bool _isBusy = false;
-    private bool _isDataLoading = true;
+    private bool _isDataLoading = false;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
+        // If we are in the prerender phase, the state won't be available yet.
+        // If we are in the browser, the state IS available.
+        if (ApplicationState.TryTakeFromJson<HomeModel>("home-model", out var restored))
         {
+            _homePageModel = restored!;
+            _isDataLoading = false;
+        }
+        else
+        {
+            // This is the first request.
+            // We load the data immediately without needing a loader.
             _homePageModel.SteamId = await _steamIdentityService.GetSteamIdAsync();
             _homePageModel.VanityUrl = await _steamIdentityService.GetVanityUrlAsync();
-
             _isDataLoading = false;
-            StateHasChanged();
         }
+
+        _subscription = ApplicationState.RegisterOnPersisting(PersistState);
+    }
+
+    private Task PersistState()
+    {
+        ApplicationState.PersistAsJson("home-model", _homePageModel);
+        return Task.CompletedTask;
     }
 
     private async Task HandleValidSubmit()
@@ -134,6 +158,9 @@
             StateHasChanged();
         }
     }
+
+    public void Dispose() => 
+        _subscription.Dispose();
 
     private async Task Logout()
     {
