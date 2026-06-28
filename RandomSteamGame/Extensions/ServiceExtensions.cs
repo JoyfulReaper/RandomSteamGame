@@ -37,6 +37,7 @@ public static class ServiceExtensions
 
         services.AddControllers();
         services.AddHttpContextAccessor();
+        services.AddProblemDetails();
 
         services.AddSteamApiClient(config);
         services.AddScoped<ISteamIdentityService, ServerSteamIdentityService>();

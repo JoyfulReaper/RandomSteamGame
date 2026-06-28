@@ -160,9 +160,9 @@ public class SteamService : ISteamService
         while (attempts < MAX_ATTEMPTS && triedThisRequest.Count < ownedGames.Games.Count)
         {
             var selectedGame = ownedGames.Games[Random.Shared.Next(0, ownedGames.Games.Count)];
-            if (!triedThisRequest.Add(selectedGame.AppId)) continue;
+            if (!triedThisRequest.Add(selectedGame.AppId))
+                continue;
 
-            // The client handles all caching, null-handling, and API logic internally.
             var appData = await _steamStoreClient.GetAppData(selectedGame.AppId);
 
             if (appData != null)
