@@ -86,24 +86,36 @@
     private PersistingComponentStateSubscription _subscription;
     private string? _errorMessage;
     private bool _isBusy = false;
-    private bool _isDataLoading = false;
+    private bool _isDataLoading = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var browserSteamId = await _steamIdentityService.GetSteamIdAsync();
+            var browserVanity = await _steamIdentityService.GetVanityUrlAsync();
+
+            if (browserSteamId.HasValue || !string.IsNullOrEmpty(browserVanity))
+            {
+                _homePageModel.SteamId = browserSteamId;
+                _homePageModel.VanityUrl = browserVanity;
+            }
+
+            _isDataLoading = false;
+            StateHasChanged();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        // If we are in the prerender phase, the state won't be available yet.
-        // If we are in the browser, the state IS available.
         if (ApplicationState.TryTakeFromJson<HomeModel>("home-model", out var restored))
         {
             _homePageModel = restored!;
-            _isDataLoading = false;
         }
         else
         {
-            // This is the first request.
-            // We load the data immediately without needing a loader.
             _homePageModel.SteamId = await _steamIdentityService.GetSteamIdAsync();
             _homePageModel.VanityUrl = await _steamIdentityService.GetVanityUrlAsync();
-            _isDataLoading = false;
         }
 
         _subscription = ApplicationState.RegisterOnPersisting(PersistState);
