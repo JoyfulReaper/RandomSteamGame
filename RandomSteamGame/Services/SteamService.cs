@@ -6,6 +6,7 @@
  */
 
 using ErrorOr;
+using Microsoft.Extensions.Options;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
@@ -23,12 +24,16 @@ public class SteamService : ISteamService
     private readonly ILogger<SteamService> _logger;
     private readonly IHtmlSanitizerService _htmlSanitizer;
     private readonly ICacheService _cacheService;
+    private readonly SteamClientApiOptions _steamOptions;
 
     private const int MAX_ATTEMPTS = 3;
+
+    public record AppDataWrapper(AppData? Data);
 
     public SteamService(
         ISteamClient steamClient,
         ISteamStoreClient steamStoreClient,
+        IOptions<SteamClientApiOptions> steamOptions,
         IHtmlSanitizerService htmlSanitizerService,
         ICacheService cacheService,
         ILogger<SteamService> logger)
@@ -38,6 +43,7 @@ public class SteamService : ISteamService
         _steamStoreClient = steamStoreClient;
         _cacheService = cacheService;
         _logger = logger;
+        _steamOptions = steamOptions.Value;
     }
 
     public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long steamId)
@@ -163,32 +169,32 @@ public class SteamService : ISteamService
     {
         int attempts = 0;
         var triedThisRequest = new HashSet<int>();
-
-        // Cache policy for 30 days TODO appsettings
-        var policy = new CachePolicy { AbsoluteMinutes = (int)TimeSpan.FromDays(30).TotalMinutes };
+        var policy = _steamOptions.Cache.AppDetails;
 
         while (attempts < MAX_ATTEMPTS && triedThisRequest.Count < ownedGames.Games.Count)
         {
             var selectedGame = ownedGames.Games[Random.Shared.Next(0, ownedGames.Games.Count)];
             if (!triedThisRequest.Add(selectedGame.AppId)) continue;
 
-            string cacheKey = $"dead_app:{selectedGame.AppId}";
+            string cacheKey = $"app_data:{selectedGame.AppId}";
 
-            var status = await _cacheService.GetOrCreateAsync(
+            var cachedResult = await _cacheService.GetOrCreateAsync(
                 cacheKey,
                 async ct =>
                 {
-                    var response = await _steamStoreClient.GetAppData(selectedGame.AppId, tags: new[] { "dead_apps" }, ct);
-                    return (response?.Success == true && response.AppData != null) ? "exists" : "dead";
+                    var response = await _steamStoreClient.GetAppData(selectedGame.AppId, tags: new[] { "app_data" }, ct);
+
+                    return response?.Success == true
+                        ? new AppDataWrapper(response.AppData)
+                        : new AppDataWrapper(null);
                 },
                 policy,
-                tags: new[] { "dead_apps" }
+                tags: new[] { "app_data" }
             );
 
-            if (status == "exists")
+            if (cachedResult.Data != null)
             {
-                var response = await _steamStoreClient.GetAppData(selectedGame.AppId);
-                return response?.AppData;
+                return cachedResult.Data;
             }
 
             attempts++;
