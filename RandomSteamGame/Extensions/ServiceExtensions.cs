@@ -39,14 +39,19 @@ public static class ServiceExtensions
         services.AddControllers();
         services.AddHttpContextAccessor();
 
-        services.AddSteamApiClient(config); // Steam Api Client
+        services.AddSteamApiClient(config);
         services.AddScoped<ISteamIdentityService, ServerSteamIdentityService>();
         services.AddScoped<ISteamService, SteamService>();
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
         services.AddScoped<SqliteConnection>(_ =>
                     new SqliteConnection(connectionString));
 
-        services.AddLocalStorage(); // TODO: Think about possibly rolling our own or finding a different solution
+        services.AddLocalStorage();
+
+        var steamSection = config.GetSection("Steam");
+        services.Configure<SteamClientApiOptions>(steamSection);
+        var steamOptions = steamSection.Get<SteamClientApiOptions>()
+                           ?? throw new InvalidOperationException("Steam configuration is missing.");
 
         // CORS Configuration
         services.AddCors(options =>
@@ -79,15 +84,14 @@ public static class ServiceExtensions
         });
 
         // Rate Limting
-        var rateLimitLimit = config.GetValue<int>("RateLimiting:PermitLimit", 20);
-        var rateLimitWindow = config.GetValue<int>("RateLimiting:WindowSeconds", 10);
+        var rlOptions = steamOptions.RateLimiting;
 
         services.AddRateLimiter(options =>
         {
             options.AddFixedWindowLimiter("steam_api_limiter", limiterOptions =>
             {
-                limiterOptions.Window = TimeSpan.FromSeconds(rateLimitWindow); // 10 second window
-                limiterOptions.PermitLimit = rateLimitLimit;                  // Max 20 requests per window
+                limiterOptions.Window = TimeSpan.FromSeconds(rlOptions.WindowSeconds); // 10 second window
+                limiterOptions.PermitLimit = rlOptions.PermitLimit;                  // Max 20 requests per window
                 limiterOptions.QueueLimit = 0;                   // Reject requests immediately if over limit
                 limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             });
@@ -100,18 +104,13 @@ public static class ServiceExtensions
             };
         });
 
-        var steamOptions = config.GetSection("Steam").Get<SteamClientApiOptions>()
-                           ?? throw new InvalidOperationException("Steam configuration is missing.");
         // Api key validation
         if (string.IsNullOrWhiteSpace(steamOptions.ApiKey) ||
             steamOptions.ApiKey == "STEAM_API_KEY" ||
             steamOptions.ApiKey.Length < 32)
         {
 
-            throw new InvalidOperationException(
-                $"CRITICAL STARTUP FAILURE: Invalid Steam API Key detected. " +
-                $"The current key length is {steamOptions.ApiKey?.Length ?? 0}. " +
-                $"Ensure the Steam__ApiKey environment variable is set and IIS has been reset.");
+            throw new InvalidOperationException("CRITICAL: Invalid Steam API Key.");
         }
 
         return services;
