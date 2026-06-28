@@ -50,7 +50,13 @@ public class SteamService : ISteamService
     {
         try
         {
-            var ownedGames = await _steamClient.GetOwnedGames(steamId);
+            var ownedGames = await _cacheService.GetOrCreateAsync(
+                $"owned_games:{steamId}",
+                async ct => await _steamClient.GetOwnedGames(steamId),
+                _steamOptions.Cache.OwnedGames,
+                tags: new[] { "owned_games" }
+            );
+
             if (ownedGames?.Games == null || ownedGames.Games.Count == 0)
             {
                 return Errors.Steam.EmptyLibrary;
@@ -63,6 +69,12 @@ public class SteamService : ISteamService
             _logger.LogError(ex, "Error getting owned games for SteamID: {SteamId}", steamId);
             return Errors.Steam.SteamApiFailed;
         }
+    }
+
+    public async Task RefreshOwnedGamesCacheAsync()
+    {
+        await _cacheService.InvalidateByTagAsync("owned_games");
+        _logger.LogInformation("Owned games cache manually invalidated.");
     }
 
     public async Task<ErrorOr<long>> ResolveVanityUrlAsync(string vanityUrl)
