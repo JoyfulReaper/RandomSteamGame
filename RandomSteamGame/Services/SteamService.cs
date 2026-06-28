@@ -12,7 +12,6 @@ using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
-using SteamApiClient.Services;
 using SteamApiClient.Settings;
 
 namespace RandomSteamGame.Services;
@@ -24,25 +23,20 @@ public class SteamService : ISteamService
     private readonly ILogger<SteamService> _logger;
     private readonly IHtmlSanitizerService _htmlSanitizer;
     private readonly SteamClientApiOptions _steamOptions;
-    private readonly ICacheService _cacheService;
 
     private const int MAX_ATTEMPTS = 3;
-
-    public record AppDataWrapper(AppData? Data);
 
     public SteamService(
         ISteamClient steamClient,
         ISteamStoreClient steamStoreClient,
         IOptions<SteamClientApiOptions> steamOptions,
         IHtmlSanitizerService htmlSanitizerService,
-        ICacheService cacheService,
         ILogger<SteamService> logger)
     {
         _htmlSanitizer = htmlSanitizerService;
         _steamClient = steamClient;
         _steamStoreClient = steamStoreClient;
         _logger = logger;
-        _cacheService = cacheService;
         _steamOptions = steamOptions.Value;
     }
 
@@ -58,10 +52,9 @@ public class SteamService : ISteamService
         return MapToOwnedGamesResponse(steamId, ownedGames);
     }
 
-    public async Task RefreshOwnedGamesCacheAsync()
+    public async Task RefreshOwnedGamesCacheAsync(long steamId)
     {
-        // You can keep the CacheService injected here, or add a method to ISteamClient
-        await _cacheService.InvalidateByTagAsync("owned_games");
+        await _steamClient.InvalidateOwnedGamesCacheAsync(steamId);
     }
 
     public async Task<ErrorOr<long>> ResolveVanityUrlAsync(string vanityUrl)
@@ -168,32 +161,18 @@ public class SteamService : ISteamService
     {
         int attempts = 0;
         var triedThisRequest = new HashSet<int>();
-        var policy = _steamOptions.Cache.AppDetails;
 
         while (attempts < MAX_ATTEMPTS && triedThisRequest.Count < ownedGames.Games.Count)
         {
             var selectedGame = ownedGames.Games[Random.Shared.Next(0, ownedGames.Games.Count)];
             if (!triedThisRequest.Add(selectedGame.AppId)) continue;
 
-            string cacheKey = $"app_data:{selectedGame.AppId}";
+            // The client handles all caching, null-handling, and API logic internally.
+            var appData = await _steamStoreClient.GetAppData(selectedGame.AppId);
 
-            var cachedResult = await _cacheService.GetOrCreateAsync(
-                cacheKey,
-                async ct =>
-                {
-                    var response = await _steamStoreClient.GetAppData(selectedGame.AppId, tags: new[] { "app_data" }, ct);
-
-                    return response?.Success == true
-                        ? new AppDataWrapper(response.AppData)
-                        : new AppDataWrapper(null);
-                },
-                policy,
-                tags: new[] { "app_data" }
-            );
-
-            if (cachedResult.Data != null)
+            if (appData != null)
             {
-                return cachedResult.Data;
+                return appData;
             }
 
             attempts++;

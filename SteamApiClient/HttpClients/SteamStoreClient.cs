@@ -24,6 +24,8 @@ public class SteamStoreClient : ISteamStoreClient
     private static readonly JsonSerializerOptions _jsonOptions =
         new(JsonSerializerDefaults.Web);
 
+    private record AppDataWrapper(AppData? Data);
+
     public SteamStoreClient(
         HttpClient httpClient,
         ICacheService cache,
@@ -36,17 +38,16 @@ public class SteamStoreClient : ISteamStoreClient
         _logger = logger;
     }
 
-    public Task<AppDetailsResponse> GetAppData(int appId, IEnumerable<string>? tags = null, CancellationToken ct = default)
+    public async Task<AppData?> GetAppData(int appId, IEnumerable<string>? tags = null, CancellationToken ct = default)
     {
         var cacheKey = $"app:{appId}";
+
         var entryTags = tags?.ToList() ?? new List<string>();
         entryTags.Add("app_details");
         entryTags.Add($"app_{appId}");
 
-        return _cache.GetOrCreateAsync(cacheKey, async (token) =>
+        var cachedResult = await _cache.GetOrCreateAsync(cacheKey, async (token) =>
         {
-            // _logger.LogDebug("Cache miss or expired. Fetching AppDetails from Steam Store API for AppId: {AppId}", appId);
-
             using var response = await _httpClient.GetAsync(
                 $"api/appdetails?appids={appId}&l=english", token);
 
@@ -57,11 +58,10 @@ public class SteamStoreClient : ISteamStoreClient
                     appId,
                     response.StatusCode);
 
-                return new AppDetailsResponse(false, null);
+                return new AppDataWrapper(null);
             }
 
             var json = await response.Content.ReadAsStringAsync(token);
-
             using var doc = JsonDocument.Parse(json);
 
             if (!doc.RootElement.TryGetProperty(appId.ToString(), out var root))
@@ -70,12 +70,15 @@ public class SteamStoreClient : ISteamStoreClient
                     "Steam Store API malformed response (missing app key). AppId: {AppId}",
                     appId);
 
-                return new AppDetailsResponse(false, null);
+                return new AppDataWrapper(null);
             }
 
-            return JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions)
-                         ?? new AppDetailsResponse(false, null);
+            var responseData = JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions);
+
+            return new AppDataWrapper(responseData?.AppData);
 
         }, _steamOptions.Cache.AppDetails, entryTags, ct);
+
+        return cachedResult.Data;
     }
 }

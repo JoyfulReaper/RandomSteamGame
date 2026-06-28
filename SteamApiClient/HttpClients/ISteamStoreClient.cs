@@ -12,7 +12,7 @@ namespace SteamApiClient.HttpClients;
 
 public interface ISteamStoreClient
 {
-    Task<AppDetailsResponse> GetAppData(
+    Task<AppData?> GetAppData(
         int appId,
         IEnumerable<string>? tags = null,
         CancellationToken ct = default);
