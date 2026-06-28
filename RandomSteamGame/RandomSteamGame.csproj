@@ -16,9 +16,7 @@
     <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
     <PackageReference Include="JoyfulReaperLib" Version="0.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
-    <PackageReference Include="NeoSmart.Caching.Sqlite.AspNetCore" Version="9.0.1" />
   </ItemGroup>
 
 </Project>

@@ -9,7 +9,6 @@ using JoyfulReaperLib.JRData;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
 using Mythetech.LocalStorage;
-using NeoSmart.Caching.Sqlite;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
@@ -48,37 +47,6 @@ public static class ServiceExtensions
                     new SqliteConnection(connectionString));
 
         services.AddLocalStorage(); // TODO: Think about possibly rolling our own or finding a different solution
-
-        // Cache Provider
-        var steamOptions = config.GetSection("Steam").Get<SteamClientApiOptions>()
-                           ?? throw new InvalidOperationException("Steam configuration is missing.");
-
-        // Cache Provider Logic
-        if (steamOptions.CacheProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase))
-        {
-            // Extract filename from "Data Source=filename.db"
-            var fileName = steamOptions.ConnectionString.Replace("Data Source=", "", StringComparison.OrdinalIgnoreCase).Trim();
-            var dataFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
-            Directory.CreateDirectory(dataFolder);
-
-            services.AddSqliteCache(options =>
-            {
-                options.CachePath = Path.Combine(dataFolder, fileName);
-            });
-        }
-        else if (steamOptions.CacheProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddDistributedSqlServerCache(options =>
-            {
-                options.ConnectionString = steamOptions.ConnectionString;
-                options.SchemaName = steamOptions.CacheSchema;
-                options.TableName = steamOptions.CacheTable;
-            });
-        }
-        else
-        {
-            throw new InvalidOperationException($"Unsupported CacheProvider: {steamOptions.CacheProvider}. Use 'SQLite' or 'SqlServer'.");
-        }
 
         // CORS Configuration
         services.AddCors(options =>
@@ -132,6 +100,8 @@ public static class ServiceExtensions
             };
         });
 
+        var steamOptions = config.GetSection("Steam").Get<SteamClientApiOptions>()
+                           ?? throw new InvalidOperationException("Steam configuration is missing.");
         // Api key validation
         if (string.IsNullOrWhiteSpace(steamOptions.ApiKey) ||
             steamOptions.ApiKey == "STEAM_API_KEY" ||
