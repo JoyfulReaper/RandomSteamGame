@@ -6,13 +6,11 @@
  */
 
 using ErrorOr;
-using Microsoft.Extensions.Options;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
-using SteamApiClient.Settings;
 
 namespace RandomSteamGame.Services;
 
@@ -22,14 +20,12 @@ public class SteamService : ISteamService
     private readonly ISteamStoreClient _steamStoreClient;
     private readonly ILogger<SteamService> _logger;
     private readonly IHtmlSanitizerService _htmlSanitizer;
-    private readonly SteamClientApiOptions _steamOptions;
 
     private const int MAX_ATTEMPTS = 3;
 
     public SteamService(
         ISteamClient steamClient,
         ISteamStoreClient steamStoreClient,
-        IOptions<SteamClientApiOptions> steamOptions,
         IHtmlSanitizerService htmlSanitizerService,
         ILogger<SteamService> logger)
     {
@@ -37,7 +33,6 @@ public class SteamService : ISteamService
         _steamClient = steamClient;
         _steamStoreClient = steamStoreClient;
         _logger = logger;
-        _steamOptions = steamOptions.Value;
     }
 
     public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long steamId)
