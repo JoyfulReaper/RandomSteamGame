@@ -34,7 +34,7 @@ public class CacheService : ICacheService
         {
             // set expiration lifetimes for RAM (L1) and DB (L2)
             Expiration = policy.Duration,
-            LocalCacheExpiration = policy.Duration
+            LocalCacheExpiration = TimeSpan.FromMinutes(5)
         };
 
         _logger.LogDebug("HybridCache executing lookups for key: {Key}", key);
@@ -53,12 +53,13 @@ public class CacheService : ICacheService
         CachePolicy policy,
         CancellationToken ct = default)
     {
-        if (value is null) return;
+        if (value is null)
+            return;
 
         var options = new HybridCacheEntryOptions
         {
             Expiration = policy.Duration,
-            LocalCacheExpiration = policy.Duration
+            LocalCacheExpiration = TimeSpan.FromMinutes(5)
         };
 
         await _cache.SetAsync(key, value, options, cancellationToken: ct);
