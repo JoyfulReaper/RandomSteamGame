@@ -107,6 +107,7 @@ else
         try
         {
             var _client = _clientFactory.CreateClient("ApiClient");
+            _client.BaseAddress = new Uri(_navigationManager.BaseUri);
             var response = await _client.GetAsync($"api/{Provider}/random-game/details?userId={SteamId}");
 
             if (!response.IsSuccessStatusCode)

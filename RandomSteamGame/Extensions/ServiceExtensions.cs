@@ -6,7 +6,6 @@
  */
 
 using JoyfulReaperLib.JRData;
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
 using Mythetech.LocalStorage;
@@ -126,11 +125,7 @@ public static class ServiceExtensions
             throw new InvalidOperationException("CRITICAL: Invalid Steam API Key.");
         }
 
-        services.AddHttpClient("ApiClient", (sp, client) =>
-        {
-            var navManager = sp.GetRequiredService<NavigationManager>();
-            client.BaseAddress = new Uri(navManager.BaseUri);
-        });
+        services.AddHttpClient("ApiClient");
 
         return services;
     }

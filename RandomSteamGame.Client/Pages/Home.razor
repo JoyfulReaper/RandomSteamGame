@@ -152,6 +152,7 @@
             if (_homePageModel.SteamId is null && !string.IsNullOrWhiteSpace(_homePageModel.VanityUrl))
             {
                 var _client = _clientFactory.CreateClient("ApiClient");
+                _client.BaseAddress = new Uri(_navigationManager.BaseUri);
                 var response = await _client.GetAsync($"api/steam/resolve/{Uri.EscapeDataString(_homePageModel.VanityUrl)}");
 
                 if (response.IsSuccessStatusCode)
@@ -190,6 +191,7 @@
         try
         {
             var client = _clientFactory.CreateClient("ApiClient");
+            client.BaseAddress = new Uri(_navigationManager.BaseUri);
             var response = await client.PostAsync("api/stats/hit", null);
 
             if (response.IsSuccessStatusCode)
