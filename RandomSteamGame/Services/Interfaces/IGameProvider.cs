@@ -10,4 +10,5 @@ public interface IGameProvider
     Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId);
     Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId);
     Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier);
+    Task InvalidateOwnedGamesCacheAsync(long userId);
 }

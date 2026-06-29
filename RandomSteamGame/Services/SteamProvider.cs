@@ -61,7 +61,7 @@ public class SteamProvider : IGameProvider
         return MapToOwnedGamesResponse(steamId, ownedGames);
     }
 
-    public async Task RefreshOwnedGamesCacheAsync(long steamId)
+    public async Task InvalidateOwnedGamesCacheAsync(long steamId)
     {
         await _steamClient.InvalidateOwnedGamesCacheAsync(steamId);
     }

@@ -41,6 +41,21 @@ public class GameController : ApiController
     }
 
     /// <summary>
+    /// Invalidates the cached owned games for a user.
+    /// POST /api/steam/{userId}/library/refresh
+    /// </summary>
+    [HttpPost("{userId}/library/refresh")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RefreshLibrary(string provider, long userId)
+    {
+        var service = _factory.GetProvider(provider);
+
+        await service.InvalidateOwnedGamesCacheAsync(userId);
+
+        return NoContent();
+    }
+
+    /// <summary>
     /// Gets a random game and full details for a user.
     /// GET /api/steam/random-game?steamId=... OR ?vanityUrl=...
     /// </summary>
