@@ -164,7 +164,7 @@ public class SteamClient : ISteamClient
         }, _steamOptions.Cache.VanitySuccess, tags, ct);
     }
 
-    public async Task RefreshLibraryAsync(long userId)
+    public async Task InvalidateOwnedGamesCacheAsync(long userId)
     {
         await _httpClient.PostAsync($"api/steam/{userId}/library/refresh", null);
     }
