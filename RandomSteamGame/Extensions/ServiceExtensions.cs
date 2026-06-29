@@ -41,7 +41,19 @@ public static class ServiceExtensions
 
         services.AddSteamApiClient(config);
         services.AddScoped<ISteamIdentityService, ServerSteamIdentityService>();
-        services.AddScoped<ISteamService, SteamService>();
+
+        // Game Providers
+        var providerType = typeof(IGameProvider);
+        var implementations = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(s => s.GetTypes())
+            .Where(p => providerType.IsAssignableFrom(p) && !p.IsInterface && !p.IsAbstract);
+
+        foreach (var type in implementations)
+        {
+            services.AddScoped(providerType, type);
+        }
+
+        services.AddScoped<GameProviderFactory>();
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
         services.AddScoped<SqliteConnection>(_ =>
                     new SqliteConnection(connectionString));

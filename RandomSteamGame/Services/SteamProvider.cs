@@ -14,20 +14,22 @@ using SteamApiClient.HttpClients;
 
 namespace RandomSteamGame.Services;
 
-public class SteamService : ISteamService
+public class SteamProvider : IGameProvider
 {
     private readonly ISteamClient _steamClient;
     private readonly ISteamStoreClient _steamStoreClient;
-    private readonly ILogger<SteamService> _logger;
     private readonly IHtmlSanitizerService _htmlSanitizer;
+    private readonly ILogger<SteamProvider> _logger;
 
     private const int MAX_ATTEMPTS = 3;
 
-    public SteamService(
+    public string ProviderKey => "steam";
+
+    public SteamProvider(
         ISteamClient steamClient,
         ISteamStoreClient steamStoreClient,
         IHtmlSanitizerService htmlSanitizerService,
-        ILogger<SteamService> logger)
+        ILogger<SteamProvider> logger)
     {
         _htmlSanitizer = htmlSanitizerService;
         _steamClient = steamClient;
@@ -35,7 +37,19 @@ public class SteamService : ISteamService
         _logger = logger;
     }
 
-    public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long steamId)
+    public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)
+        => await FetchOwnedGamesAsync(userId);
+
+    public async Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId)
+        => await FetchRandomGameAsync(userId);
+
+    public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId)
+        => await FetchRandomGameDetailsAsync(userId);
+
+    public async Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)
+        => await FetchSteamIdFromVanityAsync(identifier);
+
+    public async Task<ErrorOr<OwnedGamesResponse>> FetchOwnedGamesAsync(long steamId)
     {
         var ownedGames = await _steamClient.GetOwnedGames(steamId);
 
@@ -52,7 +66,7 @@ public class SteamService : ISteamService
         await _steamClient.InvalidateOwnedGamesCacheAsync(steamId);
     }
 
-    public async Task<ErrorOr<long>> ResolveVanityUrlAsync(string vanityUrl)
+    public async Task<ErrorOr<long>> FetchSteamIdFromVanityAsync(string vanityUrl)
     {
         try
         {
@@ -72,7 +86,7 @@ public class SteamService : ISteamService
         }
     }
 
-    public async Task<ErrorOr<GameDetails>> GetRandomGameBySteamIdAsync(long steamId)
+    public async Task<ErrorOr<GameDetails>> FetchRandomGameDetailsAsync(long steamId)
     {
         try
         {
@@ -103,7 +117,7 @@ public class SteamService : ISteamService
         }
     }
 
-    public async Task<ErrorOr<RandomGameResponse>> GetRandomSteamGameAsync(long steamId)
+    public async Task<ErrorOr<RandomGameResponse>> FetchRandomGameAsync(long steamId)
     {
         try
         {
