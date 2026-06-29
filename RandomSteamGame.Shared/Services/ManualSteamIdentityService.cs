@@ -1,7 +1,7 @@
 ﻿/*
  * Random Steam Game
  * 
- *  Copyright (c) 2026 Kyle Givler
+ * Copyright (c) 2026 Kyle Givler
  * Licensed under the MIT License.
  */
 
@@ -10,38 +10,20 @@ using Mythetech.LocalStorage;
 using RandomSteamGame.Shared.Contracts;
 using RandomSteamGame.Shared.Interfaces;
 
-namespace RandomSteamGame.Services;
+namespace RandomSteamGame.Shared.Services;
 
-public class ManualSteamIdentityService : ISteamIdentityService
+public class BrowserSteamIdentityService : ISteamIdentityReader
 {
     private readonly ILocalStorageService _localStorage;
 
-    public ManualSteamIdentityService(ILocalStorageService localStorage)
+    public BrowserSteamIdentityService(ILocalStorageService localStorage)
     {
         _localStorage = localStorage;
     }
 
-    public async Task<long?> GetSteamIdAsync()
-    {
-        return await _localStorage.GetItemAsync<long?>(LocalStorageKeys.SteamId);
-    }
+    public ValueTask<long?> GetSteamIdAsync()
+        => _localStorage.GetItemAsync<long?>(LocalStorageKeys.SteamId);
 
-    public async Task SetIdentityAsync(long steamId, string? vanityUrl)
-    {
-        await _localStorage.SetItemAsync(LocalStorageKeys.SteamId, steamId);
-        await _localStorage.SetItemAsStringAsync(LocalStorageKeys.VanityUrl, vanityUrl ?? "");
-    }
-    public async Task<string?> GetVanityUrlAsync()
-    {
-        var val = await _localStorage.GetItemAsync<string>(LocalStorageKeys.VanityUrl);
-        return val ?? string.Empty;
-    }
-
-    public async Task LogoutAsync()
-    {
-        await _localStorage.RemoveItemsAsync(new List<string> {
-            LocalStorageKeys.SteamId,
-            LocalStorageKeys.VanityUrl
-        });
-    }
+    public ValueTask<string?> GetVanityUrlAsync()
+        => _localStorage.GetItemAsync<string>(LocalStorageKeys.VanityUrl);
 }

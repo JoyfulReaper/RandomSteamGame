@@ -10,56 +10,26 @@ using RandomSteamGame.Shared.Interfaces;
 
 namespace RandomSteamGame.Services;
 
-public class ServerSteamIdentityService : ISteamIdentityService
+public class ServerSteamIdentityService : ISteamIdentityWriter
 {
-    private readonly IHttpContextAccessor _httpContextAccessor;
-    private const string SteamIdKey = "SteamId";
-    private const string VanityUrlKey = "VanityUrl";
+    private readonly IHttpContextAccessor _http;
 
-    public ServerSteamIdentityService(IHttpContextAccessor httpContextAccessor)
+    public ServerSteamIdentityService(IHttpContextAccessor http)
     {
-        _httpContextAccessor = httpContextAccessor;
-    }
-
-    public Task<long?> GetSteamIdAsync()
-    {
-        var cookieValue = _httpContextAccessor.HttpContext?.Request.Cookies[SteamIdKey];
-        if (long.TryParse(cookieValue, out var steamId))
-        {
-            return Task.FromResult<long?>(steamId);
-        }
-        return Task.FromResult<long?>(null);
-    }
-
-    public async Task<string?> GetVanityUrlAsync()
-    {
-        var cookieValue = _httpContextAccessor.HttpContext?.Request.Cookies[VanityUrlKey];
-        return await Task.FromResult(cookieValue ?? string.Empty);
+        _http = http;
     }
 
     public Task SetIdentityAsync(long steamId, string? vanityUrl)
     {
-        var context = _httpContextAccessor.HttpContext;
-        var cookieOptions = new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Strict,
-            Expires = DateTime.UtcNow.AddDays(30)
-        };
-
-        context?.Response.Cookies.Append(SteamIdKey, steamId.ToString(), cookieOptions);
-        context?.Response.Cookies.Append(VanityUrlKey, vanityUrl ?? "", cookieOptions);
-
+        _http.HttpContext?.Response.Cookies.Append("SteamId", steamId.ToString());
+        _http.HttpContext?.Response.Cookies.Append("VanityUrl", vanityUrl ?? "");
         return Task.CompletedTask;
     }
 
-    public Task LogoutAsync()
+    public Task ClearAsync()
     {
-        var context = _httpContextAccessor.HttpContext;
-        context?.Response.Cookies.Delete(SteamIdKey);
-        context?.Response.Cookies.Delete(VanityUrlKey);
-
+        _http.HttpContext?.Response.Cookies.Delete("SteamId");
+        _http.HttpContext?.Response.Cookies.Delete("VanityUrl");
         return Task.CompletedTask;
     }
 }

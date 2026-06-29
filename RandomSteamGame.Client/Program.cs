@@ -10,6 +10,7 @@ using Mythetech.LocalStorage;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Client.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
+using RandomSteamGame.Shared.Services;
 
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -26,8 +27,8 @@ builder.Services.AddHttpClient("ApiClient", client =>
 // CORE SECURITY & STORAGE FOUNDATIONS
 // ==========================================
 builder.Services.AddAuthorizationCore();
+builder.Services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityService>();
 builder.Services.AddLocalStorage();
-builder.Services.AddScoped<ISteamIdentityService, ManualSteamIdentityService>();
 
 // ==========================================
 // APPLICATION API CLIENT
