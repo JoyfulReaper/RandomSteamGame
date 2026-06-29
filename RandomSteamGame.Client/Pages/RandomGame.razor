@@ -69,7 +69,7 @@ else
     [Parameter]
     public string Provider { get; set; } = "steam";
 
-    private GameDetails _gameDetails = default!;
+    private GameDetails? _gameDetails;
     private bool _isBusy = false;
     private string? _errorMessage;
     private string _background = string.Empty;
@@ -106,9 +106,10 @@ else
 
         try
         {
-            var _client = _clientFactory.CreateClient("ApiClient");
-            _client.BaseAddress = new Uri(_navigationManager.BaseUri);
-            var response = await _client.GetAsync($"api/{Provider}/random-game/details?userId={SteamId}");
+            var client = _clientFactory.CreateClient("ApiClient");
+            client.BaseAddress = new Uri(_navigationManager.BaseUri);
+
+            var response = await client.GetAsync($"api/{Provider}/random-game/details?userId={SteamId}");
 
             if (!response.IsSuccessStatusCode)
             {
@@ -119,15 +120,20 @@ else
                 else
                 {
                     var problem = await response.Content.ReadFromJsonAsync<ApiProblem>();
-                    _errorMessage = problem?.Title + ": " + problem?.Detail ?? "An unexpected error occurred.";
+                    _errorMessage = $"{problem?.Title}: {problem?.Detail}" ?? "An unexpected error occurred.";
                 }
 
                 return;
             }
 
-            _gameDetails = await response.Content.ReadFromJsonAsync<GameDetails>()
-                ?? throw new Exception("Unable to retrieve game");
+            var result = await response.Content.ReadFromJsonAsync<GameDetails>();
 
+            if (result == null)
+            {
+                throw new Exception("Unable to retrieve game: API returned empty data.");
+            }
+
+            _gameDetails = result;
             _background = _gameDetails.HeaderImage ?? string.Empty;
         }
         catch (Exception ex)
