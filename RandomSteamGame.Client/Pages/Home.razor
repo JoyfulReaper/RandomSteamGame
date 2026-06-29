@@ -5,7 +5,6 @@
 @inject ILocalStorageService _localStorageService
 @inject NavigationManager _navigationManager
 @inject ISteamIdentityService _steamIdentityService
-@inject IHttpClientFactory _clientFactory
 
 <HeadContent>
     <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
@@ -129,10 +128,10 @@
                 _homePageModel.VanityUrl = browserVanity;
             }
 
-            await RecordHitAsync();
-
             _isDataLoading = false;
             StateHasChanged();
+
+            _ = RecordHitAsync();
         }
     }
 
@@ -152,9 +151,7 @@
         {
             if (_homePageModel.SteamId is null && !string.IsNullOrWhiteSpace(_homePageModel.VanityUrl))
             {
-                var _client = _clientFactory.CreateClient("ApiClient");
-                _client.BaseAddress = new Uri(_navigationManager.BaseUri);
-                var response = await _client.GetAsync($"api/steam/resolve/{Uri.EscapeDataString(_homePageModel.VanityUrl)}");
+                var response = await _apiClient.Client.GetAsync($"api/steam/resolve/{Uri.EscapeDataString(_homePageModel.VanityUrl)}");
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -191,9 +188,7 @@
     {
         try
         {
-            var client = _clientFactory.CreateClient("ApiClient");
-            client.BaseAddress = new Uri(_navigationManager.BaseUri);
-            var response = await client.PostAsync("api/stats/hit", null);
+            var response = await _apiClient.Client.PostAsync("api/stats/hit", null);
 
             if (response.IsSuccessStatusCode)
             {
@@ -202,6 +197,8 @@
                 {
                     _totalHits = stats.TotalHits;
                     _uniqueVisitors = stats.UniqueVisitors;
+
+                    await InvokeAsync(StateHasChanged);
                 }
             }
         }
