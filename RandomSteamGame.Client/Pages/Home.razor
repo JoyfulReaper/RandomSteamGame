@@ -75,6 +75,12 @@
                     Need help finding your Steam ID? Check the <a href="https://help.steampowered.com/en/faqs/view/2816-BE67-5B69-0FEC" target="_blank" class="text-info">Steam ID guide</a>.
                     Ensure your <a href="https://help.steampowered.com/en/faqs/view/588C-C67D-0251-C276" target="_blank" class="text-info">profile is public</a>.
                 </p>
+                @if (!_isDataLoading)
+                {
+                    <p>
+                        Total Hits:<a href="#"></a> @_totalHits | Unique Visitors:<a href="#"></a> @_uniqueVisitors
+                    </p>
+                }
             </div>
 
         </div>
@@ -83,10 +89,21 @@
 
 @code {
     private HomeModel _homePageModel = new HomeModel();
+
     private PersistingComponentStateSubscription _subscription;
+
     private string? _errorMessage;
     private bool _isBusy = false;
     private bool _isDataLoading = true;
+
+    private long _totalHits;
+    private long _uniqueVisitors;
+
+    private class HitStatsResponse
+    {
+        public long TotalHits { get; set; }
+        public long UniqueVisitors { get; set; }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -100,6 +117,8 @@
                 _homePageModel.SteamId = browserSteamId;
                 _homePageModel.VanityUrl = browserVanity;
             }
+
+            await RecordHitAsync();
 
             _isDataLoading = false;
             StateHasChanged();
@@ -169,6 +188,26 @@
             _isBusy = false;
             StateHasChanged();
         }
+    }
+
+    private async Task RecordHitAsync()
+    {
+        try
+        {
+            var client = _clientFactory.CreateClient("ApiClient");
+            var response = await client.PostAsync("api/stats/hit", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var stats = await response.Content.ReadFromJsonAsync<HitStatsResponse>();
+                if (stats != null)
+                {
+                    _totalHits = stats.TotalHits;
+                    _uniqueVisitors = stats.UniqueVisitors;
+                }
+            }
+        }
+        catch { /* Fail silently */ }
     }
 
     public void Dispose() => 
