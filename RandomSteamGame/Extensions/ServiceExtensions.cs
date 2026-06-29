@@ -12,6 +12,7 @@ using Mythetech.LocalStorage;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
+using RandomSteamGame.Shared.Services;
 using SteamApiClient;
 using SteamApiClient.Settings;
 using System.Threading.RateLimiting;
@@ -125,7 +126,7 @@ public static class ServiceExtensions
             throw new InvalidOperationException("CRITICAL: Invalid Steam API Key.");
         }
 
-        services.AddHttpClient("ApiClient");
+        services.AddHttpClient<BackendApiClient>();
 
         return services;
     }

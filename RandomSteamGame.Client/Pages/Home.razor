@@ -1,5 +1,6 @@
 ﻿@page "/"
 @implements IDisposable
+@inject BackendApiClient _apiClient
 @inject PersistentComponentState ApplicationState
 @inject ILocalStorageService _localStorageService
 @inject NavigationManager _navigationManager
