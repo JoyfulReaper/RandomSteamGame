@@ -213,11 +213,4 @@
     public void Dispose() => 
         _subscription.Dispose();
 
-    private async Task Logout()
-    {
-        await _localStorageService.RemoveItemsAsync(new List<string> {
-            LocalStorageKeys.Token,
-            LocalStorageKeys.RefreshToken
-        });
-    }
 }
