@@ -19,7 +19,7 @@
 @if (_isDataLoading)
 {
     <div id="loader-wrapper">
-        <div class="loader-container">
+        <div class="loader-container mt-5">
             <div class="terminal-loader-box">
                 <div class="spinner-line text-start">
                     <span style="color: #38bdf8;">kyle@kgivler:~$</span> dotnet run WASM_Client...
@@ -90,11 +90,12 @@ else
 
 @code {
     [SupplyParameterFromForm(FormName = "steamPickerForm")]
-    public HomeModel HomeModel { get; set; } = new();
+    public HomeModel? HomeModel { get; set; }
 
     private string? _errorMessage;
     private bool _isBusy = false;
     private bool _isDataLoading = true;
+    private bool _isDataLoadingCompleted = false;
 
     private long _totalHits;
     private long _uniqueVisitors;
@@ -111,43 +112,56 @@ else
         public string? VanityUrl { get; set; }
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        _isDataLoading = true;
-        try
+        HomeModel ??= new HomeModel();
+        _persistingSubscription = ApplicationState.RegisterOnPersisting(PersistPageData);
+
+        if (ApplicationState.TryTakeFromJson<PageStateData>("pageState", out var restoredData))
         {
-            HomeModel ??= new HomeModel();
-            _persistingSubscription = ApplicationState.RegisterOnPersisting(PersistPageData);
-
-            if (ApplicationState.TryTakeFromJson<PageStateData>("pageState", out var restoredData))
-            {
-                _totalHits = restoredData!.TotalHits;
-                _uniqueVisitors = restoredData!.UniqueVisitors;
-                HomeModel.SteamId = restoredData.SteamId;
-                HomeModel.VanityUrl = restoredData.VanityUrl;
-            }
-            else if (RendererInfo.IsInteractive)
-            {
-                var steamIdStr = await JSRuntime.InvokeAsync<string>("getCookie", "SteamId");
-                var vanityUrl = await JSRuntime.InvokeAsync<string>("getCookie", "VanityUrl");
-
-                if (long.TryParse(steamIdStr, out var id))
-                {
-                    HomeModel.SteamId = id;
-                }
-
-                HomeModel.VanityUrl = vanityUrl;
-            }
-            else if (_steamReader is not null)
-            {
-                HomeModel.SteamId = await _steamReader.GetSteamIdAsync();
-                HomeModel.VanityUrl = await _steamReader.GetVanityUrlAsync();
-                await RecordHitAsync();
-            }
-        }
-        finally
-        {
+            _totalHits = restoredData!.TotalHits;
+            _uniqueVisitors = restoredData!.UniqueVisitors;
+            HomeModel.SteamId = restoredData.SteamId;
+            HomeModel.VanityUrl = restoredData.VanityUrl;
             _isDataLoading = false;
+        }
+        else if (!RendererInfo.IsInteractive)
+        {
+            _ = LoadServerDataAsync();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && RendererInfo.IsInteractive && !_isDataLoadingCompleted)
+        {
+            _isDataLoading = true;
+            StateHasChanged();
+
+            var steamIdStr = await JSRuntime.InvokeAsync<string>("getCookie", "SteamId");
+            var vanityUrl = await JSRuntime.InvokeAsync<string>("getCookie", "VanityUrl");
+
+            if (long.TryParse(steamIdStr, out var id))
+            {
+                HomeModel?.SteamId = id;
+            }
+            HomeModel?.VanityUrl = vanityUrl;
+
+            _isDataLoading = false;
+            _isDataLoadingCompleted = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadServerDataAsync()
+    {
+        if (_steamReader is not null)
+        {
+            HomeModel?.SteamId = await _steamReader.GetSteamIdAsync();
+            HomeModel?.VanityUrl = await _steamReader.GetVanityUrlAsync();
+            await RecordHitAsync();
+            _isDataLoading = false;
+            StateHasChanged();
         }
     }
 
