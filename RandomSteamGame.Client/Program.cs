@@ -8,6 +8,7 @@
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Client.Services.Interfaces;
+using RandomSteamGame.Shared.Services;
 
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -15,7 +16,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 // ==========================================
 // CORE NETWORKING
 // ==========================================
-builder.Services.AddHttpClient("ApiClient", client =>
+builder.Services.AddHttpClient<BackendApiClient>(client =>
 {
     client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
 });
