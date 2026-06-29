@@ -8,7 +8,6 @@
 using JoyfulReaperLib.JRData;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
-using Mythetech.LocalStorage;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
@@ -41,8 +40,8 @@ public static class ServiceExtensions
         services.AddProblemDetails();
 
         services.AddSteamApiClient(config);
-        services.AddScoped<ISteamIdentityWriter, BrowserSteamIdentityWriter>();
-        services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityReader>();
+        services.AddScoped<ISteamIdentityWriter, ServerSteamIdentityWriter>();
+        services.AddScoped<ISteamIdentityReader, ServerSteamIdentityReader>();
 
         // Game Providers
         var providerType = typeof(IGameProvider);
@@ -59,8 +58,6 @@ public static class ServiceExtensions
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
         services.AddScoped<SqliteConnection>(_ =>
                     new SqliteConnection(connectionString));
-
-        services.AddLocalStorage();
 
         var steamSection = config.GetSection("Steam");
         services.Configure<SteamClientApiOptions>(steamSection);

@@ -10,11 +10,11 @@ using RandomSteamGame.Shared.Interfaces;
 
 namespace RandomSteamGame.Services;
 
-public class ServerSteamIdentityService : ISteamIdentityWriter
+public class ServerSteamIdentityWriter : ISteamIdentityWriter
 {
     private readonly IHttpContextAccessor _http;
 
-    public ServerSteamIdentityService(IHttpContextAccessor http)
+    public ServerSteamIdentityWriter(IHttpContextAccessor http)
     {
         _http = http;
     }
