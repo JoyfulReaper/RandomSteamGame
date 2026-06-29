@@ -138,7 +138,7 @@
             if (_homePageModel.SteamId is null && !string.IsNullOrWhiteSpace(_homePageModel.VanityUrl))
             {
                 var _client = _clientFactory.CreateClient("ApiClient");
-                var response = await _client.GetAsync($"api/Steam/ResolveVanityUrl/{Uri.EscapeDataString(_homePageModel.VanityUrl)}");
+                var response = await _client.GetAsync($"api/steam/resolve/{Uri.EscapeDataString(_homePageModel.VanityUrl)}");
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -153,7 +153,7 @@
             if (_homePageModel.SteamId.HasValue)
             {
                 await _steamIdentityService.SetIdentityAsync(_homePageModel.SteamId.Value, _homePageModel.VanityUrl);
-                _navigationManager.NavigateTo($"/random-game/{_homePageModel.SteamId.Value}");
+                _navigationManager.NavigateTo($"/random-game/steam/{_homePageModel.SteamId.Value}");
             }
             else
             {

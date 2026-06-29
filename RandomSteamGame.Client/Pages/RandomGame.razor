@@ -1,4 +1,4 @@
-﻿@page "/random-game/{SteamId:long}"
+﻿@page "/random-game/{Provider}/{SteamId:long}"
 @implements IDisposable
 @inject PersistentComponentState ApplicationState
 @inject ILogger<RandomGame> _logger
@@ -66,6 +66,9 @@ else
     [Parameter]
     public long? SteamId { get; set; }
 
+    [Parameter]
+    public string Provider { get; set; } = "steam";
+
     private GameDetails _gameDetails = default!;
     private bool _isBusy = false;
     private string? _errorMessage;
@@ -104,7 +107,7 @@ else
         try
         {
             var _client = _clientFactory.CreateClient("ApiClient");
-            var response = await _client.GetAsync($"api/Steam/RandomGameBySteamId/{SteamId}");
+            var response = await _client.GetAsync($"api/{Provider}/random-game/details?userId={SteamId}");
 
             if (!response.IsSuccessStatusCode)
             {
