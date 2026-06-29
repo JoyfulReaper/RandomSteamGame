@@ -27,7 +27,7 @@ builder.Services.AddHttpClient("ApiClient", client =>
 // CORE SECURITY & STORAGE FOUNDATIONS
 // ==========================================
 builder.Services.AddAuthorizationCore();
-builder.Services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityService>();
+builder.Services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityReader>();
 builder.Services.AddLocalStorage();
 
 // ==========================================

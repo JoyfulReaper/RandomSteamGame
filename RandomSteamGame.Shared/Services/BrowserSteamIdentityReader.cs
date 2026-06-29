@@ -12,11 +12,11 @@ using RandomSteamGame.Shared.Interfaces;
 
 namespace RandomSteamGame.Shared.Services;
 
-public class BrowserSteamIdentityService : ISteamIdentityReader
+public class BrowserSteamIdentityReader : ISteamIdentityReader
 {
     private readonly ILocalStorageService _localStorage;
 
-    public BrowserSteamIdentityService(ILocalStorageService localStorage)
+    public BrowserSteamIdentityReader(ILocalStorageService localStorage)
     {
         _localStorage = localStorage;
     }

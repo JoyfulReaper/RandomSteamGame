@@ -13,7 +13,7 @@ namespace RandomSteamGame.Controllers;
 
 [Route("api/stats")]
 [ApiController]
-public class HitController : ControllerBase
+public class HitController : ApiController
 {
     private readonly SqliteConnection _dbConnection;
     private readonly IHttpContextAccessor _httpContextAccessor;
