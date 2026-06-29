@@ -41,8 +41,8 @@ public static class ServiceExtensions
         services.AddProblemDetails();
 
         services.AddSteamApiClient(config);
-        services.AddScoped<ISteamIdentityWriter, ServerSteamIdentityService>();
-        services.AddScoped<ISteamIdentityReader, ServerSteamIdentityReader>();
+        services.AddScoped<ISteamIdentityWriter, BrowserSteamIdentityWriter>();
+        services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityReader>();
 
         // Game Providers
         var providerType = typeof(IGameProvider);

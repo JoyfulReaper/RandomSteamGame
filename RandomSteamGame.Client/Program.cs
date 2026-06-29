@@ -28,6 +28,7 @@ builder.Services.AddHttpClient("ApiClient", client =>
 // ==========================================
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityReader>();
+builder.Services.AddScoped<ISteamIdentityWriter, BrowserSteamIdentityWriter>();
 builder.Services.AddLocalStorage();
 
 // ==========================================
