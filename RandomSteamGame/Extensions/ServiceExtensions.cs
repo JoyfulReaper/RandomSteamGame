@@ -6,6 +6,7 @@
  */
 
 using JoyfulReaperLib.JRData;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
 using Mythetech.LocalStorage;
@@ -40,7 +41,7 @@ public static class ServiceExtensions
         services.AddProblemDetails();
 
         services.AddSteamApiClient(config);
-        services.AddScoped<ISteamIdentityService, ServerSteamIdentityService>();
+        services.AddScoped<ISteamIdentityService, ManualSteamIdentityService>();
 
         // Game Providers
         var providerType = typeof(IGameProvider);
@@ -124,6 +125,12 @@ public static class ServiceExtensions
 
             throw new InvalidOperationException("CRITICAL: Invalid Steam API Key.");
         }
+
+        services.AddHttpClient("ApiClient", (sp, client) =>
+        {
+            var navManager = sp.GetRequiredService<NavigationManager>();
+            client.BaseAddress = new Uri(navManager.BaseUri);
+        });
 
         return services;
     }

@@ -5,7 +5,7 @@
  * Licensed under the MIT License.
  */
 
-namespace RandomSteamGame.Client;
+namespace RandomSteamGame.Shared.Contracts;
 
 public static class LocalStorageKeys
 {

@@ -10,7 +10,7 @@ using Mythetech.LocalStorage;
 using RandomSteamGame.Shared.Contracts;
 using RandomSteamGame.Shared.Interfaces;
 
-namespace RandomSteamGame.Client.Services;
+namespace RandomSteamGame.Services;
 
 public class ManualSteamIdentityService : ISteamIdentityService
 {

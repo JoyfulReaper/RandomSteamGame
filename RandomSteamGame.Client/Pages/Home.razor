@@ -105,6 +105,16 @@
         public long UniqueVisitors { get; set; }
     }
 
+    protected override async Task OnInitializedAsync()
+    {
+        if (ApplicationState.TryTakeFromJson<HomeModel>("home-model", out var restored))
+        {
+            _homePageModel = restored!;
+        }
+
+        _subscription = ApplicationState.RegisterOnPersisting(PersistState);
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -123,21 +133,6 @@
             _isDataLoading = false;
             StateHasChanged();
         }
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (ApplicationState.TryTakeFromJson<HomeModel>("home-model", out var restored))
-        {
-            _homePageModel = restored!;
-        }
-        else
-        {
-            _homePageModel.SteamId = await _steamIdentityService.GetSteamIdAsync();
-            _homePageModel.VanityUrl = await _steamIdentityService.GetVanityUrlAsync();
-        }
-
-        _subscription = ApplicationState.RegisterOnPersisting(PersistState);
     }
 
     private Task PersistState()
