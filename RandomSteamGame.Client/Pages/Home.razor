@@ -136,6 +136,7 @@ else
                 _uniqueVisitors = restoredData!.UniqueVisitors;
                 HomeModel.SteamId = CleanInput(restoredData.SteamId);
                 HomeModel.VanityUrl = CleanInput(restoredData.VanityUrl);
+                _isInitialLoadComplete = true;
             }
 
             await LoadIdentityAsync();
