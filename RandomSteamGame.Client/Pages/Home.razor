@@ -175,7 +175,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || !RendererInfo.IsInteractive)
+        if (!RendererInfo.IsInteractive || _hasCompletedBrowserIdentityHydration)
         {
             return;
         }
@@ -190,7 +190,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Failed to hydrate Steam identity from browser storage during first interactive render.");
+            Logger.LogWarning(ex, "Failed to hydrate Steam identity from browser storage during interactive render.");
         }
         finally
         {
