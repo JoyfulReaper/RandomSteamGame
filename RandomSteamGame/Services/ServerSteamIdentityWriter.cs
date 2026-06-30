@@ -21,15 +21,30 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
 
     public Task SetIdentityAsync(string steamId, string? vanityUrl)
     {
-        _http.HttpContext?.Response.Cookies.Append("SteamId", steamId.ToString());
-        _http.HttpContext?.Response.Cookies.Append("VanityUrl", vanityUrl ?? "");
+        var options = new CookieOptions
+        {
+            Expires = DateTimeOffset.UtcNow.AddDays(365),
+            SameSite = SameSiteMode.Lax,
+            HttpOnly = false, // Browser JS needs to read it
+            Secure = true
+        };
+
+        _http.HttpContext?.Response.Cookies.Append("SteamId", steamId, options);
+        _http.HttpContext?.Response.Cookies.Append("VanityUrl", vanityUrl ?? "", options);
         return Task.CompletedTask;
     }
 
     public Task ClearAsync()
     {
-        _http.HttpContext?.Response.Cookies.Delete("SteamId");
-        _http.HttpContext?.Response.Cookies.Delete("VanityUrl");
+        _http.HttpContext!.Response.Cookies.Delete("SteamId", new CookieOptions
+        {
+            Path = "/"
+        });
+
+        _http.HttpContext!.Response.Cookies.Delete("VanityUrl", new CookieOptions
+        {
+            Path = "/"
+        });
         return Task.CompletedTask;
     }
 }

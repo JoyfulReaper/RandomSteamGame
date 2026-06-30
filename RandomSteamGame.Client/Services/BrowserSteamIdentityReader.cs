@@ -5,46 +5,18 @@
  * Licensed under the MIT License.
  */
 
-using Microsoft.JSInterop;
+using RandomSteamGame.Client.Interop;
 using RandomSteamGame.Shared.Interfaces;
+using System.Runtime.Versioning;
 
 namespace RandomSteamGame.Client.Services;
 
-public class BrowserSteamIdentityReader : ISteamIdentityReader
+[SupportedOSPlatform("browser")]
+public sealed class BrowserSteamIdentityReader : ISteamIdentityReader
 {
-    private readonly IJSRuntime _js;
+    public ValueTask<string?> GetSteamIdAsync()
+        => ValueTask.FromResult<string?>(CookieInterop.GetCookie("SteamId"));
 
-    public BrowserSteamIdentityReader(IJSRuntime js)
-    {
-        _js = js;
-    }
-
-    public async ValueTask<string?> GetSteamIdAsync()
-    {
-        var cookieStr = await _js.InvokeAsync<string>("eval", "document.cookie");
-        var idString = ExtractCookie(cookieStr, "SteamId");
-        return idString;
-    }
-
-    public async ValueTask<string?> GetVanityUrlAsync()
-    {
-        var cookieStr = await _js.InvokeAsync<string>("eval", "document.cookie");
-        return ExtractCookie(cookieStr, "VanityUrl");
-    }
-
-    private string? ExtractCookie(string cookieString, string cookieName)
-    {
-        if (string.IsNullOrEmpty(cookieString)) return null;
-
-        var cookies = cookieString.Split(';');
-        foreach (var cookie in cookies)
-        {
-            var parts = cookie.Trim().Split('=');
-            if (parts.Length == 2 && parts[0] == cookieName)
-            {
-                return parts[1];
-            }
-        }
-        return null;
-    }
+    public ValueTask<string?> GetVanityUrlAsync()
+        => ValueTask.FromResult<string?>(CookieInterop.GetCookie("VanityUrl"));
 }

@@ -5,29 +5,26 @@
  * Licensed under the MIT License.
  */
 
-using Microsoft.JSInterop;
+using RandomSteamGame.Client.Interop;
 using RandomSteamGame.Shared.Interfaces;
+using System.Runtime.Versioning;
 
 namespace RandomSteamGame.Client.Services;
 
-public class BrowserSteamIdentityWriter : ISteamIdentityWriter
+[SupportedOSPlatform("browser")]
+public sealed class BrowserSteamIdentityWriter : ISteamIdentityWriter
 {
-    private readonly IJSRuntime _js;
-
-    public BrowserSteamIdentityWriter(IJSRuntime js)
+    public Task SetIdentityAsync(string steamId, string? vanityUrl)
     {
-        _js = js;
+        CookieInterop.SetCookie("SteamId", steamId, 365);
+        CookieInterop.SetCookie("VanityUrl", vanityUrl ?? "", 365);
+        return Task.CompletedTask;
     }
 
-    public async Task SetIdentityAsync(string steamId, string? vanityUrl)
+    public Task ClearAsync()
     {
-        await _js.InvokeVoidAsync("eval", $"document.cookie = \"SteamId={steamId}; path=/; max-age=31536000\"");
-        await _js.InvokeVoidAsync("eval", $"document.cookie = \"VanityUrl={vanityUrl ?? ""}; path=/; max-age=31536000\"");
-    }
-
-    public async Task ClearAsync()
-    {
-        await _js.InvokeVoidAsync("eval", "document.cookie = \"SteamId=; path=/; max-age=0\"");
-        await _js.InvokeVoidAsync("eval", "document.cookie = \"VanityUrl=; path=/; max-age=0\"");
+        CookieInterop.DeleteCookie("SteamId");
+        CookieInterop.DeleteCookie("VanityUrl");
+        return Task.CompletedTask;
     }
 }

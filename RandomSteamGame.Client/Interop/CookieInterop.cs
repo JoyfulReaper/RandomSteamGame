@@ -11,4 +11,7 @@ public static partial class CookieInterop
 
     [JSImport("setCookie", "CookieModule")]
     public static partial void SetCookie(string name, string value, int days);
+
+    [JSImport("deleteCookie", "CookieModule")]
+    public static partial void DeleteCookie(string name);
 }

@@ -8,6 +8,7 @@
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Client.Services.Interfaces;
+using RandomSteamGame.Shared.Interfaces;
 using RandomSteamGame.Shared.Services;
 using System.Runtime.InteropServices.JavaScript;
 
@@ -26,8 +27,8 @@ builder.Services.AddHttpClient<BackendApiClient>(client =>
 // CORE SECURITY & STORAGE FOUNDATIONS
 // ==========================================
 builder.Services.AddAuthorizationCore();
-//builder.Services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityReader>();
-//builder.Services.AddScoped<ISteamIdentityWriter, BrowserSteamIdentityWriter>();
+builder.Services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityReader>();
+builder.Services.AddScoped<ISteamIdentityWriter, BrowserSteamIdentityWriter>();
 
 // ==========================================
 // APPLICATION API CLIENT
