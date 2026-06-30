@@ -6,6 +6,7 @@
  */
 
 using RandomSteamGame.Client.Interop;
+using RandomSteamGame.Shared.Contracts;
 using RandomSteamGame.Shared.Interfaces;
 using System.Runtime.Versioning;
 
@@ -14,6 +15,14 @@ namespace RandomSteamGame.Client.Services;
 [SupportedOSPlatform("browser")]
 public sealed class BrowserSteamIdentityReader : ISteamIdentityReader
 {
+    public ValueTask<SteamIdentity> GetIdentityAsync()
+    {
+        var steamId = CookieInterop.GetCookie("SteamId");
+        var vanityUrl = CookieInterop.GetCookie("VanityUrl");
+
+        return ValueTask.FromResult(new SteamIdentity(steamId, vanityUrl));
+    }
+
     public ValueTask<string?> GetSteamIdAsync()
         => ValueTask.FromResult<string?>(CookieInterop.GetCookie("SteamId"));
 

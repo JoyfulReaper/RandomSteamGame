@@ -6,6 +6,7 @@
  */
 
 
+using RandomSteamGame.Shared.Contracts;
 using RandomSteamGame.Shared.Interfaces;
 
 namespace RandomSteamGame.Services;
@@ -19,7 +20,7 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
         _http = http;
     }
 
-    public Task SetIdentityAsync(string steamId, string? vanityUrl)
+    public Task SetIdentityAsync(SteamIdentity identity)
     {
         var options = new CookieOptions
         {
@@ -29,8 +30,8 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
             Secure = true
         };
 
-        _http.HttpContext?.Response.Cookies.Append("SteamId", steamId, options);
-        _http.HttpContext?.Response.Cookies.Append("VanityUrl", vanityUrl ?? "", options);
+        _http.HttpContext?.Response.Cookies.Append("SteamId", identity.SteamId ?? "0", options);
+        _http.HttpContext?.Response.Cookies.Append("VanityUrl", identity.VanityUrl ?? "", options);
         return Task.CompletedTask;
     }
 

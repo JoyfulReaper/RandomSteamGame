@@ -1,6 +1,6 @@
 ﻿using RandomSteamGame.Services.Interfaces;
 
-namespace RandomSteamGame;
+namespace RandomSteamGame.Services;
 
 public class GameProviderFactory
 {

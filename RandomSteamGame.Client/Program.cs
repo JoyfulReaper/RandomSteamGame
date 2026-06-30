@@ -44,4 +44,5 @@ if (OperatingSystem.IsBrowser())
 {
     await JSHost.ImportAsync("CookieModule", "../js/cookieHelper.js");
 }
+
 await builder.Build().RunAsync();

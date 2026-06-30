@@ -5,10 +5,11 @@
  * Licensed under the MIT License.
  */
 
+using RandomSteamGame.Shared.Contracts;
+
 namespace RandomSteamGame.Shared.Interfaces;
 
 public interface ISteamIdentityReader
 {
-    ValueTask<string?> GetSteamIdAsync();
-    ValueTask<string?> GetVanityUrlAsync();
+    ValueTask<SteamIdentity> GetIdentityAsync();
 }

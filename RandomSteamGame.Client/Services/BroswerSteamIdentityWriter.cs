@@ -6,6 +6,7 @@
  */
 
 using RandomSteamGame.Client.Interop;
+using RandomSteamGame.Shared.Contracts;
 using RandomSteamGame.Shared.Interfaces;
 using System.Runtime.Versioning;
 
@@ -14,10 +15,13 @@ namespace RandomSteamGame.Client.Services;
 [SupportedOSPlatform("browser")]
 public sealed class BrowserSteamIdentityWriter : ISteamIdentityWriter
 {
-    public Task SetIdentityAsync(string steamId, string? vanityUrl)
+    public Task SetIdentityAsync(SteamIdentity steamIdentity)
     {
-        CookieInterop.SetCookie("SteamId", steamId, 365);
-        CookieInterop.SetCookie("VanityUrl", vanityUrl ?? "", 365);
+        Console.WriteLine("Writing cookies..."); // TODO DEBUG
+
+        CookieInterop.SetCookie("SteamId", steamIdentity.SteamId ?? "0", 365);
+        CookieInterop.SetCookie("VanityUrl", steamIdentity.VanityUrl ?? "", 365);
+
         return Task.CompletedTask;
     }
 
@@ -25,6 +29,7 @@ public sealed class BrowserSteamIdentityWriter : ISteamIdentityWriter
     {
         CookieInterop.DeleteCookie("SteamId");
         CookieInterop.DeleteCookie("VanityUrl");
+
         return Task.CompletedTask;
     }
 }
