@@ -2,12 +2,13 @@
 @implements IDisposable
 @inject PersistentComponentState ApplicationState
 @inject ILogger<RandomGame> _logger
-@inject IHttpClientFactory _clientFactory
-@inject NavigationManager _navigationManager
+@inject RandomSteamApiClient ApiClient
+@inject NavigationManager NavManager
 
 <HeadContent>
+    <link rel="canonical" href="@CanonicalUrl" />
     <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
-    <meta name="description" content="Discover your next game with our Random Steam Game Picker. Fast, easy, and built for your library." />
+    <meta name="description" content="Discover your next Steam game with our blazing fast random Steam game picker with caching that works with Steam IDs or vanity URLs." />
     <meta name="author" content="Kyle Givler" />
 </HeadContent>
 
@@ -74,6 +75,7 @@ else
     private string? _errorMessage;
     private string _background = string.Empty;
     private PersistingComponentStateSubscription _subscription;
+    private string CanonicalUrl => $"{NavManager.BaseUri.TrimEnd('/')}/random-game/{Provider}/{SteamId}";
 
     protected override async Task OnInitializedAsync()
     {
@@ -106,42 +108,35 @@ else
 
         try
         {
-            var client = _clientFactory.CreateClient("ApiClient");
-            client.BaseAddress = new Uri(_navigationManager.BaseUri);
+            var result = await ApiClient.GetRandomGameDetailsAsync(Provider, steamId: SteamId);
 
-            var response = await client.GetAsync($"api/{Provider}/random-game/details?userId={SteamId}");
-
-            if (!response.IsSuccessStatusCode)
+            if (!result.IsSuccess)
             {
-                if (response.StatusCode == (System.Net.HttpStatusCode)429)
+                if (result.IsTooManyRequests)
                 {
                     _errorMessage = "Wow dude, you're like me you like to smash the button. Nicely done you are trying for more than two clicks per second! Please wait a little?";
                 }
                 else
                 {
-                    var problem = await response.Content.ReadFromJsonAsync<ApiProblem>();
-                    _errorMessage = problem is not null
-                        ? $"{problem.Title}: {problem.Detail}"
-                        : "An unexpected error occurred.";
+                    _errorMessage = result.GetErrorMessage("An unexpected error occurred.");
                 }
 
                 return;
             }
 
-            var result = await response.Content.ReadFromJsonAsync<GameDetails>();
-
-            if (result == null)
+            _gameDetails = result.Value;
+            if (_gameDetails is null)
             {
-                throw new Exception("Unable to retrieve game: API returned empty data.");
+                _errorMessage = "Unable to retrieve game: API returned empty data.";
+                return;
             }
 
-            _gameDetails = result;
             _background = _gameDetails.HeaderImage ?? string.Empty;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting random game for {SteamId}", SteamId);
-            _errorMessage = ex.Message;
+            _errorMessage = "Unable to pick a game right now. Please try again.";
         }
         finally
         {

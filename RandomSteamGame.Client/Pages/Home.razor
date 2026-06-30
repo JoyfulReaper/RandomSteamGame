@@ -2,22 +2,24 @@
 @rendermode InteractiveAuto
 @implements IDisposable
 
-@inject BackendApiClient ApiClient
+@inject RandomSteamApiClient ApiClient
 @inject PersistentComponentState ApplicationState
 @inject IBrowserSteamIdentityStore BrowserIdentityStore
+@inject ILogger<Home> Logger
 @inject NavigationManager NavManager
 @inject ISteamIdentityReader SteamIdentityReader
 
 <HeadContent>
+    <link rel="canonical" href="@CanonicalUrl" />
     <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve, Game, Video Game, videogame" />
-    <meta name="description" content="Discover your next game with our Random Steam Game Picker. Fast, easy, and built for your library." />
+    <meta name="description" content="Discover your next Steam game with our blazing fast random Steam game picker with caching that works with Steam IDs or vanity URLs." />
     <meta name="author" content="Kyle Givler" />
 </HeadContent>
 
 <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
 <div class="position-relative">
-    <div id="loader-wrapper" class="@(_isDataLoading ? "" : "loading-hidden")" aria-hidden="@(_isDataLoading ? "false" : "true")">
+    <div id="loader-wrapper" class="@(IsPageLoading ? "" : "loading-hidden")" aria-hidden="@(IsPageLoading ? "false" : "true")">
         <div class="loader-container mt-5">
             <div class="terminal-loader-box">
                 <div class="spinner-line text-start">
@@ -46,6 +48,9 @@
                 {
                     <div class="main-card">
                         <h1 class="text-center mb-4 text-white fs-2">Random Steam Picker</h1>
+                        <p class="text-center text-muted small mb-4">
+                            Paste a Steam ID or vanity URL to pick a random game from your library.
+                        </p>
 
                         <EditForm Model="HomeModel" OnValidSubmit="HandleValidSubmit" FormName="steamPickerForm">
                             <DataAnnotationsValidator />
@@ -64,7 +69,7 @@
                                 <ValidationMessage For="() => HomeModel.VanityUrl" />
                             </div>
 
-                            <button type="submit" class="btn btn-steam w-100 py-2" disabled="@_isBusy">
+                            <button type="submit" class="btn btn-steam w-100 py-2" disabled="@(_isBusy || !IsFormReady)">
                                 @if (_isBusy)
                                 {
                                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -98,12 +103,16 @@
 
     private string? _errorMessage;
     private bool _isBusy = false;
-    private bool _isDataLoading = true;
+    private bool _isInitialLoadComplete = false;
+    private bool _hasCompletedBrowserIdentityHydration = false;
 
     private long _totalHits;
     private long _uniqueVisitors;
 
     private PersistingComponentStateSubscription _persistingSubscription;
+    private bool IsPageLoading => !_isInitialLoadComplete;
+    private bool IsFormReady => _isInitialLoadComplete && _hasCompletedBrowserIdentityHydration;
+    private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
 
     private class PageStateData
     {
@@ -141,7 +150,7 @@
         }
         finally
         {
-            _isDataLoading = false;
+            _isInitialLoadComplete = true;
         }
     }
 
@@ -172,15 +181,29 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || !RendererInfo.IsInteractive)
+        if (!RendererInfo.IsInteractive || _hasCompletedBrowserIdentityHydration)
         {
             return;
         }
 
-        if (await LoadBrowserIdentityAsync())
+        try
         {
-            StateHasChanged();
+            if (await LoadBrowserIdentityAsync())
+            {
+                StateHasChanged();
+                return;
+            }
         }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to hydrate Steam identity from browser storage during interactive render.");
+        }
+        finally
+        {
+            _hasCompletedBrowserIdentityHydration = true;
+        }
+
+        StateHasChanged();
     }
 
     private Task PersistPageData()
@@ -198,6 +221,11 @@
 
     private async Task HandleValidSubmit()
     {
+        if (!IsFormReady)
+        {
+            return;
+        }
+
         _errorMessage = null;
         _isBusy = true;
 
@@ -214,16 +242,16 @@
 
             if (HomeModel.SteamId is null && HomeModel.VanityUrl is not null)
             {
-                var response = await ApiClient.Client.GetAsync($"api/steam/resolve/{Uri.EscapeDataString(HomeModel.VanityUrl)}");
-                if (response.IsSuccessStatusCode)
+                var result = await ApiClient.ResolveVanityUrlAsync("steam", HomeModel.VanityUrl);
+                if (result.IsSuccess)
                 {
-                    var steamIdLong = await response.Content.ReadFromJsonAsync<long>();
-                    HomeModel.SteamId = steamIdLong.ToString();
+                    HomeModel.SteamId = result.Value.ToString();
                     HomeModel.VanityUrl = null;
                 }
                 else
                 {
-                    throw new Exception("Unable to resolve vanity URL.");
+                    _errorMessage = result.GetErrorMessage("Unable to resolve vanity URL.");
+                    return;
                 }
             }
 
@@ -241,7 +269,8 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Error: {ex.Message}";
+            Logger.LogError(ex, "Failed to submit Steam picker form.");
+            _errorMessage = "Something went wrong while saving your Steam ID. Please try again.";
         }
         finally
         {
@@ -284,39 +313,31 @@
 
     private async Task RecordHitAsync()
     {
-        try
+        var result = await ApiClient.RecordHitAsync();
+        if (result.IsSuccess)
         {
-            var response = await ApiClient.Client.PostAsync("api/stats/hit", null);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var stats = await response.Content.ReadFromJsonAsync<PageStateData>();
-                if (stats != null)
-                {
-                    _totalHits = stats.TotalHits;
-                    _uniqueVisitors = stats.UniqueVisitors;
-                }
-            }
+            ApplyStats(result.Value);
         }
-        catch { /* Fail silently */ }
     }
 
     private async Task FetchStatsOnlyAsync()
     {
-        try
+        var result = await ApiClient.GetStatsAsync();
+        if (result.IsSuccess)
         {
-            var response = await ApiClient.Client.GetAsync("api/stats");
-            if (response.IsSuccessStatusCode)
-            {
-                var stats = await response.Content.ReadFromJsonAsync<PageStateData>();
-                if (stats != null)
-                {
-                    _totalHits = stats.TotalHits;
-                    _uniqueVisitors = stats.UniqueVisitors;
-                }
-            }
+            ApplyStats(result.Value);
         }
-        catch { /* Fail silently */ }
+    }
+
+    private void ApplyStats(AppStatsResponse? stats)
+    {
+        if (stats is null)
+        {
+            return;
+        }
+
+        _totalHits = stats.TotalHits;
+        _uniqueVisitors = stats.UniqueVisitors;
     }
 
     public void Dispose()

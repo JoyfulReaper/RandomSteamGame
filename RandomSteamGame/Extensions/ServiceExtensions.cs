@@ -6,13 +6,14 @@
  */
 
 using JoyfulReaperLib.JRData;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
 using RandomSteamGame.Client.Services;
+using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
-using RandomSteamGame.Shared.Services;
 using SteamApiClient;
 using SteamApiClient.Settings;
 using System.Threading.RateLimiting;
@@ -26,47 +27,88 @@ public static class ServiceExtensions
         IConfiguration config,
         IWebHostEnvironment env)
     {
-        // ==========================================
-        // SERVICES CONFIGURATION (DI CONTAINER)
-        // ==========================================
         var connectionString = SqliteHelper.InitializeSqlite("kgivler_com.db", null);
+        var steamOptions = GetSteamOptions(config);
 
-        // Blazor Interactive Auto Render Mode Engines
+        services.AddBlazorServices();
+        services.AddApiServices();
+        services.AddSteamIdentityServices();
+        services.AddGameProviderServices();
+        services.AddPersistenceServices(connectionString);
+        services.AddSteamServices(config);
+        services.AddApplicationCors(config, env);
+        services.AddSteamRateLimiting(steamOptions.RateLimiting);
+        services.AddHttpClient<RandomSteamApiClient>();
+
+        ValidateSteamApiKey(steamOptions);
+
+        return services;
+    }
+
+    private static IServiceCollection AddBlazorServices(this IServiceCollection services)
+    {
         services.AddRazorComponents()
             .AddInteractiveServerComponents()
             .AddInteractiveWebAssemblyComponents();
 
+        return services;
+    }
+
+    private static IServiceCollection AddApiServices(this IServiceCollection services)
+    {
         services.AddControllers();
         services.AddHttpContextAccessor();
         services.AddProblemDetails();
+        services.AddTransient<ProblemDetailsFactory, RandomSteamProblemDetailsFactory>();
 
-        services.AddSteamApiClient(config);
+        return services;
+    }
+
+    private static IServiceCollection AddSteamIdentityServices(this IServiceCollection services)
+    {
         services.AddScoped<IBrowserSteamIdentityStore, BrowserSteamIdentityStore>();
         services.AddScoped<ISteamIdentityWriter, ServerSteamIdentityWriter>();
         services.AddScoped<ISteamIdentityReader, ServerSteamIdentityReader>();
 
-        // Game Providers
+        return services;
+    }
+
+    private static IServiceCollection AddGameProviderServices(this IServiceCollection services)
+    {
         var providerType = typeof(IGameProvider);
         var implementations = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(s => s.GetTypes())
-            .Where(p => providerType.IsAssignableFrom(p) && !p.IsInterface && !p.IsAbstract);
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(type => providerType.IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract);
 
-        foreach (var type in implementations)
+        foreach (var implementation in implementations)
         {
-            services.AddScoped(providerType, type);
+            services.AddScoped(providerType, implementation);
         }
 
         services.AddScoped<GameProviderFactory>();
+
+        return services;
+    }
+
+    private static IServiceCollection AddPersistenceServices(this IServiceCollection services, string connectionString)
+    {
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
-        services.AddScoped<SqliteConnection>(_ =>
-                    new SqliteConnection(connectionString));
+        services.AddScoped<SqliteConnection>(_ => new SqliteConnection(connectionString));
 
-        var steamSection = config.GetSection("Steam");
-        services.Configure<SteamClientApiOptions>(steamSection);
-        var steamOptions = steamSection.Get<SteamClientApiOptions>()
-                           ?? throw new InvalidOperationException("Steam configuration is missing.");
+        return services;
+    }
 
-        // CORS Configuration
+    private static IServiceCollection AddSteamServices(this IServiceCollection services, IConfiguration config)
+    {
+        services.AddSteamApiClient(config);
+        return services;
+    }
+
+    private static IServiceCollection AddApplicationCors(
+        this IServiceCollection services,
+        IConfiguration config,
+        IWebHostEnvironment env)
+    {
         services.AddCors(options =>
         {
             var configuredOrigins = config
@@ -75,12 +117,11 @@ public static class ServiceExtensions
 
             var allowedOrigins = new List<string>(configuredOrigins);
 
-            // Dynamically inject local development tools if running locally
             if (env.IsDevelopment())
             {
-                allowedOrigins.Add("http://localhost:5500");   // VS Code Live Server
-                allowedOrigins.Add("http://127.0.0.1:5500");   // Local loopback address
-                allowedOrigins.Add("http://localhost:3000");   // Typical SPA dev port
+                allowedOrigins.Add("http://localhost:5500");
+                allowedOrigins.Add("http://127.0.0.1:5500");
+                allowedOrigins.Add("http://localhost:3000");
             }
 
             if (allowedOrigins.Count == 0)
@@ -91,25 +132,28 @@ public static class ServiceExtensions
             options.AddPolicy("DefaultCors", policy =>
             {
                 policy.WithOrigins(allowedOrigins.ToArray())
-                      .WithMethods("GET", "POST")
-                      .WithHeaders("Content-Type", "Authorization");
+                    .WithMethods("GET", "POST")
+                    .WithHeaders("Content-Type", "Authorization");
             });
         });
 
-        // Rate Limting
-        var rlOptions = steamOptions.RateLimiting;
+        return services;
+    }
 
+    private static IServiceCollection AddSteamRateLimiting(
+        this IServiceCollection services,
+        RateLimitingOptions rateLimiting)
+    {
         services.AddRateLimiter(options =>
         {
             options.AddFixedWindowLimiter("steam_api_limiter", limiterOptions =>
             {
-                limiterOptions.Window = TimeSpan.FromSeconds(rlOptions.WindowSeconds); // 10 second window
-                limiterOptions.PermitLimit = rlOptions.PermitLimit;                  // Max 20 requests per window
-                limiterOptions.QueueLimit = 0;                   // Reject requests immediately if over limit
+                limiterOptions.Window = TimeSpan.FromSeconds(rateLimiting.WindowSeconds);
+                limiterOptions.PermitLimit = rateLimiting.PermitLimit;
+                limiterOptions.QueueLimit = 0;
                 limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             });
 
-            // Custom response when rate limited
             options.OnRejected = async (context, token) =>
             {
                 context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -117,17 +161,22 @@ public static class ServiceExtensions
             };
         });
 
-        // Api key validation
+        return services;
+    }
+
+    private static SteamClientApiOptions GetSteamOptions(IConfiguration config)
+    {
+        return config.GetSection("Steam").Get<SteamClientApiOptions>()
+            ?? throw new InvalidOperationException("Steam configuration is missing.");
+    }
+
+    private static void ValidateSteamApiKey(SteamClientApiOptions steamOptions)
+    {
         if (string.IsNullOrWhiteSpace(steamOptions.ApiKey) ||
             steamOptions.ApiKey == "STEAM_API_KEY" ||
             steamOptions.ApiKey.Length < 32)
         {
-
             throw new InvalidOperationException("CRITICAL: Invalid Steam API Key.");
         }
-
-        services.AddHttpClient<BackendApiClient>();
-
-        return services;
     }
 }

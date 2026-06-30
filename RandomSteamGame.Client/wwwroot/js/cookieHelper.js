@@ -1,7 +1,17 @@
-﻿export function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
+export function getCookie(name) {
+    const encodedName = encodeURIComponent(name);
+    const cookies = document.cookie ? document.cookie.split("; ") : [];
+
+    for (const cookie of cookies) {
+        const separatorIndex = cookie.indexOf("=");
+        const key = separatorIndex >= 0 ? cookie.slice(0, separatorIndex) : cookie;
+        const value = separatorIndex >= 0 ? cookie.slice(separatorIndex + 1) : "";
+
+        if (key === encodedName) {
+            return decodeURIComponent(value);
+        }
+    }
+
     return "";
 }
 
@@ -12,9 +22,11 @@ export function setCookie(name, value, days) {
         date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
         expires = "; expires=" + date.toUTCString();
     }
-    document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Lax";
+
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value || "")}${expires}; path=/; SameSite=Lax${secure}`;
 }
 
 export function deleteCookie(name) {
-    document.cookie = `${name}=; Max-Age=0; path=/`;
+    document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; path=/; SameSite=Lax`;
 }
