@@ -39,6 +39,7 @@ public class SteamClient : ISteamClient
         _cache = cache;
         _logger = logger;
 
+        // TODO: Move this to a helper or something
         _httpClient.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/json"));
 

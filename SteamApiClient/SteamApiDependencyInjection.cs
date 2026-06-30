@@ -53,15 +53,15 @@ public static class SteamApiDependencyInjection
             throw new InvalidOperationException($"Unsupported CacheProvider: {steamOptions.CacheProvider}. Use 'SQLite' or 'SqlServer'.");
         }
 
-        // ADD HYBRID CACHE (L1 In-Memory + L2 Distributed)
+        // Add hybrid cache (L1 In-Memory + L2 Distributed)
         services.AddHybridCache(options =>
         {
             options.DefaultEntryOptions = new HybridCacheEntryOptions
             {
-                // The total time the item lives in the L2 Distributed Cache (SQLite)
+                // The total time the item lives in the L2 Distributed Cache (SQLite): TODO make configurable through appsettings
                 Expiration = TimeSpan.FromHours(24),
 
-                // The time the item lives in the L1 In-Memory Cache before checking L2
+                // The time the item lives in the L1 In-Memory Cache before checking L2: TODO make configurable through appsettings
                 LocalCacheExpiration = TimeSpan.FromMinutes(30)
             };
         });
@@ -78,8 +78,8 @@ public static class SteamApiDependencyInjection
         })
             .AddStandardResilienceHandler(options =>
             {
-                options.Retry.MaxRetryAttempts = 3;
-                options.Retry.Delay = TimeSpan.FromSeconds(2);
+                options.Retry.MaxRetryAttempts = 3; // TODO: Make configurable through appsettings
+                options.Retry.Delay = TimeSpan.FromSeconds(2); // TODO: Make configurable through appsettings
                 options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
             });
 
@@ -89,8 +89,8 @@ public static class SteamApiDependencyInjection
         })
             .AddStandardResilienceHandler(options =>
             {
-                options.Retry.MaxRetryAttempts = 3;
-                options.Retry.Delay = TimeSpan.FromSeconds(2);
+                options.Retry.MaxRetryAttempts = 3; // TODO: Make configurable through appsettings
+                options.Retry.Delay = TimeSpan.FromSeconds(2); // TODO: Make configurable through appsettings
                 options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
             });
 

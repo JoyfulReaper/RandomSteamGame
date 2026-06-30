@@ -18,8 +18,9 @@
 
 <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
-<div class="position-relative">
-    <div id="loader-wrapper" class="@(IsPageLoading ? "" : "loading-hidden")" aria-hidden="@(IsPageLoading ? "false" : "true")">
+@if (!_isInitialLoadComplete)
+{
+    <div class="position-relative">
         <div class="loader-container mt-5">
             <div class="terminal-loader-box">
                 <div class="spinner-line text-start">
@@ -34,7 +35,9 @@
             </div>
         </div>
     </div>
-
+}
+else
+{
     <main class="container mt-5">
         <div class="row justify-content-center">
             <div class="col-12 col-md-8 col-lg-6">
@@ -69,7 +72,7 @@
                                 <ValidationMessage For="() => HomeModel.VanityUrl" />
                             </div>
 
-                            <button type="submit" class="btn btn-steam w-100 py-2" disabled="@(_isBusy || !IsFormReady)">
+                            <button type="submit" class="btn btn-steam w-100 py-2" disabled="@_isBusy">
                                 @if (_isBusy)
                                 {
                                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -95,7 +98,7 @@
             </div>
         </div>
     </main>
-</div>
+}
 
 @code {
     [SupplyParameterFromForm(FormName = "steamPickerForm")]
@@ -104,14 +107,12 @@
     private string? _errorMessage;
     private bool _isBusy = false;
     private bool _isInitialLoadComplete = false;
-    private bool _hasCompletedBrowserIdentityHydration = false;
+    private bool _hasAttemptedBrowserIdentityHydration = false;
 
     private long _totalHits;
     private long _uniqueVisitors;
 
     private PersistingComponentStateSubscription _persistingSubscription;
-    private bool IsPageLoading => !_isInitialLoadComplete;
-    private bool IsFormReady => _isInitialLoadComplete && _hasCompletedBrowserIdentityHydration;
     private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
 
     private class PageStateData
@@ -181,7 +182,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!RendererInfo.IsInteractive || _hasCompletedBrowserIdentityHydration)
+        if (!RendererInfo.IsInteractive || _hasAttemptedBrowserIdentityHydration)
         {
             return;
         }
@@ -200,7 +201,7 @@
         }
         finally
         {
-            _hasCompletedBrowserIdentityHydration = true;
+            _hasAttemptedBrowserIdentityHydration = true;
         }
 
         StateHasChanged();
@@ -221,11 +222,6 @@
 
     private async Task HandleValidSubmit()
     {
-        if (!IsFormReady)
-        {
-            return;
-        }
-
         _errorMessage = null;
         _isBusy = true;
 
@@ -257,9 +253,7 @@
 
             if (HomeModel.SteamId is not null)
             {
-                var ident = new SteamIdentity(HomeModel.SteamId, null);
-                await BrowserIdentityStore.SetIdentityAsync(ident);
-
+                await PersistIdentityAsync(HomeModel.SteamId);
                 NavManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId}");
             }
             else
@@ -309,6 +303,19 @@
         HomeModel.SteamId = steamId;
         HomeModel.VanityUrl = null;
         return true;
+    }
+
+    private async Task PersistIdentityAsync(string steamId)
+    {
+        try
+        {
+            var ident = new SteamIdentity(steamId, null);
+            await BrowserIdentityStore.SetIdentityAsync(ident);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to persist Steam identity to browser storage.");
+        }
     }
 
     private async Task RecordHitAsync()

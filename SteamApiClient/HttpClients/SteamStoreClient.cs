@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace SteamApiClient.HttpClients;
@@ -36,6 +37,16 @@ public class SteamStoreClient : ISteamStoreClient
         _cache = cache;
         _steamOptions = steamOptions.Value;
         _logger = logger;
+
+        // TODO: Move this to a helper or something
+        _httpClient.DefaultRequestHeaders.Accept.Add(
+           new MediaTypeWithQualityHeaderValue("application/json"));
+
+        _httpClient.DefaultRequestHeaders.UserAgent.Add(
+            new ProductInfoHeaderValue(SteamClientConstants.UserAgent, SteamClientConstants.Version));
+
+        _httpClient.DefaultRequestHeaders.UserAgent.Add(
+            new ProductInfoHeaderValue(SteamClientConstants.UserAgentComment));
     }
 
     public async Task<AppData?> GetAppData(int appId, IEnumerable<string>? tags = null, CancellationToken ct = default)
