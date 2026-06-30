@@ -141,25 +141,29 @@
 
     protected override void OnAfterRender(bool firstRender)
     {
-        if (firstRender && RendererInfo.IsInteractive && OperatingSystem.IsBrowser())
+        if (firstRender && RendererInfo.IsInteractive)
         {
-            try
+            if (OperatingSystem.IsBrowser())
             {
-                var steamIdStr = CookieInterop.GetCookie("SteamId");
-                var vanityUrl = CookieInterop.GetCookie("VanityUrl");
+                try
+                {
+                    var steamIdStr = CookieInterop.GetCookie("SteamId");
+                    var vanityUrl = CookieInterop.GetCookie("VanityUrl");
 
-                if (!string.IsNullOrEmpty(steamIdStr)) HomeModel!.SteamId = steamIdStr;
-                if (!string.IsNullOrEmpty(vanityUrl)) HomeModel!.VanityUrl = vanityUrl;
+                    if (!string.IsNullOrEmpty(steamIdStr)) HomeModel!.SteamId = steamIdStr;
+                    if (!string.IsNullOrEmpty(vanityUrl)) HomeModel!.VanityUrl = vanityUrl;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"JSImport failed: {ex.Message}");
+                }
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine($"JSImport failed: {ex.Message}");
+                // we could fallback to IJSRuntime if we absolutely want to read cookies on the firstload server fallback pass
             }
-            finally
-            {
-                _isDataLoading = false;
-                StateHasChanged();
-            }
+            _isDataLoading = false;
+            StateHasChanged();
         }
     }
 
