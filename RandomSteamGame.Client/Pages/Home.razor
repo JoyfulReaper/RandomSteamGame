@@ -18,7 +18,7 @@
 <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
 <div class="position-relative">
-    <div id="loader-wrapper" class="@(_isDataLoading ? "" : "loading-hidden")" aria-hidden="@(_isDataLoading ? "false" : "true")">
+    <div id="loader-wrapper" class="@(IsPageHydrating ? "" : "loading-hidden")" aria-hidden="@(IsPageHydrating ? "false" : "true")">
         <div class="loader-container mt-5">
             <div class="terminal-loader-box">
                 <div class="spinner-line text-start">
@@ -65,7 +65,7 @@
                                 <ValidationMessage For="() => HomeModel.VanityUrl" />
                             </div>
 
-                            <button type="submit" class="btn btn-steam w-100 py-2" disabled="@_isBusy">
+                            <button type="submit" class="btn btn-steam w-100 py-2" disabled="@(_isBusy || IsPageHydrating)">
                                 @if (_isBusy)
                                 {
                                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -99,12 +99,14 @@
 
     private string? _errorMessage;
     private bool _isBusy = false;
-    private bool _isDataLoading = true;
+    private bool _isInitialLoadComplete = false;
+    private bool _hasCompletedBrowserIdentityHydration = false;
 
     private long _totalHits;
     private long _uniqueVisitors;
 
     private PersistingComponentStateSubscription _persistingSubscription;
+    private bool IsPageHydrating => !_isInitialLoadComplete || !_hasCompletedBrowserIdentityHydration;
 
     private class PageStateData
     {
@@ -142,7 +144,7 @@
         }
         finally
         {
-            _isDataLoading = false;
+            _isInitialLoadComplete = true;
         }
     }
 
@@ -178,10 +180,24 @@
             return;
         }
 
-        if (await LoadBrowserIdentityAsync())
+        try
         {
-            StateHasChanged();
+            if (await LoadBrowserIdentityAsync())
+            {
+                StateHasChanged();
+                return;
+            }
         }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to hydrate Steam identity from browser storage during first interactive render.");
+        }
+        finally
+        {
+            _hasCompletedBrowserIdentityHydration = true;
+        }
+
+        StateHasChanged();
     }
 
     private Task PersistPageData()
@@ -199,6 +215,11 @@
 
     private async Task HandleValidSubmit()
     {
+        if (IsPageHydrating)
+        {
+            return;
+        }
+
         _errorMessage = null;
         _isBusy = true;
 
