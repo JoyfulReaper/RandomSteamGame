@@ -9,6 +9,6 @@ namespace RandomSteamGame.Shared.Interfaces;
 
 public interface ISteamIdentityReader
 {
-    ValueTask<long?> GetSteamIdAsync();
+    ValueTask<string?> GetSteamIdAsync();
     ValueTask<string?> GetVanityUrlAsync();
 }

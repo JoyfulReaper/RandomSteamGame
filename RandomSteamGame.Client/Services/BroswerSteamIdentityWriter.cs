@@ -19,7 +19,7 @@ public class BrowserSteamIdentityWriter : ISteamIdentityWriter
         _js = js;
     }
 
-    public async Task SetIdentityAsync(long steamId, string? vanityUrl)
+    public async Task SetIdentityAsync(string steamId, string? vanityUrl)
     {
         await _js.InvokeVoidAsync("eval", $"document.cookie = \"SteamId={steamId}; path=/; max-age=31536000\"");
         await _js.InvokeVoidAsync("eval", $"document.cookie = \"VanityUrl={vanityUrl ?? ""}; path=/; max-age=31536000\"");

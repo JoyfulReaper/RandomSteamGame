@@ -19,11 +19,11 @@ public class BrowserSteamIdentityReader : ISteamIdentityReader
         _js = js;
     }
 
-    public async ValueTask<long?> GetSteamIdAsync()
+    public async ValueTask<string?> GetSteamIdAsync()
     {
         var cookieStr = await _js.InvokeAsync<string>("eval", "document.cookie");
         var idString = ExtractCookie(cookieStr, "SteamId");
-        return long.TryParse(idString, out var id) ? id : null;
+        return idString;
     }
 
     public async ValueTask<string?> GetVanityUrlAsync()

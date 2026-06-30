@@ -11,10 +11,10 @@ public class ServerSteamIdentityReader : ISteamIdentityReader
         _http = http;
     }
 
-    public ValueTask<long?> GetSteamIdAsync()
+    public ValueTask<string?> GetSteamIdAsync()
     {
         var value = _http.HttpContext?.Request.Cookies["SteamId"];
-        return ValueTask.FromResult(long.TryParse(value, out var id) ? id : (long?)null);
+        return ValueTask.FromResult(value);
     }
 
     public ValueTask<string?> GetVanityUrlAsync()

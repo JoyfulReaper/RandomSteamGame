@@ -1,7 +1,14 @@
-﻿namespace RandomSteamGame.Shared.Interfaces;
+﻿/*
+ * Random Steam Game
+ * 
+ *  Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
+namespace RandomSteamGame.Shared.Interfaces;
 
 public interface ISteamIdentityWriter
 {
-    Task SetIdentityAsync(long steamId, string? vanityUrl);
+    Task SetIdentityAsync(string steamId, string? vanityUrl);
     Task ClearAsync();
 }

@@ -19,7 +19,7 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
         _http = http;
     }
 
-    public Task SetIdentityAsync(long steamId, string? vanityUrl)
+    public Task SetIdentityAsync(string steamId, string? vanityUrl)
     {
         _http.HttpContext?.Response.Cookies.Append("SteamId", steamId.ToString());
         _http.HttpContext?.Response.Cookies.Append("VanityUrl", vanityUrl ?? "");

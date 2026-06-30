@@ -2,9 +2,9 @@
 @rendermode InteractiveAuto
 @implements IDisposable
 
-@inject BackendApiClient _apiClient
+@inject BackendApiClient ApiClient
 @inject PersistentComponentState ApplicationState
-@inject NavigationManager _navigationManager
+@inject NavigationManager NavManager
 @inject IJSRuntime JSRuntime
 @inject IServiceProvider ServiceProvider
 
@@ -53,7 +53,7 @@ else
                         <EditForm Model="HomeModel" OnValidSubmit="HandleValidSubmit" FormName="steamPickerForm">
                             <div class="mb-3">
                                 <label class="form-label">17 Digit Steam ID</label>
-                                <InputNumber class="form-control modern-input" @bind-Value="HomeModel.SteamId" />
+                                <InputText class="form-control modern-input" @bind-Value="HomeModel.SteamId" />
                             </div>
 
                             <div class="text-center fw-bold my-2 text-muted">OR</div>
@@ -108,7 +108,7 @@ else
     {
         public long TotalHits { get; set; }
         public long UniqueVisitors { get; set; }
-        public long? SteamId { get; set; }
+        public string? SteamId { get; set; }
         public string? VanityUrl { get; set; }
     }
 
@@ -141,10 +141,8 @@ else
             var steamIdStr = await JSRuntime.InvokeAsync<string>("getCookie", "SteamId");
             var vanityUrl = await JSRuntime.InvokeAsync<string>("getCookie", "VanityUrl");
 
-            if (long.TryParse(steamIdStr, out var id))
-            {
-                HomeModel?.SteamId = id;
-            }
+
+            HomeModel?.SteamId = steamIdStr;
             HomeModel?.VanityUrl = vanityUrl;
 
             _isDataLoading = false;
@@ -171,7 +169,7 @@ else
         {
             TotalHits = _totalHits,
             UniqueVisitors = _uniqueVisitors,
-            SteamId = HomeModel?.SteamId ?? 0,
+            SteamId = HomeModel?.SteamId,
             VanityUrl = HomeModel?.VanityUrl ?? string.Empty
         });
 
@@ -187,10 +185,10 @@ else
         {
             if (HomeModel?.SteamId is null && !string.IsNullOrWhiteSpace(HomeModel?.VanityUrl))
             {
-                var response = await _apiClient.Client.GetAsync($"api/steam/resolve/{Uri.EscapeDataString(HomeModel.VanityUrl)}");
+                var response = await ApiClient.Client.GetAsync($"api/steam/resolve/{Uri.EscapeDataString(HomeModel.VanityUrl)}");
                 if (response.IsSuccessStatusCode)
                 {
-                    HomeModel.SteamId = await response.Content.ReadFromJsonAsync<long>();
+                    HomeModel.SteamId = await response.Content.ReadFromJsonAsync<string>();
                 }
                 else
                 {
@@ -198,12 +196,12 @@ else
                 }
             }
 
-            if (HomeModel?.SteamId.HasValue ?? false)
+            if (HomeModel?.SteamId is not null)
             {
                 if (RendererInfo.IsInteractive)
                 {
                     await JSRuntime.InvokeVoidAsync("setCookie",
-                        "SteamId", HomeModel.SteamId.Value.ToString(), 365);
+                        "SteamId", HomeModel.SteamId, 365);
                     await JSRuntime.InvokeVoidAsync("setCookie",
                         "VanityUrl", HomeModel.VanityUrl ?? "", 365);
                 }
@@ -212,7 +210,7 @@ else
                     // We should technically set the cookie via HttpContext here IF we could access it.
                 }
 
-                _navigationManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId.Value}");
+                NavManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId}");
             }
             else
             {
@@ -233,7 +231,7 @@ else
     {
         try
         {
-            var response = await _apiClient.Client.PostAsync("api/stats/hit", null);
+            var response = await ApiClient.Client.PostAsync("api/stats/hit", null);
 
             if (response.IsSuccessStatusCode)
             {
