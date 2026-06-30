@@ -10,7 +10,6 @@ using RandomSteamGame.Client.Services;
 using RandomSteamGame.Client.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
 
-
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 // ==========================================

@@ -1,5 +1,12 @@
-using System.Net;
+/*
+ * Random Steam Game
+ * 
+ *  Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
 using RandomSteamGame.Shared.Contracts;
+using System.Net;
 
 namespace RandomSteamGame.Client.Services;
 
