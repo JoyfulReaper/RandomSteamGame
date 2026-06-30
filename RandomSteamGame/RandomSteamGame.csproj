@@ -16,7 +16,7 @@
     <PackageReference Include="JoyfulReaperLib" Version="0.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
-    <PackageReference Include="SteamApiClient" Version="0.1.0" />
+    <PackageReference Include="SteamApiClient" Version="0.1.1" />
   </ItemGroup>
 
 </Project>

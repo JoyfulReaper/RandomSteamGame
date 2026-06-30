@@ -9,7 +9,7 @@
 	<Copyright>Copyright 2026 Kyle Givler</Copyright>
 	<PackageProjectUrl>https://github.com/JoyfulReaper</PackageProjectUrl>
 	<PackageId>SteamApiClient</PackageId>
-	<Version>0.1.0</Version>
+	<Version>0.1.1</Version>
 	<Authors>Kyle Givler</Authors>
 	<Description>Shared utilities and data helpers.</Description>
   </PropertyGroup>

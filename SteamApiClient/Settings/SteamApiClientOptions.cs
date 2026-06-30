@@ -5,21 +5,6 @@
  * Licensed under the MIT License.
  */
 
-//{
-//    "Steam": {
-//        "ApiKey": "YOUR_STEAM_KEY",
-//    "ConnectionString": "Data Source=steam_cache.db",
-//    "CacheSchema": "dbo",
-//    "CacheTable": "SteamCache",
-//    "Cache": {
-//      "OwnedGames": { "AbsoluteMinutes": 60 },
-//      "AppDetails": { "AbsoluteMinutes": 1440 },
-//      "VanitySuccess": { "AbsoluteMinutes": 10080 },
-//      "VanityNotFound": { "AbsoluteMinutes": 1440 }
-//        }
-//    }
-//}
-
 using System.ComponentModel.DataAnnotations;
 
 namespace SteamApiClient.Settings;
