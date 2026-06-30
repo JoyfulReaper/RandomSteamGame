@@ -22,12 +22,12 @@ The system is comprised of three primary subsystems interacting within the .NET 
 
 | Subsystem | Function | Implementation |
 | --- | --- | --- |
-| **Interface** | User Input/Output | Blazor WebAssembly |
+| **Interface** | User Input/Output | Blazor Interactive Auto |
 | **Executive** | Logic & API Gateway | ASP.NET Core API |
-| **Interface** | Data Retrieval | Steam API / Store API |
+| **Integration** | Data Retrieval | Steam API / Store API |
 
 * **Data Management:** All volatile state is managed via a distributed caching layer (SQLite/SQL Server).
-* **Identity Management:** Session integrity is maintained via ASP.NET Identity & JWT encryption protocols.
+* **Identity Management:** Steam identifiers are remembered with a browser cookie to keep the picker fast between visits.
 
 ## 3.0 OPERATIONAL PROCEDURES
 

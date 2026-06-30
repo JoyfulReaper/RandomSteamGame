@@ -34,10 +34,10 @@ public class GameController : ApiController
     /// </summary>
     [HttpGet("{steamId}/library")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OwnedGamesResponse))]
-    public async Task<IActionResult> GetLibrary(string provider, long userId)
+    public async Task<IActionResult> GetLibrary(string provider, long steamId)
     {
         var service = _factory.GetProvider(provider);
-        var result = await service.GetOwnedGamesAsync(userId);
+        var result = await service.GetOwnedGamesAsync(steamId);
         return result.Match(Ok, Problem);
     }
 
@@ -113,8 +113,8 @@ public class GameController : ApiController
 
     private async Task<long?> ResolveIdentifier(IGameProvider service, long? userId, string? vanityUrl)
     {
-        if (userId.HasValue && !string.IsNullOrEmpty(vanityUrl)) return null;
-        if (vanityUrl != null)
+        if (userId.HasValue && !string.IsNullOrWhiteSpace(vanityUrl)) return null;
+        if (!string.IsNullOrWhiteSpace(vanityUrl))
         {
             var result = await service.ResolveIdentifierAsync(vanityUrl);
             return result.IsError ? null : result.Value;
