@@ -126,10 +126,13 @@ else
             _uniqueVisitors = restoredData!.UniqueVisitors;
             HomeModel.SteamId = restoredData.SteamId;
             HomeModel.VanityUrl = restoredData.VanityUrl;
+
             _isDataLoading = false;
         }
         else
         {
+            _isDataLoading = true;
+
             if (!RendererInfo.IsInteractive)
             {
                 await LoadServerDataAsync();
@@ -143,27 +146,44 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && RendererInfo.IsInteractive && !_isDataLoadingCompleted)
+        if (firstRender && RendererInfo.IsInteractive)
         {
-            _isDataLoading = true;
-            StateHasChanged();
+            bool hasData = !string.IsNullOrEmpty(HomeModel?.SteamId);
 
-            var steamIdStr = await JSRuntime.InvokeAsync<string>("getCookie", "SteamId");
-            var vanityUrl = await JSRuntime.InvokeAsync<string>("getCookie", "VanityUrl");
-
-            if (!string.IsNullOrEmpty(steamIdStr))
+            if (!hasData)
             {
-                HomeModel!.SteamId = steamIdStr;
+                _isDataLoading = true;
+                StateHasChanged();
             }
 
-            if (!string.IsNullOrEmpty(vanityUrl))
+            try
             {
-                HomeModel!.VanityUrl = vanityUrl;
-            }
+                var steamIdStr = await JSRuntime.InvokeAsync<string>("getCookie", "SteamId");
+                var vanityUrl = await JSRuntime.InvokeAsync<string>("getCookie", "VanityUrl");
 
-            _isDataLoading = false;
-            _isDataLoadingCompleted = true;
-            StateHasChanged();
+                if (!string.IsNullOrEmpty(steamIdStr))
+                {
+                    HomeModel!.SteamId = steamIdStr;
+                }
+
+                if (!string.IsNullOrEmpty(vanityUrl))
+                {
+                    HomeModel!.VanityUrl = vanityUrl;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"JS Interop error: {ex.Message}");
+            }
+            finally
+            {
+                if (!hasData)
+                {
+                    _isDataLoading = false;
+                    _isDataLoadingCompleted = true;
+                    StateHasChanged();
+                }
+            }
         }
     }
 
