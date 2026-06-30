@@ -19,7 +19,7 @@
 <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
 <div class="position-relative">
-    <div id="loader-wrapper" class="@(IsPageHydrating ? "" : "loading-hidden")" aria-hidden="@(IsPageHydrating ? "false" : "true")">
+    <div id="loader-wrapper" class="@(IsPageLoading ? "" : "loading-hidden")" aria-hidden="@(IsPageLoading ? "false" : "true")">
         <div class="loader-container mt-5">
             <div class="terminal-loader-box">
                 <div class="spinner-line text-start">
@@ -69,7 +69,7 @@
                                 <ValidationMessage For="() => HomeModel.VanityUrl" />
                             </div>
 
-                            <button type="submit" class="btn btn-steam w-100 py-2" disabled="@(_isBusy || IsPageHydrating)">
+                            <button type="submit" class="btn btn-steam w-100 py-2" disabled="@(_isBusy || !IsFormReady)">
                                 @if (_isBusy)
                                 {
                                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -110,7 +110,8 @@
     private long _uniqueVisitors;
 
     private PersistingComponentStateSubscription _persistingSubscription;
-    private bool IsPageHydrating => !_isInitialLoadComplete || !_hasCompletedBrowserIdentityHydration;
+    private bool IsPageLoading => !_isInitialLoadComplete;
+    private bool IsFormReady => _isInitialLoadComplete && _hasCompletedBrowserIdentityHydration;
     private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
 
     private class PageStateData
@@ -220,7 +221,7 @@
 
     private async Task HandleValidSubmit()
     {
-        if (IsPageHydrating)
+        if (!IsFormReady)
         {
             return;
         }
