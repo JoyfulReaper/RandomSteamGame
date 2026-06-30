@@ -40,6 +40,9 @@ public record SteamClientApiOptions
 
     [Required]
     public CacheSettings Cache { get; init; } = new();
+
+    [Required]
+    public RateLimitingOptions RateLimiting { get; init; } = new();
 }
 
 public record CacheSettings
@@ -58,5 +61,12 @@ public record CachePolicy
 {
     public int AbsoluteMinutes { get; init; }
 
-    public TimeSpan Duration => TimeSpan.FromMinutes(AbsoluteMinutes);
+    public TimeSpan Duration =>
+        TimeSpan.FromMinutes(AbsoluteMinutes);
+}
+
+public record RateLimitingOptions
+{
+    public int PermitLimit { get; init; } = 20; // 20 requests per window
+    public int WindowSeconds { get; init; } = 10; // Ten second window
 }

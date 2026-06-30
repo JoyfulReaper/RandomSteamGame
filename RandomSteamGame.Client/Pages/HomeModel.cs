@@ -9,6 +9,6 @@ namespace RandomSteamGame.Client.Pages;
 
 public class HomeModel
 {
-    public long? SteamId { get; set; }
+    public string? SteamId { get; set; } = null;
     public string? VanityUrl { get; set; }
 }

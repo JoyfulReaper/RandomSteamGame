@@ -15,11 +15,17 @@ public interface ICacheService
         string key,
         Func<CancellationToken, Task<T>> factory,
         CachePolicy policy,
+        IEnumerable<string>? tags = null,
         CancellationToken ct = default);
 
     Task SetAsync<T>(
         string key,
         T value,
         CachePolicy policy,
+        IEnumerable<string>? tags = null,
         CancellationToken ct = default);
+
+    Task<T?> GetAsync<T>(string key, CancellationToken ct = default);
+
+    Task InvalidateByTagAsync(string tag, CancellationToken ct = default);
 }

@@ -158,7 +158,6 @@ h1:focus {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
     background-color: #0b111e;
     color: #38bdf8;
     font-family: monospace;
@@ -195,7 +194,6 @@ h1:focus {
 
 .not-found-wrapper {
     background-color: #0b111e;
-    min-height: 100vh;
     font-family: monospace, sans-serif;
     color: #e2e8f0;
     padding: 3rem 1rem;

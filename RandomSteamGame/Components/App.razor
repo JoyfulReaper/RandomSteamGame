@@ -1,19 +1,20 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
-    <meta name="description" content="Random Steam Game Picker. A fun application that picks a random game from your Steam Library for you to play." />
-    <meta name="author" content="Kyle Givler" />
+
     <base href="/" />
-    <ResourcePreloader />
+
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["RandomSteamGame.styles.css"]" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <ImportMap />
+    
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet @rendermode="InteractiveAuto" />
 </head>
@@ -21,7 +22,29 @@
 <body>
     <Routes @rendermode="InteractiveAuto" />
     <ReconnectModal />
+    <div id="blazor-error-ui" class="alert alert-danger position-fixed bottom-0 start-0 end-0 m-3 d-none" role="alert">
+        An unhandled error has occurred.
+        <a href="." class="reload alert-link">Reload</a>
+        <a class="dismiss close text-decoration-none float-end">⚡</a>
+    </div>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
-</body>
+    <script>
+        window.setCookie = (name, value, days) => {
+            let expires = "";
+            if (days) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "") + expires + "; path=/";
+        };
 
+        window.getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return "";
+        };
+    </script>
+</body>
 </html>

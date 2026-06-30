@@ -6,7 +6,6 @@
  */
 
 using ErrorOr;
-using Microsoft.Extensions.Caching.Distributed;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
@@ -15,50 +14,59 @@ using SteamApiClient.HttpClients;
 
 namespace RandomSteamGame.Services;
 
-public class SteamService : ISteamService
+public class SteamProvider : IGameProvider
 {
     private readonly ISteamClient _steamClient;
     private readonly ISteamStoreClient _steamStoreClient;
-    private readonly ILogger<SteamService> _logger;
     private readonly IHtmlSanitizerService _htmlSanitizer;
-    private readonly IDistributedCache _cache;
+    private readonly ILogger<SteamProvider> _logger;
 
     private const int MAX_ATTEMPTS = 3;
 
-    public SteamService(
+    public string ProviderKey => "steam";
+
+    public SteamProvider(
         ISteamClient steamClient,
         ISteamStoreClient steamStoreClient,
-        IDistributedCache cache,
         IHtmlSanitizerService htmlSanitizerService,
-        ILogger<SteamService> logger)
+        ILogger<SteamProvider> logger)
     {
         _htmlSanitizer = htmlSanitizerService;
         _steamClient = steamClient;
         _steamStoreClient = steamStoreClient;
         _logger = logger;
-        _cache = cache;
     }
 
-    public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long steamId)
+    public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)
+        => await FetchOwnedGamesAsync(userId);
+
+    public async Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId)
+        => await FetchRandomGameAsync(userId);
+
+    public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId)
+        => await FetchRandomGameDetailsAsync(userId);
+
+    public async Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)
+        => await FetchSteamIdFromVanityAsync(identifier);
+
+    public async Task<ErrorOr<OwnedGamesResponse>> FetchOwnedGamesAsync(long steamId)
     {
-        try
-        {
-            var ownedGames = await _steamClient.GetOwnedGames(steamId);
-            if (ownedGames?.Games == null || ownedGames.Games.Count == 0)
-            {
-                return Errors.Steam.EmptyLibrary;
-            }
+        var ownedGames = await _steamClient.GetOwnedGames(steamId);
 
-            return MapToOwnedGamesResponse(steamId, ownedGames);
-        }
-        catch (Exception ex)
+        if (ownedGames?.Games == null || ownedGames.Games.Count == 0)
         {
-            _logger.LogError(ex, "Error getting owned games for SteamID: {SteamId}", steamId);
-            return Errors.Steam.SteamApiFailed;
+            return Errors.Steam.EmptyLibrary;
         }
+
+        return MapToOwnedGamesResponse(steamId, ownedGames);
     }
 
-    public async Task<ErrorOr<long>> ResolveVanityUrlAsync(string vanityUrl)
+    public async Task InvalidateOwnedGamesCacheAsync(long steamId)
+    {
+        await _steamClient.InvalidateOwnedGamesCacheAsync(steamId);
+    }
+
+    public async Task<ErrorOr<long>> FetchSteamIdFromVanityAsync(string vanityUrl)
     {
         try
         {
@@ -78,7 +86,7 @@ public class SteamService : ISteamService
         }
     }
 
-    public async Task<ErrorOr<GameDetails>> GetRandomGameBySteamIdAsync(long steamId)
+    public async Task<ErrorOr<GameDetails>> FetchRandomGameDetailsAsync(long steamId)
     {
         try
         {
@@ -109,7 +117,7 @@ public class SteamService : ISteamService
         }
     }
 
-    public async Task<ErrorOr<RandomGameResponse>> GetRandomSteamGameAsync(long steamId)
+    public async Task<ErrorOr<RandomGameResponse>> FetchRandomGameAsync(long steamId)
     {
         try
         {
@@ -165,38 +173,20 @@ public class SteamService : ISteamService
 
         while (attempts < MAX_ATTEMPTS && triedThisRequest.Count < ownedGames.Games.Count)
         {
-            int index = Random.Shared.Next(0, ownedGames.Games.Count);
-            var selectedGame = ownedGames.Games[index];
-
+            var selectedGame = ownedGames.Games[Random.Shared.Next(0, ownedGames.Games.Count)];
             if (!triedThisRequest.Add(selectedGame.AppId))
-            {
                 continue;
-            }
 
-            string cacheKey = $"dead_app:{selectedGame.AppId}";
-            var isKnownDead = await _cache.GetStringAsync(cacheKey);
-            if (isKnownDead != null)
-            {
-                _logger.LogDebug("Skipping known dead AppId {AppId} (Found in persistent blacklist cache).", selectedGame.AppId);
-                continue;
-            }
+            var appData = await _steamStoreClient.GetAppData(selectedGame.AppId);
 
-            var response = await _steamStoreClient.GetAppData(selectedGame.AppId);
-            if (response?.Success == true && response.AppData != null)
+            if (appData != null)
             {
-                return response.AppData;
+                return appData;
             }
 
             attempts++;
-            _logger.LogDebug("Steam store confirmed AppId {AppId} is unavailable. Blacklisting in cache...", selectedGame.AppId);
-
-            var cacheOptions = new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) // TODO: Make configurable
-            };
-            await _cache.SetStringAsync(cacheKey, "false", cacheOptions);
+            _logger.LogDebug("Steam store confirmed AppId {AppId} is unavailable.", selectedGame.AppId);
         }
-
         return null;
     }
 

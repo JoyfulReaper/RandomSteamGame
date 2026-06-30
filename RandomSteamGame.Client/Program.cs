@@ -6,10 +6,9 @@
  */
 
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Mythetech.LocalStorage;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Client.Services.Interfaces;
-using RandomSteamGame.Shared.Interfaces;
+using RandomSteamGame.Shared.Services;
 
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -17,7 +16,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 // ==========================================
 // CORE NETWORKING
 // ==========================================
-builder.Services.AddHttpClient("ApiClient", client =>
+builder.Services.AddHttpClient<BackendApiClient>(client =>
 {
     client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
 });
@@ -26,8 +25,8 @@ builder.Services.AddHttpClient("ApiClient", client =>
 // CORE SECURITY & STORAGE FOUNDATIONS
 // ==========================================
 builder.Services.AddAuthorizationCore();
-builder.Services.AddLocalStorage();
-builder.Services.AddScoped<ISteamIdentityService, ManualSteamIdentityService>();
+//builder.Services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityReader>();
+//builder.Services.AddScoped<ISteamIdentityWriter, BrowserSteamIdentityWriter>();
 
 // ==========================================
 // APPLICATION API CLIENT

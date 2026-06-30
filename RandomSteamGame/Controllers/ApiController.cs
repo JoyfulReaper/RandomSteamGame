@@ -32,7 +32,7 @@ public class ApiController : ControllerBase
         return Problem(errors[0]);
     }
 
-    private IActionResult Problem(Error error)
+    private ObjectResult Problem(Error error)
     {
         var statusCode = error.Type switch
         {
@@ -42,7 +42,11 @@ public class ApiController : ControllerBase
             _ => StatusCodes.Status500InternalServerError,
         };
 
-        return Problem(statusCode: statusCode, title: error.Description);
+        return Problem(
+            statusCode: statusCode,
+            title: error.Type.ToString(),
+            detail: error.Description
+        );
     }
 
     private IActionResult ValidationProblem(List<Error> errors)

@@ -1,24 +1,31 @@
-﻿@page "/random-game/{SteamId:long}"
-
+﻿@page "/random-game/{Provider}/{SteamId:long}"
+@implements IDisposable
+@inject PersistentComponentState ApplicationState
 @inject ILogger<RandomGame> _logger
 @inject IHttpClientFactory _clientFactory
 @inject NavigationManager _navigationManager
 
+<HeadContent>
+    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
+    <meta name="description" content="Discover your next game with our Random Steam Game Picker. Fast, easy, and built for your library." />
+    <meta name="author" content="Kyle Givler" />
+</HeadContent>
+
 @if (_gameDetails is not null)
 {
-    <PageTitle>Random Game: @_gameDetails.Name</PageTitle>
+    <PageTitle>Random Steam Game Picker - @_gameDetails.Name</PageTitle>
 }
 else
 {
-    <PageTitle>Random Game</PageTitle>
+    <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 }
 
 <div class="game-page-wrapper" style="--bg-url: url('@_background')">
     <div class="container-fluid px-3 px-md-5 py-5">
-
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
             <div class="alert alert-warning">@_errorMessage</div>
+            <button class="btn btn-primary btn-lg" @onclick="UpdateData">Try Again</button>
         }
 
         @if (_gameDetails is not null && string.IsNullOrEmpty(_errorMessage) && !_isBusy)
@@ -59,45 +66,74 @@ else
     [Parameter]
     public long? SteamId { get; set; }
 
-    private GameDetails _gameDetails = default!;
+    [Parameter]
+    public string Provider { get; set; } = "steam";
+
+    private GameDetails? _gameDetails;
     private bool _isBusy = false;
     private string? _errorMessage;
-    private string _background = default!;
+    private string _background = string.Empty;
+    private PersistingComponentStateSubscription _subscription;
 
     protected override async Task OnInitializedAsync()
     {
-        await UpdateData();
+        //Try to restore from prerendered state
+        if (!ApplicationState.TryTakeFromJson<GameDetails>("game-details", out var restored))
+        {
+            await UpdateData();
+        }
+        else
+        {
+            _gameDetails = restored;
+            _background = _gameDetails?.HeaderImage ?? string.Empty;
+        }
+
+        // Register for persistence
+        _subscription = ApplicationState.RegisterOnPersisting(PersistState);
+    }
+
+    private Task PersistState()
+    {
+        if (_gameDetails != null)
+            ApplicationState.PersistAsJson("game-details", _gameDetails);
+        return Task.CompletedTask;
     }
 
     private async Task UpdateData()
     {
         _errorMessage = null;
         _isBusy = true;
-        StateHasChanged();
 
         try
         {
-            var _client = _clientFactory.CreateClient("ApiClient");
-            var response = await _client.GetAsync($"api/Steam/RandomGameBySteamId/{SteamId}");
+            var client = _clientFactory.CreateClient("ApiClient");
+            client.BaseAddress = new Uri(_navigationManager.BaseUri);
+
+            var response = await client.GetAsync($"api/{Provider}/random-game/details?userId={SteamId}");
 
             if (!response.IsSuccessStatusCode)
             {
                 if (response.StatusCode == (System.Net.HttpStatusCode)429)
                 {
-                    _errorMessage = "Wow dude, you're like me you like to smash the button. Nicely done you are trying for more than one click per second! Please wait a little?";
+                    _errorMessage = "Wow dude, you're like me you like to smash the button. Nicely done you are trying for more than two clicks per second! Please wait a little?";
                 }
                 else
                 {
                     var problem = await response.Content.ReadFromJsonAsync<ApiProblem>();
-                    _errorMessage = problem?.Title ?? "An unexpected error occurred.";
+                    _errorMessage = $"{problem?.Title}: {problem?.Detail}" ?? "An unexpected error occurred.";
                 }
 
                 return;
             }
 
-            _gameDetails = await response.Content.ReadFromJsonAsync<GameDetails>()
-                ?? throw new Exception("Unable to retrieve game");
+            var result = await response.Content.ReadFromJsonAsync<GameDetails>();
 
+            if (result == null)
+            {
+                throw new Exception("Unable to retrieve game: API returned empty data.");
+            }
+
+            _gameDetails = result;
             _background = _gameDetails.HeaderImage ?? string.Empty;
         }
         catch (Exception ex)
@@ -110,4 +146,7 @@ else
             _isBusy = false;
         }
     }
+
+    public void Dispose() =>
+        _subscription.Dispose();
 }
