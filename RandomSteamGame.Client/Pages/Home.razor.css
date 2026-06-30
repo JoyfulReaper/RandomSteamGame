@@ -1,0 +1,37 @@
+#loader-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #0b0f19;
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+}
+
+    #loader-wrapper.loading-hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+.inline-css-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #38bdf8;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: css-spin 0.8s linear infinite;
+    vertical-align: middle;
+}
+
+@keyframes css-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
