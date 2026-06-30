@@ -8,8 +8,8 @@
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Client.Services.Interfaces;
+using RandomSteamGame.Shared.Interfaces;
 using RandomSteamGame.Shared.Services;
-using System.Runtime.InteropServices.JavaScript;
 
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -26,8 +26,11 @@ builder.Services.AddHttpClient<BackendApiClient>(client =>
 // CORE SECURITY & STORAGE FOUNDATIONS
 // ==========================================
 builder.Services.AddAuthorizationCore();
-//builder.Services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityReader>();
-//builder.Services.AddScoped<ISteamIdentityWriter, BrowserSteamIdentityWriter>();
+
+builder.Services.AddScoped<BrowserSteamIdentityStore>();
+builder.Services.AddScoped<IBrowserSteamIdentityStore>(sp => sp.GetRequiredService<BrowserSteamIdentityStore>());
+builder.Services.AddScoped<ISteamIdentityReader>(sp => sp.GetRequiredService<BrowserSteamIdentityStore>());
+builder.Services.AddScoped<ISteamIdentityWriter>(sp => sp.GetRequiredService<BrowserSteamIdentityStore>());
 
 // ==========================================
 // APPLICATION API CLIENT
@@ -35,8 +38,4 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<IGameApiClient, GameApiClient>();
 builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
-if (OperatingSystem.IsBrowser())
-{
-    await JSHost.ImportAsync("CookieModule", "../js/cookieHelper.js");
-}
 await builder.Build().RunAsync();

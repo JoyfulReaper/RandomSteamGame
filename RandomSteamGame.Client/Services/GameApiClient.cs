@@ -23,19 +23,19 @@ public class GameApiClient : IGameApiClient
     }
 
     public async Task<OwnedGamesResponse?> GetOwnedGamesAsync(long steamId) =>
-        await GetFromJsonSafeAsync<OwnedGamesResponse>($"api/Steam/OwnedGames/{steamId}");
+        await GetFromJsonSafeAsync<OwnedGamesResponse>($"api/steam/{steamId}/library");
 
     public async Task<RandomGameResponse?> GetRandomSteamGameAsync(long steamId) =>
-        await GetFromJsonSafeAsync<RandomGameResponse>($"api/Steam/RandomSteamGame/{steamId}");
+        await GetFromJsonSafeAsync<RandomGameResponse>($"api/steam/random-game?userId={steamId}");
 
     public async Task<GameDetails?> GetRandomGameBySteamIdAsync(long steamId) =>
-        await GetFromJsonSafeAsync<GameDetails>($"api/Steam/RandomGameBySteamId/{steamId}");
+        await GetFromJsonSafeAsync<GameDetails>($"api/steam/random-game/details?userId={steamId}");
 
     public async Task<GameDetails?> GetRandomGameByVanityUrlAsync(string vanityUrl) =>
-        await GetFromJsonSafeAsync<GameDetails>($"api/Steam/RandomGameByVanityUrl/{Uri.EscapeDataString(vanityUrl)}");
+        await GetFromJsonSafeAsync<GameDetails>($"api/steam/random-game/details?vanityUrl={Uri.EscapeDataString(vanityUrl)}");
 
     public async Task<long?> ResolveVanityUrlAsync(string vanityUrl) =>
-        await GetFromJsonSafeAsync<long>($"api/Steam/ResolveVanityUrl/{Uri.EscapeDataString(vanityUrl)}");
+        await GetFromJsonSafeAsync<long>($"api/steam/resolve/{Uri.EscapeDataString(vanityUrl)}");
 
     private async Task<T?> GetFromJsonSafeAsync<T>(string url)
     {

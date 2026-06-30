@@ -5,10 +5,12 @@
  * Licensed under the MIT License.
  */
 
+using RandomSteamGame.Shared.Contracts;
+
 namespace RandomSteamGame.Shared.Interfaces;
 
 public interface ISteamIdentityWriter
 {
-    Task SetIdentityAsync(string steamId, string? vanityUrl);
+    Task SetIdentityAsync(SteamIdentity identity);
     Task ClearAsync();
 }

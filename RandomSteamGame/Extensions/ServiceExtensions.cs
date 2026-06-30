@@ -8,6 +8,7 @@
 using JoyfulReaperLib.JRData;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
+using RandomSteamGame.Client.Services;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
@@ -40,6 +41,7 @@ public static class ServiceExtensions
         services.AddProblemDetails();
 
         services.AddSteamApiClient(config);
+        services.AddScoped<IBrowserSteamIdentityStore, BrowserSteamIdentityStore>();
         services.AddScoped<ISteamIdentityWriter, ServerSteamIdentityWriter>();
         services.AddScoped<ISteamIdentityReader, ServerSteamIdentityReader>();
 

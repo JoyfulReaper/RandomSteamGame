@@ -166,6 +166,6 @@ public class SteamClient : ISteamClient
 
     public async Task InvalidateOwnedGamesCacheAsync(long userId)
     {
-        await _httpClient.PostAsync($"api/steam/{userId}/library/refresh", null);
+        await _cache.InvalidateByTagAsync($"steam_user_{userId}");
     }
 }

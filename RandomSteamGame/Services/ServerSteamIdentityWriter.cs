@@ -6,6 +6,7 @@
  */
 
 
+using RandomSteamGame.Shared.Contracts;
 using RandomSteamGame.Shared.Interfaces;
 
 namespace RandomSteamGame.Services;
@@ -19,17 +20,49 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
         _http = http;
     }
 
-    public Task SetIdentityAsync(string steamId, string? vanityUrl)
+    public Task SetIdentityAsync(SteamIdentity identity)
     {
-        _http.HttpContext?.Response.Cookies.Append("SteamId", steamId.ToString());
-        _http.HttpContext?.Response.Cookies.Append("VanityUrl", vanityUrl ?? "");
+        var response = _http.HttpContext?.Response;
+        if (response is null || response.HasStarted)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (string.IsNullOrWhiteSpace(identity.SteamId))
+        {
+            return Task.CompletedTask;
+        }
+
+        var options = new CookieOptions
+        {
+            Expires = DateTimeOffset.UtcNow.AddDays(365),
+            SameSite = SameSiteMode.Lax,
+            HttpOnly = false, // Browser JS needs to read it
+            Secure = true
+        };
+
+        response.Cookies.Append("SteamId", identity.SteamId, options);
+        response.Cookies.Delete("VanityUrl", new CookieOptions { Path = "/" });
         return Task.CompletedTask;
     }
 
     public Task ClearAsync()
     {
-        _http.HttpContext?.Response.Cookies.Delete("SteamId");
-        _http.HttpContext?.Response.Cookies.Delete("VanityUrl");
+        var response = _http.HttpContext?.Response;
+        if (response is null || response.HasStarted)
+        {
+            return Task.CompletedTask;
+        }
+
+        response.Cookies.Delete("SteamId", new CookieOptions
+        {
+            Path = "/"
+        });
+
+        response.Cookies.Delete("VanityUrl", new CookieOptions
+        {
+            Path = "/"
+        });
         return Task.CompletedTask;
     }
 }

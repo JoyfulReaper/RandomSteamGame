@@ -120,7 +120,9 @@ else
                 else
                 {
                     var problem = await response.Content.ReadFromJsonAsync<ApiProblem>();
-                    _errorMessage = $"{problem?.Title}: {problem?.Detail}" ?? "An unexpected error occurred.";
+                    _errorMessage = problem is not null
+                        ? $"{problem.Title}: {problem.Detail}"
+                        : "An unexpected error occurred.";
                 }
 
                 return;

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Random Steam Game
  * 
  *  Copyright (c) 2026 Kyle Givler
@@ -9,7 +9,9 @@ using RandomSteamGame.Shared.Contracts;
 
 namespace RandomSteamGame.Shared.Interfaces;
 
-public interface ISteamIdentityReader
+public interface IBrowserSteamIdentityStore
 {
     ValueTask<SteamIdentity> GetIdentityAsync();
+    ValueTask SetIdentityAsync(SteamIdentity identity);
+    ValueTask ClearAsync();
 }

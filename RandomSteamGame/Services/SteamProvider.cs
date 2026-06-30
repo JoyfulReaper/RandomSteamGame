@@ -74,7 +74,7 @@ public class SteamProvider : IGameProvider
             if (steamId == 0)
             {
                 _logger.LogWarning("Steam API returned 0 (Not Found) for vanity URL: {VanityUrl}", vanityUrl);
-                return Errors.Steam.VanityResolutonFailed;
+                return Errors.Steam.VanityResolutionFailed;
             }
 
             return steamId;
@@ -82,7 +82,7 @@ public class SteamProvider : IGameProvider
         catch (Exception ex)
         {
             _logger.LogError(ex, "Exception while resolving vanity URL {VanityUrl}.", vanityUrl);
-            return Errors.Steam.VanityResolutonFailed;
+            return Errors.Steam.VanityResolutionFailed;
         }
     }
 
