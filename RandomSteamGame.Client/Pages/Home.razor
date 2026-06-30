@@ -1,14 +1,12 @@
 ﻿@page "/"
 @rendermode InteractiveAuto
-@implements IDisposable
-
-@using RandomSteamGame.Client.Interop;
+@implements IAsyncDisposable
 
 @inject BackendApiClient ApiClient
 @inject PersistentComponentState ApplicationState
+@inject IJSRuntime JSRuntime
 @inject NavigationManager NavManager
 @inject ISteamIdentityReader SteamIdentityReader
-@inject ISteamIdentityWriter SteamIdentityWriter
 
 <HeadContent>
     <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve, Game, Video Game, videogame" />
@@ -106,6 +104,7 @@
     private long _uniqueVisitors;
 
     private PersistingComponentStateSubscription _persistingSubscription;
+    private IJSObjectReference? _cookieModule;
 
     private class PageStateData
     {
@@ -128,20 +127,17 @@
                 _uniqueVisitors = restoredData!.UniqueVisitors;
                 HomeModel.SteamId = CleanInput(restoredData.SteamId);
                 HomeModel.VanityUrl = CleanInput(restoredData.VanityUrl);
-                NormalizeIdentifierChoice();
+            }
+
+            await LoadIdentityAsync();
+
+            if (!RendererInfo.IsInteractive)
+            {
+                await RecordHitAsync();
             }
             else
             {
-                await LoadIdentityAsync();
-
-                if (!RendererInfo.IsInteractive)
-                {
-                    await RecordHitAsync();
-                }
-                else
-                {
-                    await FetchStatsOnlyAsync();
-                }
+                await FetchStatsOnlyAsync();
             }
         }
         finally
@@ -159,9 +155,33 @@
             return;
         }
 
-        HomeModel.SteamId = CleanInput(identity.SteamId);
-        HomeModel.VanityUrl = CleanInput(identity.VanityUrl);
+        var steamId = CleanInput(identity.SteamId);
+        var vanityUrl = CleanInput(identity.VanityUrl);
+
+        if (steamId is not null)
+        {
+            HomeModel.SteamId = steamId;
+            HomeModel.VanityUrl = null;
+        }
+        else if (HomeModel.SteamId is null)
+        {
+            HomeModel.VanityUrl = vanityUrl;
+        }
+
         NormalizeIdentifierChoice();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !RendererInfo.IsInteractive)
+        {
+            return;
+        }
+
+        if (await LoadBrowserIdentityAsync())
+        {
+            StateHasChanged();
+        }
     }
 
     private Task PersistPageData()
@@ -210,8 +230,8 @@
 
             if (HomeModel.SteamId is not null)
             {
-                var ident = new SteamIdentity(HomeModel.SteamId, HomeModel.VanityUrl);
-                await SteamIdentityWriter.SetIdentityAsync(ident);
+                var ident = new SteamIdentity(HomeModel.SteamId, null);
+                await PersistIdentityAsync(ident);
 
                 NavManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId}");
             }
@@ -241,6 +261,48 @@
         {
             HomeModel.VanityUrl = null;
         }
+    }
+
+    private async Task PersistIdentityAsync(SteamIdentity identity)
+    {
+        if (string.IsNullOrWhiteSpace(identity.SteamId))
+        {
+            return;
+        }
+
+        var cookieModule = await GetCookieModuleAsync();
+        await cookieModule.InvokeVoidAsync("setCookie", "SteamId", identity.SteamId, 365);
+        await cookieModule.InvokeVoidAsync("deleteCookie", "VanityUrl");
+    }
+
+    private async Task<bool> LoadBrowserIdentityAsync()
+    {
+        var cookieModule = await GetCookieModuleAsync();
+        var steamId = CleanInput(await cookieModule.InvokeAsync<string>("getCookie", "SteamId"));
+
+        if (HomeModel is null || steamId is null)
+        {
+            return false;
+        }
+
+        if (HomeModel.SteamId == steamId && HomeModel.VanityUrl is null)
+        {
+            return false;
+        }
+
+        HomeModel.SteamId = steamId;
+        HomeModel.VanityUrl = null;
+        return true;
+    }
+
+    private async ValueTask<IJSObjectReference> GetCookieModuleAsync()
+    {
+        if (_cookieModule is null)
+        {
+            _cookieModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/cookieHelper.js");
+        }
+
+        return _cookieModule;
     }
 
     private async Task RecordHitAsync()
@@ -280,8 +342,20 @@
         catch { /* Fail silently */ }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _persistingSubscription.Dispose();
+
+        if (_cookieModule is not null)
+        {
+            try
+            {
+                await _cookieModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The browser circuit can already be gone during teardown.
+            }
+        }
     }
 }
