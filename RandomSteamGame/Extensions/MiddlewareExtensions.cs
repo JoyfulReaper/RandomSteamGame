@@ -56,6 +56,8 @@ public static class MiddlewareExtensions
         app.UseForwardedHeaders(forwardedOptions);
         app.UseCors("DefaultCors");
         app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
+        app.UseStaticFiles();
         app.UseAntiforgery();
 
         app.UseRateLimiter();
