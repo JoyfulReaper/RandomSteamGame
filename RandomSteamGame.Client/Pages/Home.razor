@@ -10,8 +10,9 @@
 @inject ISteamIdentityReader SteamIdentityReader
 
 <HeadContent>
+    <link rel="canonical" href="@CanonicalUrl" />
     <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve, Game, Video Game, videogame" />
-    <meta name="description" content="Discover your next game with our Random Steam Game Picker. Fast, easy, and built for your library." />
+    <meta name="description" content="Discover your next Steam game with our blazing fast random Steam game picker with caching that works with Steam IDs or vanity URLs." />
     <meta name="author" content="Kyle Givler" />
 </HeadContent>
 
@@ -47,6 +48,9 @@
                 {
                     <div class="main-card">
                         <h1 class="text-center mb-4 text-white fs-2">Random Steam Picker</h1>
+                        <p class="text-center text-muted small mb-4">
+                            Paste a Steam ID or vanity URL to pick a random game from your library.
+                        </p>
 
                         <EditForm Model="HomeModel" OnValidSubmit="HandleValidSubmit" FormName="steamPickerForm">
                             <DataAnnotationsValidator />
@@ -107,6 +111,7 @@
 
     private PersistingComponentStateSubscription _persistingSubscription;
     private bool IsPageHydrating => !_isInitialLoadComplete || !_hasCompletedBrowserIdentityHydration;
+    private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
 
     private class PageStateData
     {

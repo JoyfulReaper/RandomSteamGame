@@ -3,10 +3,12 @@
 @inject PersistentComponentState ApplicationState
 @inject ILogger<RandomGame> _logger
 @inject RandomSteamApiClient ApiClient
+@inject NavigationManager NavManager
 
 <HeadContent>
+    <link rel="canonical" href="@CanonicalUrl" />
     <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
-    <meta name="description" content="Discover your next game with our Random Steam Game Picker. Fast, easy, and built for your library." />
+    <meta name="description" content="Discover your next Steam game with our blazing fast random Steam game picker with caching that works with Steam IDs or vanity URLs." />
     <meta name="author" content="Kyle Givler" />
 </HeadContent>
 
@@ -73,6 +75,7 @@ else
     private string? _errorMessage;
     private string _background = string.Empty;
     private PersistingComponentStateSubscription _subscription;
+    private string CanonicalUrl => $"{NavManager.BaseUri.TrimEnd('/')}/random-game/{Provider}/{SteamId}";
 
     protected override async Task OnInitializedAsync()
     {
