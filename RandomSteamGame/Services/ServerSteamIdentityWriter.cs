@@ -28,6 +28,11 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
             return Task.CompletedTask;
         }
 
+        if (string.IsNullOrWhiteSpace(identity.SteamId))
+        {
+            return Task.CompletedTask;
+        }
+
         var options = new CookieOptions
         {
             Expires = DateTimeOffset.UtcNow.AddDays(365),
@@ -36,8 +41,8 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
             Secure = true
         };
 
-        response.Cookies.Append("SteamId", identity.SteamId ?? "0", options);
-        response.Cookies.Append("VanityUrl", identity.VanityUrl ?? "", options);
+        response.Cookies.Append("SteamId", identity.SteamId, options);
+        response.Cookies.Delete("VanityUrl", new CookieOptions { Path = "/" });
         return Task.CompletedTask;
     }
 

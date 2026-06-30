@@ -17,8 +17,13 @@ public sealed class BrowserSteamIdentityWriter : ISteamIdentityWriter
 {
     public Task SetIdentityAsync(SteamIdentity steamIdentity)
     {
-        CookieInterop.SetCookie("SteamId", steamIdentity.SteamId ?? "0", 365);
-        CookieInterop.SetCookie("VanityUrl", steamIdentity.VanityUrl ?? "", 365);
+        if (string.IsNullOrWhiteSpace(steamIdentity.SteamId))
+        {
+            return Task.CompletedTask;
+        }
+
+        CookieInterop.SetCookie("SteamId", steamIdentity.SteamId, 365);
+        CookieInterop.DeleteCookie("VanityUrl");
 
         return Task.CompletedTask;
     }
