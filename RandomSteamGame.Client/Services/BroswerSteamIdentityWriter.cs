@@ -17,8 +17,6 @@ public sealed class BrowserSteamIdentityWriter : ISteamIdentityWriter
 {
     public Task SetIdentityAsync(SteamIdentity steamIdentity)
     {
-        Console.WriteLine("Writing cookies..."); // TODO DEBUG
-
         CookieInterop.SetCookie("SteamId", steamIdentity.SteamId ?? "0", 365);
         CookieInterop.SetCookie("VanityUrl", steamIdentity.VanityUrl ?? "", 365);
 
