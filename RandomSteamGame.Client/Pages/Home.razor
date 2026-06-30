@@ -2,6 +2,8 @@
 @rendermode InteractiveAuto
 @implements IDisposable
 
+@using RandomSteamGame.Client.Interop;
+
 @inject BackendApiClient ApiClient
 @inject PersistentComponentState ApplicationState
 @inject NavigationManager NavManager
@@ -137,33 +139,25 @@
         }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
-        if (firstRender && RendererInfo.IsInteractive)
+        if (firstRender && RendererInfo.IsInteractive && OperatingSystem.IsBrowser())
         {
             try
             {
-                var steamIdStr = await JSRuntime.InvokeAsync<string>("getCookie", "SteamId");
-                var vanityUrl = await JSRuntime.InvokeAsync<string>("getCookie", "VanityUrl");
+                var steamIdStr = CookieInterop.GetCookie("SteamId");
+                var vanityUrl = CookieInterop.GetCookie("VanityUrl");
 
-                if (!string.IsNullOrEmpty(steamIdStr))
-                {
-                    HomeModel!.SteamId = steamIdStr;
-                }
-
-                if (!string.IsNullOrEmpty(vanityUrl))
-                {
-                    HomeModel!.VanityUrl = vanityUrl;
-                }
+                if (!string.IsNullOrEmpty(steamIdStr)) HomeModel!.SteamId = steamIdStr;
+                if (!string.IsNullOrEmpty(vanityUrl)) HomeModel!.VanityUrl = vanityUrl;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"JS Interop error: {ex.Message}");
+                Console.WriteLine($"JSImport failed: {ex.Message}");
             }
             finally
             {
                 _isDataLoading = false;
-                _isDataLoadingCompleted = true;
                 StateHasChanged();
             }
         }
@@ -215,10 +209,10 @@
 
             if (HomeModel?.SteamId is not null)
             {
-                if (RendererInfo.IsInteractive)
+                if (RendererInfo.IsInteractive && OperatingSystem.IsBrowser())
                 {
-                    await JSRuntime.InvokeVoidAsync("setCookie", "SteamId", HomeModel.SteamId, 365);
-                    await JSRuntime.InvokeVoidAsync("setCookie", "VanityUrl", HomeModel.VanityUrl ?? "", 365);
+                    CookieInterop.SetCookie("SteamId", HomeModel.SteamId, 365);
+                    CookieInterop.SetCookie("VanityUrl", HomeModel.VanityUrl ?? "", 365);
                 }
 
                 NavManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId}");
