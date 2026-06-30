@@ -21,7 +21,7 @@ public class SteamProvider : IGameProvider
     private readonly IHtmlSanitizerService _htmlSanitizer;
     private readonly ILogger<SteamProvider> _logger;
 
-    private const int MAX_ATTEMPTS = 3;
+    private const int MAX_ATTEMPTS = 3; // TODO make configurable in appsettings
 
     public string ProviderKey => "steam";
 

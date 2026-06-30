@@ -12,7 +12,7 @@ using SteamApiClient.Settings;
 
 namespace SteamApiClient.Services;
 
-public class CacheService : ICacheService
+internal class CacheService : ICacheService
 {
     private readonly HybridCache _cache;
     private readonly ILogger<CacheService> _logger;
@@ -73,7 +73,7 @@ public class CacheService : ICacheService
 
     public async Task InvalidateByTagAsync(string tag, CancellationToken ct = default)
     {
-        _logger.LogDebug("Invalidating cache for tag: {Tag}", tag);
+        //_logger.LogDebug("Invalidating cache for tag: {Tag}", tag);
         await _cache.RemoveByTagAsync(tag, cancellationToken: ct);
     }
 }
