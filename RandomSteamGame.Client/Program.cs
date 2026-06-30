@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Client.Services.Interfaces;
 using RandomSteamGame.Shared.Services;
+using System.Runtime.InteropServices.JavaScript;
 
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -34,4 +35,8 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<IGameApiClient, GameApiClient>();
 builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
+if (OperatingSystem.IsBrowser())
+{
+    await JSHost.ImportAsync("CookieModule", "../js/cookieHelper.js");
+}
 await builder.Build().RunAsync();

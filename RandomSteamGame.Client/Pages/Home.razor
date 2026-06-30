@@ -2,6 +2,8 @@
 @rendermode InteractiveAuto
 @implements IDisposable
 
+@using RandomSteamGame.Client.Interop;
+
 @inject BackendApiClient ApiClient
 @inject PersistentComponentState ApplicationState
 @inject NavigationManager NavManager
@@ -16,16 +18,15 @@
 
 <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
-@if (_isDataLoading)
-{
-    <div id="loader-wrapper">
+<div class="position-relative">
+    <div id="loader-wrapper" class="@(_isDataLoading ? "" : "loading-hidden")" aria-hidden="@(_isDataLoading ? "false" : "true")">
         <div class="loader-container mt-5">
             <div class="terminal-loader-box">
                 <div class="spinner-line text-start">
                     <span style="color: #38bdf8;">kyle@kgivler:~$</span> dotnet run WASM_Client...
                 </div>
                 <div class="text-start mt-3" style="color: #e2e8f0; font-size: 0.95rem;">
-                    <i class="fas fa-circle-notch fa-spin me-2" style="color: #38bdf8;"></i> Initializing framework runtime <span class="blinking-cursor"></span>
+                    <span class="inline-css-spinner me-2"></span> Initializing framework runtime <span class="blinking-cursor"></span>
                 </div>
                 <div class="loader-subtext text-start border-top border-secondary mt-3 pt-2">
                     Allocating local buffers & parsing assemblies...
@@ -33,10 +34,8 @@
             </div>
         </div>
     </div>
-}
-else
-{
-    <div class="container mt-5">
+
+    <main class="container mt-5">
         <div class="row justify-content-center">
             <div class="col-12 col-md-8 col-lg-6">
 
@@ -48,15 +47,15 @@ else
                 @if (HomeModel is not null)
                 {
                     <div class="main-card">
-                        <h2 class="text-center mb-4 text-white">Random Steam Picker</h2>
+                        <h1 class="text-center mb-4 text-white fs-2">Random Steam Picker</h1>
 
                         <EditForm Model="HomeModel" OnValidSubmit="HandleValidSubmit" FormName="steamPickerForm">
                             <div class="mb-3">
-                                <label class="form-label">17 Digit Steam ID</label>
-                                <InputText class="form-control modern-input" @bind-Value="HomeModel.SteamId" />
+                                <label for="steamIdInput" class="form-label">17 Digit Steam ID</label>
+                                <InputText id="steamIdInput" class="form-control modern-input" @bind-Value="HomeModel.SteamId" />
                             </div>
 
-                            <div class="text-center fw-bold my-2 text-muted">OR</div>
+                            <div class="text-center fw-bold my-2 text-muted" aria-hidden="true">OR</div>
 
                             <div class="mb-4">
                                 <label class="form-label">Steam Vanity/Custom URL</label>
@@ -66,14 +65,14 @@ else
                             <button type="submit" class="btn btn-steam w-100 py-2" disabled="@_isBusy">
                                 @if (_isBusy)
                                 {
-                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                                 }
                                 Generate Random Game
                             </button>
                         </EditForm>
                     </div>
 
-                    <div class="text-center mt-4 text-muted small">
+                    <footer class="text-center mt-4 text-muted small">
                         <p>
                             Need help finding your Steam ID? Check the <a href="https://help.steampowered.com/en/faqs/view/2816-BE67-5B69-0FEC" target="_blank" class="text-info" rel="noopener noreferrer">Steam ID guide</a>.
                             Ensure your <a href="https://help.steampowered.com/en/faqs/view/588C-C67D-0251-C276" target="_blank" class="text-info" rel="noopener noreferrer">profile is public</a>.
@@ -84,12 +83,12 @@ else
                         <p>
                             Please Report Any <span class="text-danger">Bugs:</span> <a href="https://github.com/JoyfulReaper/RandomSteamGame/issues" target="_blank" class="text-info" rel="noopener noreferrer">GitHub Issues</a>
                         </p>
-                    </div>
+                    </footer>
                 }
             </div>
         </div>
-    </div>
-}
+    </main>
+</div>
 
 @code {
     [SupplyParameterFromForm(FormName = "steamPickerForm")]
@@ -140,33 +139,25 @@ else
         }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
-        if (firstRender && RendererInfo.IsInteractive)
+        if (firstRender && RendererInfo.IsInteractive && OperatingSystem.IsBrowser())
         {
             try
             {
-                var steamIdStr = await JSRuntime.InvokeAsync<string>("getCookie", "SteamId");
-                var vanityUrl = await JSRuntime.InvokeAsync<string>("getCookie", "VanityUrl");
+                var steamIdStr = CookieInterop.GetCookie("SteamId");
+                var vanityUrl = CookieInterop.GetCookie("VanityUrl");
 
-                if (!string.IsNullOrEmpty(steamIdStr))
-                {
-                    HomeModel!.SteamId = steamIdStr;
-                }
-
-                if (!string.IsNullOrEmpty(vanityUrl))
-                {
-                    HomeModel!.VanityUrl = vanityUrl;
-                }
+                if (!string.IsNullOrEmpty(steamIdStr)) HomeModel!.SteamId = steamIdStr;
+                if (!string.IsNullOrEmpty(vanityUrl)) HomeModel!.VanityUrl = vanityUrl;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"JS Interop error: {ex.Message}");
+                Console.WriteLine($"JSImport failed: {ex.Message}");
             }
             finally
             {
                 _isDataLoading = false;
-                _isDataLoadingCompleted = true;
                 StateHasChanged();
             }
         }
@@ -218,10 +209,10 @@ else
 
             if (HomeModel?.SteamId is not null)
             {
-                if (RendererInfo.IsInteractive)
+                if (RendererInfo.IsInteractive && OperatingSystem.IsBrowser())
                 {
-                    await JSRuntime.InvokeVoidAsync("setCookie", "SteamId", HomeModel.SteamId, 365);
-                    await JSRuntime.InvokeVoidAsync("setCookie", "VanityUrl", HomeModel.VanityUrl ?? "", 365);
+                    CookieInterop.SetCookie("SteamId", HomeModel.SteamId, 365);
+                    CookieInterop.SetCookie("VanityUrl", HomeModel.VanityUrl ?? "", 365);
                 }
 
                 NavManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId}");
