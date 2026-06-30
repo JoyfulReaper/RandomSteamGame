@@ -6,6 +6,18 @@ public static partial class Errors
 {
     public static class Steam
     {
+        public static Error UnsupportedProvider(string provider) => Error.Validation(
+            code: "Steam.UnsupportedProvider",
+            description: $"Provider '{provider}' is not supported.");
+
+        public static Error IdentifierRequired => Error.Validation(
+            code: "Steam.IdentifierRequired",
+            description: "A Steam ID or vanity URL is required.");
+
+        public static Error AmbiguousIdentifier => Error.Validation(
+            code: "Steam.AmbiguousIdentifier",
+            description: "Provide either a Steam ID or vanity URL, not both.");
+
         public static Error VanityResolutionFailed => Error.NotFound(
             code: "Steam.VanityResolutionFailed",
             description: "Failed to resolve vanity URL.");

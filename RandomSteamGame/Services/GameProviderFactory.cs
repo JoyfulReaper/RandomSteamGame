@@ -1,19 +1,23 @@
-﻿using RandomSteamGame.Services.Interfaces;
+using System.Diagnostics.CodeAnalysis;
+using RandomSteamGame.Services.Interfaces;
 
 namespace RandomSteamGame.Services;
 
-public class GameProviderFactory
+public sealed class GameProviderFactory
 {
-    private readonly IEnumerable<IGameProvider> _providers;
+    private readonly IReadOnlyDictionary<string, IGameProvider> _providers;
 
     public GameProviderFactory(IEnumerable<IGameProvider> providers)
     {
-        _providers = providers;
+        _providers = providers.ToDictionary(
+            provider => provider.ProviderKey,
+            StringComparer.OrdinalIgnoreCase);
     }
 
-    public IGameProvider GetProvider(string providerKey)
+    public bool TryGetProvider(
+        string providerKey,
+        [NotNullWhen(true)] out IGameProvider? provider)
     {
-        return _providers.FirstOrDefault(p => p.ProviderKey.Equals(providerKey, StringComparison.OrdinalIgnoreCase))
-               ?? throw new NotSupportedException($"Provider {providerKey} not supported.");
+        return _providers.TryGetValue(providerKey, out provider);
     }
 }

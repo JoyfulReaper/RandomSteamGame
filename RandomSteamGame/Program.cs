@@ -21,12 +21,6 @@ app.ConfigurePipeline(app.Environment);
 app.MapStaticAssets();
 app.MapControllers();
 
-//For testing custom 500 page
-//app.MapGet("/trigger-500", () =>
-//{
-//    throw new Exception("You wanted a 500? ok!");
-//});
-
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()

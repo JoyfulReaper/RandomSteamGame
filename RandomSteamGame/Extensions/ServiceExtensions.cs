@@ -14,7 +14,6 @@ using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
-using RandomSteamGame.Shared.Services;
 using SteamApiClient;
 using SteamApiClient.Settings;
 using System.Threading.RateLimiting;
@@ -39,7 +38,7 @@ public static class ServiceExtensions
         services.AddSteamServices(config);
         services.AddApplicationCors(config, env);
         services.AddSteamRateLimiting(steamOptions.RateLimiting);
-        services.AddHttpClient<BackendApiClient>();
+        services.AddHttpClient<RandomSteamApiClient>();
 
         ValidateSteamApiKey(steamOptions);
 

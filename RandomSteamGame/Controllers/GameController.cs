@@ -5,12 +5,15 @@
  * Licensed under the MIT License.
  */
 
+using ErrorOr;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
+using System.Diagnostics.CodeAnalysis;
 
 namespace RandomSteamGame.Controllers;
 
@@ -36,7 +39,11 @@ public class GameController : ApiController
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OwnedGamesResponse))]
     public async Task<IActionResult> GetLibrary(string provider, long steamId)
     {
-        var service = _factory.GetProvider(provider);
+        if (!TryGetProvider(provider, out var service))
+        {
+            return Problem([Errors.Steam.UnsupportedProvider(provider)]);
+        }
+
         var result = await service.GetOwnedGamesAsync(steamId);
         return result.Match(Ok, Problem);
     }
@@ -49,7 +56,10 @@ public class GameController : ApiController
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RefreshLibrary(string provider, long userId)
     {
-        var service = _factory.GetProvider(provider);
+        if (!TryGetProvider(provider, out var service))
+        {
+            return Problem([Errors.Steam.UnsupportedProvider(provider)]);
+        }
 
         await service.InvalidateOwnedGamesCacheAsync(userId);
 
@@ -67,10 +77,16 @@ public class GameController : ApiController
         [FromQuery] long? userId,
         [FromQuery] string? vanityUrl)
     {
-        var service = _factory.GetProvider(provider);
+        if (!TryGetProvider(provider, out var service))
+        {
+            return Problem([Errors.Steam.UnsupportedProvider(provider)]);
+        }
 
         var targetId = await ResolveIdentifier(service, userId, vanityUrl);
-        if (targetId is null) return Problem();
+        if (targetId.IsError)
+        {
+            return Problem(targetId.Errors);
+        }
 
         var result = await service.GetRandomGameAsync(targetId.Value);
         return result.Match(Ok, Problem);
@@ -87,10 +103,16 @@ public class GameController : ApiController
         [FromQuery] long? userId,
         [FromQuery] string? vanityUrl)
     {
-        var service = _factory.GetProvider(provider);
+        if (!TryGetProvider(provider, out var service))
+        {
+            return Problem([Errors.Steam.UnsupportedProvider(provider)]);
+        }
 
         var targetId = await ResolveIdentifier(service, userId, vanityUrl);
-        if (targetId is null) return Problem();
+        if (targetId.IsError)
+        {
+            return Problem(targetId.Errors);
+        }
 
         var result = await service.GetRandomGameDetailsAsync(targetId.Value);
         return result.Match(Ok, Problem);
@@ -104,21 +126,44 @@ public class GameController : ApiController
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(long))]
     public async Task<IActionResult> ResolveVanity(string provider, string vanityUrl)
     {
-        var service = _factory.GetProvider(provider);
+        if (!TryGetProvider(provider, out var service))
+        {
+            return Problem([Errors.Steam.UnsupportedProvider(provider)]);
+        }
+
         var result = await service.ResolveIdentifierAsync(vanityUrl);
         return result.Match(
             result => Ok(result),
             errors => Problem(errors));
     }
 
-    private async Task<long?> ResolveIdentifier(IGameProvider service, long? userId, string? vanityUrl)
+    private bool TryGetProvider(
+        string provider,
+        [NotNullWhen(true)] out IGameProvider? service)
     {
-        if (userId.HasValue && !string.IsNullOrWhiteSpace(vanityUrl)) return null;
+        return _factory.TryGetProvider(provider, out service);
+    }
+
+    private static async Task<ErrorOr<long>> ResolveIdentifier(
+        IGameProvider service,
+        long? userId,
+        string? vanityUrl)
+    {
+        if (userId.HasValue && !string.IsNullOrWhiteSpace(vanityUrl))
+        {
+            return Errors.Steam.AmbiguousIdentifier;
+        }
+
         if (!string.IsNullOrWhiteSpace(vanityUrl))
         {
-            var result = await service.ResolveIdentifierAsync(vanityUrl);
-            return result.IsError ? null : result.Value;
+            return await service.ResolveIdentifierAsync(vanityUrl);
         }
-        return userId;
+
+        if (userId is null)
+        {
+            return Errors.Steam.IdentifierRequired;
+        }
+
+        return userId.Value;
     }
 }

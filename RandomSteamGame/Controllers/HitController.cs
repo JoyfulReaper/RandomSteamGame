@@ -8,6 +8,7 @@
 using JoyfulReaperLib.JRData.Web;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
+using RandomSteamGame.Shared.Contracts;
 
 namespace RandomSteamGame.Controllers;
 
@@ -37,7 +38,7 @@ public class HitController : ApiController
         try
         {
             var stats = await HitCountHelper.ProcessHitCounts(_dbConnection, ip);
-            return Ok(new { TotalHits = stats.totalHits, UniqueVisitors = stats.uniqueVisitors });
+            return Ok(new AppStatsResponse(stats.totalHits, stats.uniqueVisitors));
         }
         catch (Exception ex)
         {
@@ -57,7 +58,7 @@ public class HitController : ApiController
             }
 
             var stats = await HitCountHelper.GetHitCounts(_dbConnection);
-            return Ok(new { TotalHits = stats.totalHits, UniqueVisitors = stats.uniqueVisitors });
+            return Ok(new AppStatsResponse(stats.totalHits, stats.uniqueVisitors));
         }
         catch (Exception ex)
         {
