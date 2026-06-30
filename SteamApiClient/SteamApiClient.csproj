@@ -4,8 +4,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Title>SteamApiClient</Title>
+    <Title>kgivler.com Steam Api Client</Title>
+	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+	<Copyright>Copyright 2026 Kyle Givler</Copyright>
+	<PackageProjectUrl>https://github.com/JoyfulReaper</PackageProjectUrl>
+	<PackageId>SteamApiClient</PackageId>
+	<Version>0.1.0</Version>
+	<Authors>Kyle Givler</Authors>
+	<Description>Shared utilities and data helpers.</Description>
   </PropertyGroup>
 
   <ItemGroup>
