@@ -126,13 +126,9 @@ else
             _uniqueVisitors = restoredData!.UniqueVisitors;
             HomeModel.SteamId = restoredData.SteamId;
             HomeModel.VanityUrl = restoredData.VanityUrl;
-
-            _isDataLoading = false;
         }
         else
         {
-            _isDataLoading = true;
-
             if (!RendererInfo.IsInteractive)
             {
                 await LoadServerDataAsync();
@@ -148,14 +144,6 @@ else
     {
         if (firstRender && RendererInfo.IsInteractive)
         {
-            bool hasData = !string.IsNullOrEmpty(HomeModel?.SteamId);
-
-            if (!hasData)
-            {
-                _isDataLoading = true;
-                StateHasChanged();
-            }
-
             try
             {
                 var steamIdStr = await JSRuntime.InvokeAsync<string>("getCookie", "SteamId");
@@ -177,12 +165,9 @@ else
             }
             finally
             {
-                if (!hasData)
-                {
-                    _isDataLoading = false;
-                    _isDataLoadingCompleted = true;
-                    StateHasChanged();
-                }
+                _isDataLoading = false;
+                _isDataLoadingCompleted = true;
+                StateHasChanged();
             }
         }
     }
@@ -194,8 +179,6 @@ else
             HomeModel?.SteamId = await _steamReader.GetSteamIdAsync();
             HomeModel?.VanityUrl = await _steamReader.GetVanityUrlAsync();
             await RecordHitAsync();
-            _isDataLoading = false;
-            StateHasChanged();
         }
     }
 
@@ -237,14 +220,8 @@ else
             {
                 if (RendererInfo.IsInteractive)
                 {
-                    await JSRuntime.InvokeVoidAsync("setCookie",
-                        "SteamId", HomeModel.SteamId, 365);
-                    await JSRuntime.InvokeVoidAsync("setCookie",
-                        "VanityUrl", HomeModel.VanityUrl ?? "", 365);
-                }
-                else
-                {
-                    // We should technically set the cookie via HttpContext here IF we could access it.
+                    await JSRuntime.InvokeVoidAsync("setCookie", "SteamId", HomeModel.SteamId, 365);
+                    await JSRuntime.InvokeVoidAsync("setCookie", "VanityUrl", HomeModel.VanityUrl ?? "", 365);
                 }
 
                 NavManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId}");
@@ -299,7 +276,6 @@ else
             }
         }
         catch { /* Fail silently */ }
-        finally { _isDataLoading = false; }
     }
 
     public void Dispose()
