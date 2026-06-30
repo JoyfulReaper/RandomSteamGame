@@ -81,6 +81,9 @@ else
                         <p>
                             Total Hits: @_totalHits | Unique Visitors: @_uniqueVisitors
                         </p>
+                        <p>
+                            Please Report Any <span class="text-danger">Bugs:</span> <a href="https://github.com/JoyfulReaper/RandomSteamGame/issues" target="_blank" class="text-info" rel="noopener noreferrer">GitHub Issues</a>
+                        </p>
                     </div>
                 }
             </div>
@@ -141,9 +144,15 @@ else
             var steamIdStr = await JSRuntime.InvokeAsync<string>("getCookie", "SteamId");
             var vanityUrl = await JSRuntime.InvokeAsync<string>("getCookie", "VanityUrl");
 
+            if (!string.IsNullOrEmpty(steamIdStr))
+            {
+                HomeModel!.SteamId = steamIdStr;
+            }
 
-            HomeModel?.SteamId = steamIdStr;
-            HomeModel?.VanityUrl = vanityUrl;
+            if (!string.IsNullOrEmpty(vanityUrl))
+            {
+                HomeModel!.VanityUrl = vanityUrl;
+            }
 
             _isDataLoading = false;
             _isDataLoadingCompleted = true;
@@ -188,7 +197,8 @@ else
                 var response = await ApiClient.Client.GetAsync($"api/steam/resolve/{Uri.EscapeDataString(HomeModel.VanityUrl)}");
                 if (response.IsSuccessStatusCode)
                 {
-                    HomeModel.SteamId = await response.Content.ReadFromJsonAsync<string>();
+                    var steamIdLong = await response.Content.ReadFromJsonAsync<long>();
+                    HomeModel.SteamId = steamIdLong.ToString();
                 }
                 else
                 {
