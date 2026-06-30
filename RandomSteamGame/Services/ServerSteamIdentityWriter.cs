@@ -22,6 +22,12 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
 
     public Task SetIdentityAsync(SteamIdentity identity)
     {
+        var response = _http.HttpContext?.Response;
+        if (response is null || response.HasStarted)
+        {
+            return Task.CompletedTask;
+        }
+
         var options = new CookieOptions
         {
             Expires = DateTimeOffset.UtcNow.AddDays(365),
@@ -30,19 +36,25 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
             Secure = true
         };
 
-        _http.HttpContext?.Response.Cookies.Append("SteamId", identity.SteamId ?? "0", options);
-        _http.HttpContext?.Response.Cookies.Append("VanityUrl", identity.VanityUrl ?? "", options);
+        response.Cookies.Append("SteamId", identity.SteamId ?? "0", options);
+        response.Cookies.Append("VanityUrl", identity.VanityUrl ?? "", options);
         return Task.CompletedTask;
     }
 
     public Task ClearAsync()
     {
-        _http.HttpContext!.Response.Cookies.Delete("SteamId", new CookieOptions
+        var response = _http.HttpContext?.Response;
+        if (response is null || response.HasStarted)
+        {
+            return Task.CompletedTask;
+        }
+
+        response.Cookies.Delete("SteamId", new CookieOptions
         {
             Path = "/"
         });
 
-        _http.HttpContext!.Response.Cookies.Delete("VanityUrl", new CookieOptions
+        response.Cookies.Delete("VanityUrl", new CookieOptions
         {
             Path = "/"
         });
