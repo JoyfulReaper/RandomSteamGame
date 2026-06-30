@@ -31,7 +31,26 @@ public class HitController : ApiController
 
         try
         {
-            var stats = await HitCountHelper.ProcessHitCounts(_dbConnection.ConnectionString, ip);
+            var stats = await HitCountHelper.ProcessHitCounts(_dbConnection, ip);
+            return Ok(new { TotalHits = stats.totalHits, UniqueVisitors = stats.uniqueVisitors });
+        }
+        catch (Exception)
+        {
+            return StatusCode(500);
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetStats()
+    {
+        try
+        {
+            if (_dbConnection.State != System.Data.ConnectionState.Open)
+            {
+                await _dbConnection.OpenAsync();
+            }
+
+            var stats = await HitCountHelper.GetHitCounts(_dbConnection);
             return Ok(new { TotalHits = stats.totalHits, UniqueVisitors = stats.uniqueVisitors });
         }
         catch (Exception)

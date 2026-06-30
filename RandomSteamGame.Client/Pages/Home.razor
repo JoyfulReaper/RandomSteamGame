@@ -115,7 +115,7 @@ else
         public string? VanityUrl { get; set; }
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         HomeModel ??= new HomeModel();
         _persistingSubscription = ApplicationState.RegisterOnPersisting(PersistPageData);
@@ -128,9 +128,16 @@ else
             HomeModel.VanityUrl = restoredData.VanityUrl;
             _isDataLoading = false;
         }
-        else if (!RendererInfo.IsInteractive)
+        else
         {
-            _ = LoadServerDataAsync();
+            if (!RendererInfo.IsInteractive)
+            {
+                await LoadServerDataAsync();
+            }
+            else
+            {
+                await FetchStatsOnlyAsync();
+            }
         }
     }
 
@@ -254,6 +261,25 @@ else
             }
         }
         catch { /* Fail silently */ }
+    }
+
+    private async Task FetchStatsOnlyAsync()
+    {
+        try
+        {
+            var response = await ApiClient.Client.GetAsync("api/stats");
+            if (response.IsSuccessStatusCode)
+            {
+                var stats = await response.Content.ReadFromJsonAsync<PageStateData>();
+                if (stats != null)
+                {
+                    _totalHits = stats.TotalHits;
+                    _uniqueVisitors = stats.UniqueVisitors;
+                }
+            }
+        }
+        catch { /* Fail silently */ }
+        finally { _isDataLoading = false; }
     }
 
     public void Dispose()
