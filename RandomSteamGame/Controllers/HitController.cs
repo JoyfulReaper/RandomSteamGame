@@ -17,11 +17,16 @@ public class HitController : ApiController
 {
     private readonly SqliteConnection _dbConnection;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ILogger<HitController> _logger;
 
-    public HitController(SqliteConnection dbConnection, IHttpContextAccessor httpContextAccessor)
+    public HitController(
+        SqliteConnection dbConnection,
+        IHttpContextAccessor httpContextAccessor,
+        ILogger<HitController> logger)
     {
         _dbConnection = dbConnection;
         _httpContextAccessor = httpContextAccessor;
+        _logger = logger;
     }
 
     [HttpPost("hit")]
@@ -34,9 +39,10 @@ public class HitController : ApiController
             var stats = await HitCountHelper.ProcessHitCounts(_dbConnection, ip);
             return Ok(new { TotalHits = stats.totalHits, UniqueVisitors = stats.uniqueVisitors });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return StatusCode(500);
+            _logger.LogError(ex, "Failed to record site hit.");
+            return Problem();
         }
     }
 
@@ -53,9 +59,10 @@ public class HitController : ApiController
             var stats = await HitCountHelper.GetHitCounts(_dbConnection);
             return Ok(new { TotalHits = stats.totalHits, UniqueVisitors = stats.uniqueVisitors });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return StatusCode(500);
+            _logger.LogError(ex, "Failed to fetch site hit statistics.");
+            return Problem();
         }
     }
 }

@@ -2,8 +2,7 @@
 @implements IDisposable
 @inject PersistentComponentState ApplicationState
 @inject ILogger<RandomGame> _logger
-@inject IHttpClientFactory _clientFactory
-@inject NavigationManager _navigationManager
+@inject BackendApiClient ApiClient
 
 <HeadContent>
     <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
@@ -106,10 +105,7 @@ else
 
         try
         {
-            var client = _clientFactory.CreateClient("ApiClient");
-            client.BaseAddress = new Uri(_navigationManager.BaseUri);
-
-            var response = await client.GetAsync($"api/{Provider}/random-game/details?userId={SteamId}");
+            var response = await ApiClient.Client.GetAsync($"api/{Provider}/random-game/details?userId={SteamId}");
 
             if (!response.IsSuccessStatusCode)
             {
