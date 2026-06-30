@@ -27,8 +27,12 @@ builder.Services.AddHttpClient<BackendApiClient>(client =>
 // CORE SECURITY & STORAGE FOUNDATIONS
 // ==========================================
 builder.Services.AddAuthorizationCore();
-builder.Services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityReader>();
-builder.Services.AddScoped<ISteamIdentityWriter, BrowserSteamIdentityWriter>();
+
+if (OperatingSystem.IsBrowser())
+{
+    builder.Services.AddScoped<ISteamIdentityReader, BrowserSteamIdentityReader>();
+    builder.Services.AddScoped<ISteamIdentityWriter, BrowserSteamIdentityWriter>();
+}
 
 // ==========================================
 // APPLICATION API CLIENT
