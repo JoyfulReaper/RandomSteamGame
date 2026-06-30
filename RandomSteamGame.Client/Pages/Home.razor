@@ -1,10 +1,10 @@
 ﻿@page "/"
 @rendermode InteractiveAuto
-@implements IAsyncDisposable
+@implements IDisposable
 
 @inject BackendApiClient ApiClient
 @inject PersistentComponentState ApplicationState
-@inject IJSRuntime JSRuntime
+@inject IBrowserSteamIdentityStore BrowserIdentityStore
 @inject NavigationManager NavManager
 @inject ISteamIdentityReader SteamIdentityReader
 
@@ -104,7 +104,6 @@
     private long _uniqueVisitors;
 
     private PersistingComponentStateSubscription _persistingSubscription;
-    private IJSObjectReference? _cookieModule;
 
     private class PageStateData
     {
@@ -231,7 +230,7 @@
             if (HomeModel.SteamId is not null)
             {
                 var ident = new SteamIdentity(HomeModel.SteamId, null);
-                await PersistIdentityAsync(ident);
+                await BrowserIdentityStore.SetIdentityAsync(ident);
 
                 NavManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId}");
             }
@@ -263,22 +262,10 @@
         }
     }
 
-    private async Task PersistIdentityAsync(SteamIdentity identity)
-    {
-        if (string.IsNullOrWhiteSpace(identity.SteamId))
-        {
-            return;
-        }
-
-        var cookieModule = await GetCookieModuleAsync();
-        await cookieModule.InvokeVoidAsync("setCookie", "SteamId", identity.SteamId, 365);
-        await cookieModule.InvokeVoidAsync("deleteCookie", "VanityUrl");
-    }
-
     private async Task<bool> LoadBrowserIdentityAsync()
     {
-        var cookieModule = await GetCookieModuleAsync();
-        var steamId = CleanInput(await cookieModule.InvokeAsync<string>("getCookie", "SteamId"));
+        var identity = await BrowserIdentityStore.GetIdentityAsync();
+        var steamId = CleanInput(identity.SteamId);
 
         if (HomeModel is null || steamId is null)
         {
@@ -293,16 +280,6 @@
         HomeModel.SteamId = steamId;
         HomeModel.VanityUrl = null;
         return true;
-    }
-
-    private async ValueTask<IJSObjectReference> GetCookieModuleAsync()
-    {
-        if (_cookieModule is null)
-        {
-            _cookieModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/cookieHelper.js");
-        }
-
-        return _cookieModule;
     }
 
     private async Task RecordHitAsync()
@@ -342,20 +319,8 @@
         catch { /* Fail silently */ }
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
         _persistingSubscription.Dispose();
-
-        if (_cookieModule is not null)
-        {
-            try
-            {
-                await _cookieModule.DisposeAsync();
-            }
-            catch (JSDisconnectedException)
-            {
-                // The browser circuit can already be gone during teardown.
-            }
-        }
     }
 }
