@@ -5,10 +5,8 @@
  * Licensed under the MIT License.
  */
 
-using JoyfulReaperLib.JRData.Web;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.Sqlite;
-using RandomSteamGame.Shared.Contracts;
+using RandomSteamGame.Services.Interfaces;
 
 namespace RandomSteamGame.Controllers;
 
@@ -16,16 +14,16 @@ namespace RandomSteamGame.Controllers;
 [ApiController]
 public class HitController : ApiController
 {
-    private readonly SqliteConnection _dbConnection;
+    private readonly IAppStatsService _appStatsService;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<HitController> _logger;
 
     public HitController(
-        SqliteConnection dbConnection,
+        IAppStatsService appStatsService,
         IHttpContextAccessor httpContextAccessor,
         ILogger<HitController> logger)
     {
-        _dbConnection = dbConnection;
+        _appStatsService = appStatsService;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
@@ -37,8 +35,8 @@ public class HitController : ApiController
 
         try
         {
-            var stats = await HitCountHelper.ProcessHitCounts(_dbConnection, ip);
-            return Ok(new AppStatsResponse(stats.totalHits, stats.uniqueVisitors));
+            var stats = await _appStatsService.RecordHitAsync(ip);
+            return Ok(stats);
         }
         catch (Exception ex)
         {
@@ -52,13 +50,8 @@ public class HitController : ApiController
     {
         try
         {
-            if (_dbConnection.State != System.Data.ConnectionState.Open)
-            {
-                await _dbConnection.OpenAsync();
-            }
-
-            var stats = await HitCountHelper.GetHitCounts(_dbConnection);
-            return Ok(new AppStatsResponse(stats.totalHits, stats.uniqueVisitors));
+            var stats = await _appStatsService.GetStatsAsync();
+            return Ok(stats);
         }
         catch (Exception ex)
         {

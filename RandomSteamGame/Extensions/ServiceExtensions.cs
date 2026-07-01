@@ -16,6 +16,7 @@ using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
 using RandomSteamGame.Shared.Services;
 using SteamApiClient;
+using SteamApiClient.Caching;
 using SteamApiClient.Settings;
 using System.Threading.RateLimiting;
 
@@ -28,7 +29,20 @@ public static class ServiceExtensions
         IConfiguration config,
         IWebHostEnvironment env)
     {
-        var connectionString = SqliteHelper.InitializeSqlite("kgivler_com.db", null);
+        SqliteProviderInitializer.Initialize();
+
+        const string schemaSql = """
+            CREATE TABLE IF NOT EXISTS AppStats (
+                Id INTEGER PRIMARY KEY CHECK (Id = 1),
+                RandomGamesGenerated INTEGER NOT NULL DEFAULT 0
+            );
+
+            INSERT INTO AppStats (Id, RandomGamesGenerated)
+            SELECT 1, 0
+            WHERE NOT EXISTS (SELECT 1 FROM AppStats WHERE Id = 1);
+            """;
+
+        var connectionString = SqliteHelper.InitializeSqlite("kgivler_com.db", schemaSql);
         var steamOptions = GetSteamOptions(config);
 
         services.AddBlazorServices();
@@ -96,6 +110,7 @@ public static class ServiceExtensions
     {
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
+        services.AddScoped<IAppStatsService, AppStatsService>();
         services.AddScoped<SqliteConnection>(_ => new SqliteConnection(connectionString));
 
         return services;

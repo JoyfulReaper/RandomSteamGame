@@ -98,10 +98,6 @@ else
                                     I just bought a new game - refresh owned games cache
                                 </button>
                             </div>
-
-                            <p class="form-text text-center mt-2 mb-0 text-muted">
-                                I just bought a new game - refresh the owned games cache so the next pick can see it.
-                            </p>
                         </EditForm>
                     </div>
 
@@ -111,7 +107,7 @@ else
                             Ensure your <a href="https://help.steampowered.com/en/faqs/view/588C-C67D-0251-C276" target="_blank" class="text-info" rel="noopener noreferrer">profile is public</a>.
                         </p>
                         <p>
-                            Total Hits: @_totalHits | Unique Visitors: @_uniqueVisitors
+                            Total Hits: @_totalHits | Unique Visitors: @_uniqueVisitors | Random Games Generated: @_randomGamesGenerated
                         </p>
                         <p>
                             Please Report Any <span class="text-danger">Bugs:</span> <a href="https://github.com/JoyfulReaper/RandomSteamGame/issues" target="_blank" class="text-info" rel="noopener noreferrer">GitHub Issues</a>
@@ -139,6 +135,7 @@ else
 
     private long _totalHits;
     private long _uniqueVisitors;
+    private long _randomGamesGenerated;
 
     private PersistingComponentStateSubscription _persistingSubscription;
     private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
@@ -246,8 +243,6 @@ else
         {
             _hasAttemptedBrowserIdentityHydration = true;
         }
-
-        StateHasChanged();
     }
 
     private Task PersistPageData()
@@ -513,6 +508,7 @@ else
 
         _totalHits = stats.TotalHits;
         _uniqueVisitors = stats.UniqueVisitors;
+        _randomGamesGenerated = stats.RandomGamesGenerated;
     }
 
     public void Dispose()

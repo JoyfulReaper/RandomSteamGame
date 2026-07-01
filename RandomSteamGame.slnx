@@ -3,4 +3,5 @@
   <Project Path="RandomSteamGame.Shared/RandomSteamGame.Shared.csproj" Id="bf7e4a55-c895-419b-a898-3b5dd5b6d402" />
   <Project Path="RandomSteamGame/RandomSteamGame.csproj" />
   <Project Path="SteamApiClient/SteamApiClient.csproj" />
+  <Project Path="SteamApiClient.Tests/SteamApiClient.Tests.csproj" />
 </Solution>
