@@ -75,23 +75,45 @@ else
     private string? _errorMessage;
     private string _background = string.Empty;
     private PersistingComponentStateSubscription _subscription;
+    private bool _hasRegisteredPersistingCallback;
+    private bool _hasRestoredInitialState;
+    private long? _lastLoadedSteamId;
+    private string? _lastLoadedProvider;
     private string CanonicalUrl => $"{NavManager.BaseUri.TrimEnd('/')}/random-game/{Provider}/{SteamId}";
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        //Try to restore from prerendered state
-        if (!ApplicationState.TryTakeFromJson<GameDetails>("game-details", out var restored))
+        if (_hasRegisteredPersistingCallback)
         {
-            await UpdateData();
-        }
-        else
-        {
-            _gameDetails = restored;
-            _background = _gameDetails?.HeaderImage ?? string.Empty;
+            return;
         }
 
-        // Register for persistence
         _subscription = ApplicationState.RegisterOnPersisting(PersistState);
+        _hasRegisteredPersistingCallback = true;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!_hasRestoredInitialState)
+        {
+            _hasRestoredInitialState = true;
+
+            if (ApplicationState.TryTakeFromJson<GameDetails>("game-details", out var restored))
+            {
+                _gameDetails = restored;
+                _background = _gameDetails?.HeaderImage ?? string.Empty;
+                _lastLoadedProvider = Provider;
+                _lastLoadedSteamId = SteamId;
+                return;
+            }
+        }
+
+        if (_lastLoadedProvider == Provider && _lastLoadedSteamId == SteamId && _gameDetails is not null)
+        {
+            return;
+        }
+
+        await UpdateData();
     }
 
     private Task PersistState()
@@ -105,6 +127,8 @@ else
     {
         _errorMessage = null;
         _isBusy = true;
+        _gameDetails = null;
+        _background = string.Empty;
 
         try
         {
@@ -132,6 +156,8 @@ else
             }
 
             _background = _gameDetails.HeaderImage ?? string.Empty;
+            _lastLoadedProvider = Provider;
+            _lastLoadedSteamId = SteamId;
         }
         catch (Exception ex)
         {

@@ -5,10 +5,9 @@
  * Licensed under the MIT License.
  */
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using NSubstitute;
-using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
@@ -19,13 +18,10 @@ namespace SteamApiClient.Tests;
 
 public class SteamClientTests
 {
-    private readonly ICacheService _mockCache;
     private readonly IOptions<SteamClientApiOptions> _options;
 
     public SteamClientTests()
     {
-        _mockCache = Substitute.For<ICacheService>();
-
         _options = Options.Create(new SteamClientApiOptions
         {
             ApiKey = "FAKE_API_KEY",
@@ -34,32 +30,6 @@ public class SteamClientTests
                 OwnedGames = new CachePolicy { AbsoluteMinutes = 60 },
                 VanitySuccess = new CachePolicy { AbsoluteMinutes = 120 }
             }
-        });
-
-        // cache interception for OwnedGames read-through calls
-        _mockCache.GetOrCreateAsync(
-            Arg.Any<string>(),
-            Arg.Any<Func<CancellationToken, Task<OwnedGames>>>(),
-            Arg.Any<CachePolicy>(),
-            Arg.Any<CancellationToken>())
-        .Returns(async callInfo =>
-        {
-            var factory = callInfo.Arg<Func<CancellationToken, Task<OwnedGames>>>();
-            var ct = callInfo.Arg<CancellationToken>();
-            return await factory(ct);
-        });
-
-        // cache interception for long (Vanity URLs) read-through calls
-        _mockCache.GetOrCreateAsync(
-            Arg.Any<string>(),
-            Arg.Any<Func<CancellationToken, Task<long>>>(),
-            Arg.Any<CachePolicy>(),
-            Arg.Any<CancellationToken>())
-        .Returns(async callInfo =>
-        {
-            var factory = callInfo.Arg<Func<CancellationToken, Task<long>>>();
-            var ct = callInfo.Arg<CancellationToken>();
-            return await factory(ct);
         });
     }
 
@@ -83,10 +53,7 @@ public class SteamClientTests
         };
 
         var json = JsonSerializer.Serialize(fakeResponsePayload);
-        var mockHandler = new MockHttpMessageHandler(json, HttpStatusCode.OK);
-        var httpClient = new HttpClient(mockHandler);
-
-        var client = new SteamClient(httpClient, _options, _mockCache, NullLogger<SteamClient>.Instance);
+        var client = CreateClient(json, HttpStatusCode.OK);
 
         // Act
         var result = await client.GetOwnedGames(76561197960287930L);
@@ -101,10 +68,7 @@ public class SteamClientTests
     public async Task GetOwnedGames_HttpError_ReturnsEmptyResult()
     {
         // Arrange
-        var mockHandler = new MockHttpMessageHandler(string.Empty, HttpStatusCode.InternalServerError);
-        var httpClient = new HttpClient(mockHandler);
-
-        var client = new SteamClient(httpClient, _options, _mockCache, NullLogger<SteamClient>.Instance);
+        var client = CreateClient(string.Empty, HttpStatusCode.InternalServerError);
 
         // Act
         var result = await client.GetOwnedGames(76561197960287930L);
@@ -120,10 +84,7 @@ public class SteamClientTests
     {
         // Arrange
         var invalidJson = "{ \"response\": null }";
-        var mockHandler = new MockHttpMessageHandler(invalidJson, HttpStatusCode.OK);
-        var httpClient = new HttpClient(mockHandler);
-
-        var client = new SteamClient(httpClient, _options, _mockCache, NullLogger<SteamClient>.Instance);
+        var client = CreateClient(invalidJson, HttpStatusCode.OK);
 
         // Act
         var result = await client.GetOwnedGames(76561197960287930L);
@@ -150,10 +111,7 @@ public class SteamClientTests
         };
 
         var json = JsonSerializer.Serialize(fakeResponse);
-        var mockHandler = new MockHttpMessageHandler(json, HttpStatusCode.OK);
-        var httpClient = new HttpClient(mockHandler);
-
-        var client = new SteamClient(httpClient, _options, _mockCache, NullLogger<SteamClient>.Instance);
+        var client = CreateClient(json, HttpStatusCode.OK);
 
         // Act
         var result = await client.GetSteamIdFromVanityUrl("gabelogannewell");
@@ -176,10 +134,7 @@ public class SteamClientTests
         };
 
         var json = JsonSerializer.Serialize(fakeResponse);
-        var mockHandler = new MockHttpMessageHandler(json, HttpStatusCode.OK);
-        var httpClient = new HttpClient(mockHandler);
-
-        var client = new SteamClient(httpClient, _options, _mockCache, NullLogger<SteamClient>.Instance);
+        var client = CreateClient(json, HttpStatusCode.OK);
 
         // Act
         var result = await client.GetSteamIdFromVanityUrl("some_fake_url_that_doesnt_exist");
@@ -201,10 +156,7 @@ public class SteamClientTests
         };
 
         var json = JsonSerializer.Serialize(fakeResponse);
-        var mockHandler = new MockHttpMessageHandler(json, HttpStatusCode.OK);
-        var httpClient = new HttpClient(mockHandler);
-
-        var client = new SteamClient(httpClient, _options, _mockCache, NullLogger<SteamClient>.Instance);
+        var client = CreateClient(json, HttpStatusCode.OK);
 
         // Act
         var result = await client.GetSteamIdFromVanityUrl("error_route");
@@ -214,4 +166,25 @@ public class SteamClientTests
     }
 
     #endregion
+
+    private SteamClient CreateClient(string responseContent, HttpStatusCode statusCode)
+    {
+        var httpClient = new HttpClient(new MockHttpMessageHandler(responseContent, statusCode))
+        {
+            BaseAddress = new Uri("https://api.steampowered.com/")
+        };
+
+        return new SteamClient(httpClient, _options, CreateCacheService(), NullLogger<SteamClient>.Instance);
+    }
+
+    private static ICacheService CreateCacheService()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddHybridCache();
+        services.AddScoped<ICacheService, CacheService>();
+
+        var provider = services.BuildServiceProvider();
+        return provider.GetRequiredService<ICacheService>();
+    }
 }

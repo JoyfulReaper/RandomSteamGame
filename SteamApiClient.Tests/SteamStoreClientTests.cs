@@ -5,10 +5,9 @@
  * Licensed under the MIT License.
  */
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using NSubstitute;
-using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
@@ -19,32 +18,16 @@ namespace SteamApiClient.Tests;
 
 public class SteamStoreClientTests
 {
-    private readonly ICacheService _mockCache;
     private readonly IOptions<SteamClientApiOptions> _options;
 
     public SteamStoreClientTests()
     {
-        _mockCache = Substitute.For<ICacheService>();
-
         _options = Options.Create(new SteamClientApiOptions
         {
             Cache = new CacheSettings
             {
                 AppDetails = new CachePolicy { AbsoluteMinutes = 60 }
             }
-        });
-
-        // simulate a cache miss
-        _mockCache.GetOrCreateAsync(
-            Arg.Any<string>(),
-            Arg.Any<Func<CancellationToken, Task<AppDetailsResponse>>>(),
-            Arg.Any<CachePolicy>(),
-            Arg.Any<CancellationToken>())
-        .Returns(async callInfo =>
-        {
-            var factory = callInfo.Arg<Func<CancellationToken, Task<AppDetailsResponse>>>();
-            var ct = callInfo.Arg<CancellationToken>();
-            return await factory(ct);
         });
     }
 
@@ -65,42 +48,52 @@ public class SteamStoreClientTests
         };
 
         var jsonPayload = JsonSerializer.Serialize(fakeSteamResponse);
-
-        // Mock the network layer handler
-        var mockHandler = new MockHttpMessageHandler(jsonPayload, HttpStatusCode.OK);
-        var httpClient = new HttpClient(mockHandler);
-
-        var client = new SteamStoreClient(
-            httpClient,
-            _mockCache,
-            _options,
-            NullLogger<SteamStoreClient>.Instance // dummy logger
-        );
+        var client = CreateClient(jsonPayload, HttpStatusCode.OK);
 
         // Act
         var result = await client.GetAppData(targetAppId);
 
         // Assert
-        Assert.True(result.Success);
-        Assert.NotNull(result.AppData);
-        Assert.Equal("Portal", result.AppData.Name);
+        Assert.NotNull(result);
+        Assert.Equal("Portal", result.Name);
     }
 
     [Fact]
     public async Task GetAppData_ApiFails_ReturnsSuccessFalseResponse()
     {
         // Arrange
-        var mockHandler = new MockHttpMessageHandler(string.Empty, HttpStatusCode.InternalServerError);
-        var httpClient = new HttpClient(mockHandler);
-
-        var client = new SteamStoreClient(httpClient, _mockCache, _options, NullLogger<SteamStoreClient>.Instance);
+        var client = CreateClient(string.Empty, HttpStatusCode.InternalServerError);
 
         // Act
         var result = await client.GetAppData(123);
 
         // Assert
-        Assert.False(result.Success);
-        Assert.Null(result.AppData);
+        Assert.Null(result);
+    }
+
+    private SteamStoreClient CreateClient(string responseContent, HttpStatusCode statusCode)
+    {
+        var httpClient = new HttpClient(new MockHttpMessageHandler(responseContent, statusCode))
+        {
+            BaseAddress = new Uri("https://store.steampowered.com/")
+        };
+
+        return new SteamStoreClient(
+            httpClient,
+            CreateCacheService(),
+            _options,
+            NullLogger<SteamStoreClient>.Instance);
+    }
+
+    private static ICacheService CreateCacheService()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddHybridCache();
+        services.AddScoped<ICacheService, CacheService>();
+
+        var provider = services.BuildServiceProvider();
+        return provider.GetRequiredService<ICacheService>();
     }
 }
 
