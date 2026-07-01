@@ -47,6 +47,11 @@ else
                     <div class="alert alert-danger mb-4" role="alert">@_errorMessage</div>
                 }
 
+                @if (!string.IsNullOrEmpty(_cacheResetMessage))
+                {
+                    <div class="alert @_cacheResetMessageClass mb-4" role="alert">@_cacheResetMessage</div>
+                }
+
                 @if (HomeModel is not null)
                 {
                     <div class="main-card">
@@ -72,13 +77,30 @@ else
                                 <ValidationMessage For="() => HomeModel.VanityUrl" />
                             </div>
 
-                            <button type="submit" class="btn btn-steam w-100 py-2" disabled="@_isBusy">
-                                @if (_isBusy)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                }
-                                Generate Random Game
-                            </button>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-steam py-2" disabled="@_isBusy">
+                                    @if (_isBusy)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    Generate Random Game
+                                </button>
+
+                                <button type="button"
+                                        class="btn btn-outline-warning py-2"
+                                        disabled="@(!_canResetOwnedGamesCache || _isBusy || _isResettingOwnedGamesCache)"
+                                        @onclick="ResetOwnedGamesCacheAsync">
+                                    @if (_isResettingOwnedGamesCache)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    Reset owned games cache
+                                </button>
+                            </div>
+
+                            <p class="form-text text-center mt-2 mb-0 text-muted">
+                                Uses the current Steam ID to force a fresh library fetch on the next game pick.
+                            </p>
                         </EditForm>
                     </div>
 
@@ -105,7 +127,10 @@ else
     public HomeModel? HomeModel { get; set; }
 
     private string? _errorMessage;
+    private string? _cacheResetMessage;
+    private string _cacheResetMessageClass = "alert-success";
     private bool _isBusy = false;
+    private bool _isResettingOwnedGamesCache = false;
     private bool _isInitialLoadComplete = false;
     private bool _hasAttemptedBrowserIdentityHydration = false;
 
@@ -114,6 +139,7 @@ else
 
     private PersistingComponentStateSubscription _persistingSubscription;
     private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
+    private bool _canResetOwnedGamesCache => !string.IsNullOrWhiteSpace(HomeModel?.SteamId);
 
     private class PageStateData
     {
@@ -224,6 +250,7 @@ else
     private async Task HandleValidSubmit()
     {
         _errorMessage = null;
+        _cacheResetMessage = null;
         _isBusy = true;
 
         try
@@ -273,6 +300,45 @@ else
         }
     }
 
+    private async Task ResetOwnedGamesCacheAsync()
+    {
+        _errorMessage = null;
+        _cacheResetMessage = null;
+        _isResettingOwnedGamesCache = true;
+
+        try
+        {
+            if (!TryGetCurrentSteamId(out var steamId))
+            {
+                _cacheResetMessageClass = "alert-warning";
+                _cacheResetMessage = "Enter a Steam ID first, then try the cache reset again.";
+                return;
+            }
+
+            var result = await ApiClient.InvalidateOwnedGamesCacheAsync("steam", steamId);
+
+            if (!result.IsSuccess)
+            {
+                _cacheResetMessageClass = "alert-danger";
+                _cacheResetMessage = result.GetErrorMessage("Unable to reset the owned games cache right now.");
+                return;
+            }
+
+            _cacheResetMessageClass = "alert-success";
+            _cacheResetMessage = "Owned games cache cleared. The next random game request will fetch fresh library data.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to invalidate owned games cache.");
+            _cacheResetMessageClass = "alert-danger";
+            _cacheResetMessage = "Something went wrong while resetting the cache. Please try again.";
+        }
+        finally
+        {
+            _isResettingOwnedGamesCache = false;
+        }
+    }
+
     private static string? CleanInput(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -284,6 +350,18 @@ else
         {
             HomeModel.VanityUrl = null;
         }
+    }
+
+    private bool TryGetCurrentSteamId(out long steamId)
+    {
+        steamId = 0;
+
+        if (string.IsNullOrWhiteSpace(HomeModel?.SteamId))
+        {
+            return false;
+        }
+
+        return long.TryParse(HomeModel.SteamId, out steamId);
     }
 
     private async Task<bool> LoadBrowserIdentityAsync()

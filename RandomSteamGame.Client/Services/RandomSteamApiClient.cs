@@ -1,3 +1,10 @@
+/*
+ * Random Steam Game
+ * 
+ * Copyright (c) 2026 Kyle Givler
+ * Licensed under the MIT License.
+ */
+
 using Microsoft.AspNetCore.Components;
 using RandomSteamGame.Shared.Contracts;
 using System.Net.Http.Json;
@@ -30,6 +37,18 @@ public sealed class RandomSteamApiClient
         CancellationToken cancellationToken = default) =>
         GetFromJsonAsync<OwnedGamesResponse>(
             $"api/{Uri.EscapeDataString(provider)}/{steamId}/library",
+            cancellationToken);
+
+    public Task<ApiResult<bool>> InvalidateOwnedGamesCacheAsync(
+        string provider,
+        long steamId,
+        CancellationToken cancellationToken = default) =>
+        SendForNoContentAsync(
+            requestUri: $"api/{Uri.EscapeDataString(provider)}/{steamId}/library/refresh",
+            sendAsync: () => _httpClient.PostAsync(
+                $"api/{Uri.EscapeDataString(provider)}/{steamId}/library/refresh",
+                content: null,
+                cancellationToken),
             cancellationToken);
 
     public Task<ApiResult<RandomGameResponse>> GetRandomGameAsync(
@@ -125,6 +144,45 @@ public sealed class RandomSteamApiClient
         {
             _logger.LogError(ex, "Failed API request to {RequestUri}", requestUri);
             return ApiResult<T>.Failure(
+                statusCode: null,
+                errorMessage: "Unable to reach the server right now.");
+        }
+    }
+
+    private async Task<ApiResult<bool>> SendForNoContentAsync(
+        string requestUri,
+        Func<Task<HttpResponseMessage>> sendAsync,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await sendAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var problem = await TryReadProblemAsync(response, cancellationToken);
+
+                _logger.LogDebug(
+                    "API returned status code {StatusCode} for {RequestUri}",
+                    response.StatusCode,
+                    requestUri);
+
+                return ApiResult<bool>.Failure(
+                    response.StatusCode,
+                    problem,
+                    $"Request to '{requestUri}' failed.");
+            }
+
+            return ApiResult<bool>.Success(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed API request to {RequestUri}", requestUri);
+            return ApiResult<bool>.Failure(
                 statusCode: null,
                 errorMessage: "Unable to reach the server right now.");
         }
