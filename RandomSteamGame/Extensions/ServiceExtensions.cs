@@ -53,7 +53,9 @@ public static class ServiceExtensions
         services.AddSteamServices(config);
         services.AddApplicationCors(config, env);
         services.AddSteamRateLimiting(steamOptions.RateLimiting);
+        services.AddMemoryCache();
         services.AddHttpClient<RandomSteamApiClient>();
+        services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
 
         ValidateSteamApiKey(steamOptions);
 

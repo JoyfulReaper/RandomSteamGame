@@ -1,6 +1,7 @@
 ﻿@page "/"
 
 @inject NavigationManager NavManager
+@inject IBetaAvailabilityService BetaAvailabilityService
 
 <HeadContent>
     <link rel="canonical" href="@CanonicalUrl" />
@@ -12,6 +13,20 @@
 <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
 <main class="container mt-5 home-shell">
+    @if (_betaAvailable)
+    {
+        <div class="home-beta-banner mb-4">
+            <div>
+                <span class="home-beta-pill">Beta available</span>
+                <span class="home-beta-text">A live beta picker is running right now.</span>
+            </div>
+            <a href="https://randombeta.kgivler.com/"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="home-beta-link">Click here to try it</a>
+        </div>
+    }
+
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
 
@@ -61,4 +76,10 @@
 
 @code {
     private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
+    private bool _betaAvailable;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _betaAvailable = await BetaAvailabilityService.IsBetaAvailableAsync();
+    }
 }
