@@ -71,7 +71,7 @@ else
 
             <div class="d-grid gap-2">
                 <button type="submit"
-                        class="btn picker-form-submit py-2 @( _isBusy ? "picker-form-submit-busy" : string.Empty )"
+                        class="btn picker-form-submit py-2"
                         disabled="@_isBusy"
                         aria-busy="@_isBusy">
                     @if (_isBusy)
@@ -293,6 +293,7 @@ else
         _errorMessage = null;
         _cacheResetMessage = null;
         _isBusy = true;
+        var resetBusyState = true;
 
         try
         {
@@ -324,6 +325,7 @@ else
             if (HomeModel.SteamId is not null)
             {
                 await PersistIdentityAsync(HomeModel.SteamId);
+                resetBusyState = false;
                 NavManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId}");
             }
             else
@@ -338,7 +340,10 @@ else
         }
         finally
         {
-            _isBusy = false;
+            if (resetBusyState)
+            {
+                _isBusy = false;
+            }
         }
     }
 

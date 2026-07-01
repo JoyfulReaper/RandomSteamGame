@@ -99,17 +99,15 @@
     }
 
     .picker-form-submit:disabled {
-        opacity: 0.55;
+        background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        color: rgba(255, 255, 255, 0.82) !important;
+        opacity: 0.5;
         cursor: not-allowed;
         box-shadow: none;
         transform: none;
         filter: saturate(0.75);
         pointer-events: none;
-    }
-
-    .picker-form-submit-busy {
-        background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%);
-        border-color: rgba(255, 255, 255, 0.08);
     }
 
 .picker-form-secondary {
