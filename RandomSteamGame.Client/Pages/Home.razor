@@ -374,10 +374,10 @@ else
 
         url = url.Trim();
 
-        // Check if it's a full Steam community URL
+        // Check if it's a full Steam community URL (protocol optional)
         var match = System.Text.RegularExpressions.Regex.Match(
             url,
-            @"https?://(?:www\.)?steamcommunity\.com/id/([^/]+)/?",
+            @"(?:https?://)?(?:www\.)?steamcommunity\.com/id/([^/]+)/?",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
         if (match.Success)
