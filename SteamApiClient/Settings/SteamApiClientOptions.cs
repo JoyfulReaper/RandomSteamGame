@@ -13,15 +13,9 @@ public record SteamClientApiOptions
 {
     [Required(ErrorMessage = "Steam API Key is missing!")]
     public string ApiKey { get; init; } = default!;
-    [Required]
-    public string ConnectionString { get; init; } = default!;
-    [Required]
-    public string CacheSchema { get; init; } = default!;
-    [Required]
-    public string CacheTable { get; init; } = default!;
 
     [Required]
-    public string CacheProvider { get; init; } = default!;
+    public string ConnectionString { get; init; } = default!;
 
     [Required]
     public CacheSettings Cache { get; init; } = new();

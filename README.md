@@ -26,7 +26,7 @@ The system is comprised of three primary subsystems interacting within the .NET 
 | **Executive** | Logic & API Gateway | ASP.NET Core API |
 | **Integration** | Data Retrieval | Steam API / Store API |
 
-* **Data Management:** All volatile state is managed via a distributed caching layer (SQLite/SQL Server).
+* **Data Management:** All volatile state is managed via a distributed caching layer (SQLite by default; SQL Server caching is not supported by default anymore).
 * **Identity Management:** Steam identifiers are remembered with a browser cookie to keep the picker fast between visits.
 
 ## 3.0 OPERATIONAL PROCEDURES
