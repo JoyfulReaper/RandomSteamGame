@@ -60,6 +60,9 @@ else
                         <p class="text-center text-muted small mb-4">
                             Paste a Steam ID or vanity URL to pick a random game from your library.
                         </p>
+                        <p class="text-center text-muted small mb-4">
+                            @_selectedTagline
+                        </p>
 
                         <EditForm Model="HomeModel" OnValidSubmit="HandleValidSubmit" FormName="steamPickerForm">
                             <DataAnnotationsValidator />
@@ -132,6 +135,7 @@ else
     private bool _isResettingOwnedGamesCache = false;
     private bool _isInitialLoadComplete = false;
     private bool _hasAttemptedBrowserIdentityHydration = false;
+    private string _selectedTagline = Taglines[Random.Shared.Next(Taglines.Length)];
 
     private long _totalHits;
     private long _uniqueVisitors;
@@ -140,6 +144,33 @@ else
     private PersistingComponentStateSubscription _persistingSubscription;
     private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
     private static TimeSpan OwnedGamesCacheResetCooldown => TimeSpan.FromHours(12);
+    private static readonly string[] Taglines =
+    [
+        "Blazing Fast. Backed by hybrid caching.",
+        "Blazing Fast. Backed by hybrid caching. 🔥",
+        "Discover your next Steam game in seconds.",
+        "Find your next favorite game in seconds.",
+        "Rediscover games you've forgotten you own.",
+        "Your next Steam adventure is one click away.",
+        "Too many games. One perfect choice.",
+        "Stop scrolling. Start playing.",
+        "Break your backlog. Discover your next game.",
+        "Let fate decide your next Steam adventure.",
+        "One click. One random game. Endless possibilities.",
+        "The fastest way to answer: \"What should I play?\"",
+        "Your backlog is waiting. Let's pick something worth playing.",
+        "Hundreds of games. Zero decisions.",
+        "You've already bought your next favorite game. Let's find it.",
+        "Turn your Steam library into your next adventure.",
+        "Roll the dice. Discover your next game. 🎲",
+        "Ready Player One? Let's find something to play.",
+        "Press Start on something unexpected.",
+        "Every great gaming session starts with one random pick.",
+        "Because staring at your Steam library isn't a game.",
+        "Decision paralysis ends here.",
+        "Your backlog called. It misses you.",
+        "Steam Sale Victim? We've got you covered."
+    ];
     private bool _canResetOwnedGamesCache => !string.IsNullOrWhiteSpace(HomeModel?.SteamId) && !IsOwnedGamesCacheResetOnCooldown();
 
     private class PageStateData
