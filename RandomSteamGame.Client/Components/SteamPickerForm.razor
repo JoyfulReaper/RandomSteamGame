@@ -281,6 +281,7 @@ else
 
         var steamId = CleanInput(identity.SteamId);
         var vanityUrl = CleanInput(identity.VanityUrl);
+        var unplayedOnly = identity.UnplayedOnly;
 
         if (steamId is not null)
         {
@@ -291,6 +292,8 @@ else
         {
             HomeModel.VanityUrl = vanityUrl;
         }
+
+        HomeModel.UnplayedOnly = unplayedOnly;
 
         NormalizeIdentifierChoice();
     }
@@ -529,13 +532,16 @@ else
             return false;
         }
 
-        if (HomeModel.SteamId == steamId && HomeModel.VanityUrl is null)
+        if (HomeModel.SteamId == steamId &&
+            HomeModel.VanityUrl is null &&
+            HomeModel.UnplayedOnly == identity.UnplayedOnly)
         {
             return false;
         }
 
         HomeModel.SteamId = steamId;
         HomeModel.VanityUrl = null;
+        HomeModel.UnplayedOnly = identity.UnplayedOnly;
         return true;
     }
 
@@ -543,7 +549,7 @@ else
     {
         try
         {
-            var ident = new SteamIdentity(steamId, null);
+            var ident = new SteamIdentity(steamId, null, HomeModel?.UnplayedOnly ?? false);
             await BrowserIdentityStore.SetIdentityAsync(ident);
         }
         catch (Exception ex)

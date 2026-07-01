@@ -43,6 +43,7 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
 
         response.Cookies.Append("SteamId", identity.SteamId, options);
         response.Cookies.Delete("VanityUrl", new CookieOptions { Path = "/" });
+        response.Cookies.Append("UnplayedOnly", identity.UnplayedOnly.ToString().ToLowerInvariant(), options);
         return Task.CompletedTask;
     }
 
@@ -60,6 +61,11 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
         });
 
         response.Cookies.Delete("VanityUrl", new CookieOptions
+        {
+            Path = "/"
+        });
+
+        response.Cookies.Delete("UnplayedOnly", new CookieOptions
         {
             Path = "/"
         });

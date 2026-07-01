@@ -20,6 +20,7 @@ public sealed class BrowserSteamIdentityStore :
 {
     private const string SteamIdCookieName = "SteamId";
     private const string VanityUrlCookieName = "VanityUrl";
+    private const string UnplayedOnlyCookieName = "UnplayedOnly";
     private const string OwnedGamesCacheResetAtCookieName = "OwnedGamesCacheResetAt";
     private const string ExcludedGameIdsCookieName = "ExcludedGameIds";
     private const int CookieLifetimeDays = 365;
@@ -41,8 +42,11 @@ public sealed class BrowserSteamIdentityStore :
         var vanityUrl = steamId is null
             ? CleanInput(await cookieModule.InvokeAsync<string>("getCookie", VanityUrlCookieName))
             : null;
+        var unplayedOnly = bool.TryParse(
+            CleanInput(await cookieModule.InvokeAsync<string>("getCookie", UnplayedOnlyCookieName)),
+            out var parsedUnplayedOnly) && parsedUnplayedOnly;
 
-        return new SteamIdentity(steamId, vanityUrl);
+        return new SteamIdentity(steamId, vanityUrl, unplayedOnly);
     }
 
     async Task ISteamIdentityWriter.SetIdentityAsync(SteamIdentity identity)
@@ -61,6 +65,7 @@ public sealed class BrowserSteamIdentityStore :
         var cookieModule = await GetCookieModuleAsync();
         await cookieModule.InvokeVoidAsync("setCookie", SteamIdCookieName, identity.SteamId.Trim(), CookieLifetimeDays);
         await cookieModule.InvokeVoidAsync("deleteCookie", VanityUrlCookieName);
+        await cookieModule.InvokeVoidAsync("setCookie", UnplayedOnlyCookieName, identity.UnplayedOnly.ToString().ToLowerInvariant(), CookieLifetimeDays);
     }
 
     public async ValueTask ClearAsync()
@@ -68,6 +73,7 @@ public sealed class BrowserSteamIdentityStore :
         var cookieModule = await GetCookieModuleAsync();
         await cookieModule.InvokeVoidAsync("deleteCookie", SteamIdCookieName);
         await cookieModule.InvokeVoidAsync("deleteCookie", VanityUrlCookieName);
+        await cookieModule.InvokeVoidAsync("deleteCookie", UnplayedOnlyCookieName);
     }
 
     public async ValueTask<IReadOnlyCollection<int>> GetExcludedGameIdsAsync()
