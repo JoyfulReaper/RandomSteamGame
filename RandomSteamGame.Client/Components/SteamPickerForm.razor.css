@@ -41,21 +41,6 @@ html, body {
     }
 }
 
-.game-page-wrapper {
-    min-height: 100vh;
-    width: 100%;
-    background: linear-gradient(135deg, #1a0b2e 0%, #000000 100%);
-    background-image: var(--bg-url);
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-    transition: background-image 0.5s ease-in-out;
-    padding: 3rem 0.5rem;
-    overflow-y: auto;
-    color: #e5e7eb;
-}
-
 /* --- Columns & Alignment --- */
 .d-flex.flex-column {
     display: flex;
