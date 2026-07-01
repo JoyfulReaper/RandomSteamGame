@@ -69,6 +69,15 @@ else
                 <ValidationMessage For="() => HomeModel.VanityUrl" />
             </div>
 
+            <div class="form-check mb-4">
+                <InputCheckbox id="unplayedOnlyInput"
+                               class="form-check-input"
+                               @bind-Value="HomeModel.UnplayedOnly" />
+                <label class="form-check-label" for="unplayedOnlyInput">
+                    Only pick unplayed games
+                </label>
+            </div>
+
             <div class="d-grid gap-2">
                 <button type="submit"
                         class="btn picker-form-submit py-2"
@@ -165,6 +174,7 @@ else
     {
         public string? SteamId { get; set; }
         public string? VanityUrl { get; set; }
+        public bool UnplayedOnly { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -180,6 +190,7 @@ else
             {
                 HomeModel.SteamId = CleanInput(restoredData?.SteamId);
                 HomeModel.VanityUrl = CleanInput(restoredData?.VanityUrl);
+                HomeModel.UnplayedOnly = restoredData?.UnplayedOnly ?? false;
             }
 
             await LoadIdentityAsync();
@@ -232,7 +243,8 @@ else
         ApplicationState.PersistAsJson("steamPickerFormState", new FormStateData
         {
             SteamId = HomeModel?.SteamId,
-            VanityUrl = HomeModel?.VanityUrl
+            VanityUrl = HomeModel?.VanityUrl,
+            UnplayedOnly = HomeModel?.UnplayedOnly ?? false
         });
 
         return Task.CompletedTask;
@@ -326,7 +338,13 @@ else
             {
                 await PersistIdentityAsync(HomeModel.SteamId);
                 resetBusyState = false;
-                NavManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId}");
+                var target = $"/random-game/steam/{HomeModel.SteamId}";
+                if (HomeModel.UnplayedOnly)
+                {
+                    target = $"{target}?unplayedOnly=true";
+                }
+
+                NavManager.NavigateTo(target);
             }
             else
             {

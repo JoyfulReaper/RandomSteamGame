@@ -44,11 +44,11 @@ public class SteamProvider : IGameProvider
     public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)
         => await FetchOwnedGamesAsync(userId);
 
-    public async Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId)
-        => await FetchRandomGameAsync(userId);
+    public async Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId, bool unplayedOnly = false)
+        => await FetchRandomGameAsync(userId, unplayedOnly);
 
-    public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId)
-        => await FetchRandomGameDetailsAsync(userId);
+    public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false)
+        => await FetchRandomGameDetailsAsync(userId, unplayedOnly);
 
     public async Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)
         => await FetchSteamIdFromVanityAsync(identifier);
@@ -90,7 +90,7 @@ public class SteamProvider : IGameProvider
         }
     }
 
-    public async Task<ErrorOr<GameDetails>> FetchRandomGameDetailsAsync(long steamId)
+    public async Task<ErrorOr<GameDetails>> FetchRandomGameDetailsAsync(long steamId, bool unplayedOnly = false)
     {
         try
         {
@@ -100,7 +100,7 @@ public class SteamProvider : IGameProvider
                 return Errors.Steam.EmptyLibrary;
             }
 
-            var appDataResult = await GetRandomGameDataAsync(ownedGames);
+            var appDataResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly);
             if (appDataResult.IsError)
             {
                 return appDataResult.Errors;
@@ -129,7 +129,7 @@ public class SteamProvider : IGameProvider
         }
     }
 
-    public async Task<ErrorOr<RandomGameResponse>> FetchRandomGameAsync(long steamId)
+    public async Task<ErrorOr<RandomGameResponse>> FetchRandomGameAsync(long steamId, bool unplayedOnly = false)
     {
         try
         {
@@ -139,7 +139,7 @@ public class SteamProvider : IGameProvider
                 return Errors.Steam.EmptyLibrary;
             }
 
-            var appDataResult = await GetRandomGameDataAsync(ownedGames);
+            var appDataResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly);
             if (appDataResult.IsError)
             {
                 return appDataResult.Errors;
@@ -180,12 +180,16 @@ public class SteamProvider : IGameProvider
         }
     }
 
-    private async Task<ErrorOr<AppData>> GetRandomGameDataAsync(SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames)
+    private async Task<ErrorOr<AppData>> GetRandomGameDataAsync(
+        SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames,
+        bool unplayedOnly)
     {
         var excludedGameIds = GetExcludedGameIds();
         var shuffledGameIds = GameSelectionHelper.GetSelectableGameIds(
-            ownedGames.Games.Select(game => game.AppId),
-            excludedGameIds);
+            ownedGames.Games,
+            excludedGameIds,
+            game => game.AppId,
+            game => !unplayedOnly || IsUnplayed(game));
 
         if (shuffledGameIds.Count == 0)
         {
@@ -231,6 +235,16 @@ public class SteamProvider : IGameProvider
             .Where(appId => appId.HasValue)
             .Select(appId => appId!.Value)
             .ToHashSet();
+    }
+
+    internal static bool IsUnplayed(SteamApiClient.Contracts.SteamApi.Game game)
+    {
+        return game.PlaytimeForever <= 0 &&
+               game.PlaytimeWindowsForever <= 0 &&
+               game.PlaytimeMacForever <= 0 &&
+               game.PlaytimeLinuxForever <= 0 &&
+               game.Playtime2Weeks <= 0 &&
+               game.RTimeLastPlayed <= 0;
     }
 
     private static OwnedGamesResponse MapToOwnedGamesResponse(long steamId, SteamApiClient.Contracts.SteamApi.OwnedGames sdkOwnedGames)

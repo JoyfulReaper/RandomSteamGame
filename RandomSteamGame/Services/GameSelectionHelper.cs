@@ -2,12 +2,16 @@ namespace RandomSteamGame.Services;
 
 public static class GameSelectionHelper
 {
-    public static List<int> GetSelectableGameIds(
-        IEnumerable<int> ownedAppIds,
+    public static List<int> GetSelectableGameIds<TGame>(
+        IEnumerable<TGame> ownedGames,
         ISet<int> excludedAppIds,
+        Func<TGame, int> appIdSelector,
+        Func<TGame, bool>? eligibilityPredicate = null,
         Random? random = null)
     {
-        var selectableAppIds = ownedAppIds
+        var selectableAppIds = ownedGames
+            .Where(game => eligibilityPredicate?.Invoke(game) ?? true)
+            .Select(appIdSelector)
             .Where(appId => !excludedAppIds.Contains(appId))
             .ToList();
 

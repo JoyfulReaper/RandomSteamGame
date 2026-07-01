@@ -99,7 +99,8 @@ public class GameController : ApiController
     public async Task<IActionResult> GetRandomGame(
         string provider,
         [FromQuery] long? userId,
-        [FromQuery] string? vanityUrl)
+        [FromQuery] string? vanityUrl,
+        [FromQuery] bool unplayedOnly = false)
     {
         if (!TryGetProvider(provider, out var service))
         {
@@ -112,7 +113,7 @@ public class GameController : ApiController
             return Problem(targetId.Errors);
         }
 
-        var result = await service.GetRandomGameAsync(targetId.Value);
+        var result = await service.GetRandomGameAsync(targetId.Value, unplayedOnly);
         if (result.IsError)
         {
             return Problem(result.Errors);
@@ -131,7 +132,8 @@ public class GameController : ApiController
     public async Task<IActionResult> GetRandomGameDetails(
         string provider,
         [FromQuery] long? userId,
-        [FromQuery] string? vanityUrl)
+        [FromQuery] string? vanityUrl,
+        [FromQuery] bool unplayedOnly = false)
     {
         if (!TryGetProvider(provider, out var service))
         {
@@ -144,7 +146,7 @@ public class GameController : ApiController
             return Problem(targetId.Errors);
         }
 
-        var result = await service.GetRandomGameDetailsAsync(targetId.Value);
+        var result = await service.GetRandomGameDetailsAsync(targetId.Value, unplayedOnly);
         if (result.IsError)
         {
             return Problem(result.Errors);

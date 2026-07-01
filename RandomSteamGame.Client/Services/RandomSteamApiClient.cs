@@ -55,26 +55,30 @@ public sealed class RandomSteamApiClient
         string provider,
         long? steamId = null,
         string? vanityUrl = null,
+        bool unplayedOnly = false,
         CancellationToken cancellationToken = default) =>
         GetFromJsonAsync<RandomGameResponse>(
             BuildIdentifierUri(
                 provider,
                 "random-game",
                 steamId,
-                vanityUrl),
+                vanityUrl,
+                unplayedOnly),
             cancellationToken);
 
     public Task<ApiResult<GameDetails>> GetRandomGameDetailsAsync(
         string provider,
         long? steamId = null,
         string? vanityUrl = null,
+        bool unplayedOnly = false,
         CancellationToken cancellationToken = default) =>
         GetFromJsonAsync<GameDetails>(
             BuildIdentifierUri(
                 provider,
                 "random-game/details",
                 steamId,
-                vanityUrl),
+                vanityUrl,
+                unplayedOnly),
             cancellationToken);
 
     public Task<ApiResult<long>> ResolveVanityUrlAsync(
@@ -206,7 +210,8 @@ public sealed class RandomSteamApiClient
         string provider,
         string route,
         long? steamId,
-        string? vanityUrl)
+        string? vanityUrl,
+        bool unplayedOnly)
     {
         var queryParts = new List<string>();
 
@@ -218,6 +223,11 @@ public sealed class RandomSteamApiClient
         if (!string.IsNullOrWhiteSpace(vanityUrl))
         {
             queryParts.Add($"vanityUrl={Uri.EscapeDataString(vanityUrl)}");
+        }
+
+        if (unplayedOnly)
+        {
+            queryParts.Add("unplayedOnly=true");
         }
 
         var queryString = queryParts.Count == 0

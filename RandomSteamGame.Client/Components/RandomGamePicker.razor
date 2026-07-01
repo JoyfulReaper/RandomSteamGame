@@ -77,6 +77,9 @@
     [Parameter]
     public string Provider { get; set; } = "steam";
 
+    [Parameter]
+    public bool UnplayedOnly { get; set; }
+
     private GameDetails? _gameDetails;
     private bool _isBusy;
     private string? _errorMessage;
@@ -89,8 +92,9 @@
     private bool _hasRestoredInitialState;
     private long? _lastLoadedSteamId;
     private string? _lastLoadedProvider;
+    private bool? _lastLoadedUnplayedOnly;
 
-    private string StateKey => $"random-game-details:{Provider}:{SteamId}";
+    private string StateKey => $"random-game-details:{Provider}:{SteamId}:{UnplayedOnly}";
 
     protected override void OnInitialized()
     {
@@ -116,12 +120,14 @@
                 _themeUpdatePending = true;
                 _lastLoadedProvider = Provider;
                 _lastLoadedSteamId = SteamId;
+                _lastLoadedUnplayedOnly = UnplayedOnly;
                 return;
             }
         }
 
         if (_lastLoadedProvider == Provider &&
             _lastLoadedSteamId == SteamId &&
+            _lastLoadedUnplayedOnly == UnplayedOnly &&
             _gameDetails is not null)
         {
             return;
@@ -175,7 +181,10 @@
 
         try
         {
-            var result = await ApiClient.GetRandomGameDetailsAsync(Provider, steamId: SteamId);
+            var result = await ApiClient.GetRandomGameDetailsAsync(
+                Provider,
+                steamId: SteamId,
+                unplayedOnly: UnplayedOnly);
 
             if (!result.IsSuccess)
             {
@@ -198,6 +207,7 @@
             _themeUpdatePending = true;
             _lastLoadedProvider = Provider;
             _lastLoadedSteamId = SteamId;
+            _lastLoadedUnplayedOnly = UnplayedOnly;
         }
         catch (Exception ex)
         {

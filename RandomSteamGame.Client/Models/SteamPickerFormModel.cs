@@ -13,6 +13,7 @@ public class SteamPickerFormModel : IValidatableObject
 {
     public string? SteamId { get; set; } = null;
     public string? VanityUrl { get; set; }
+    public bool UnplayedOnly { get; set; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
