@@ -1,14 +1,6 @@
 ﻿@page "/"
-@rendermode InteractiveAuto
-@implements IDisposable
 
-@inject RandomSteamApiClient ApiClient
-@inject PersistentComponentState ApplicationState
-@inject IBrowserSteamIdentityStore BrowserIdentityStore
-@inject IDateTimeProvider DateTimeProvider
-@inject ILogger<Home> Logger
 @inject NavigationManager NavManager
-@inject ISteamIdentityReader SteamIdentityReader
 
 <HeadContent>
     <link rel="canonical" href="@CanonicalUrl" />
@@ -19,555 +11,54 @@
 
 <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
-@if (!_isInitialLoadComplete)
-{
-    <div class="position-relative">
-        <div class="loader-container mt-5">
-            <div class="terminal-loader-box">
-                <div class="spinner-line text-start">
-                    <span style="color: #38bdf8;">kyle@kgivler:~$</span> dotnet run WASM_Client...
-                </div>
-                <div class="text-start mt-3" style="color: #e2e8f0; font-size: 0.95rem;">
-                    <span class="inline-css-spinner me-2"></span> Initializing framework runtime <span class="blinking-cursor"></span>
-                </div>
-                <div class="loader-subtext text-start border-top border-secondary mt-3 pt-2">
-                    Allocating local buffers & parsing assemblies...
-                </div>
+<main class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+
+            <div class="main-card">
+                <h1 class="text-center mb-4 text-white fs-2">Random Steam Picker</h1>
+
+                <p class="text-center text-muted small mb-4">
+                    Paste a Steam ID or vanity URL to pick a random game from your library.
+                </p>
+
+                <p class="text-center text-muted small mb-4">
+                    Discover your next Steam game in seconds.
+                </p>
+
+                <SteamPickerForm @rendermode="InteractiveAuto" />
             </div>
+
+            <footer class="text-center mt-4 text-muted small">
+                <p>
+                    Need help finding your Steam ID?
+                    Check the
+                    <a href="https://help.steampowered.com/en/faqs/view/2816-BE67-5B69-0FEC"
+                       target="_blank"
+                       class="text-info"
+                       rel="noopener noreferrer">Steam ID guide</a>.
+                    Ensure your
+                    <a href="https://help.steampowered.com/en/faqs/view/588C-C67D-0251-C276"
+                       target="_blank"
+                       class="text-info"
+                       rel="noopener noreferrer">profile is public</a>.
+                </p>
+
+                <HomeStats @rendermode="InteractiveAuto" />
+
+                <p>
+                    Please Report Any <span class="text-danger">Bugs:</span>
+                    <a href="https://github.com/JoyfulReaper/RandomSteamGame/issues"
+                       target="_blank"
+                       class="text-info"
+                       rel="noopener noreferrer">GitHub Issues</a>
+                </p>
+            </footer>
+
         </div>
     </div>
-}
-else
-{
-    <main class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-12 col-md-8 col-lg-6">
-
-                @if (!string.IsNullOrEmpty(_errorMessage))
-                {
-                    <div class="alert alert-danger mb-4" role="alert">@_errorMessage</div>
-                }
-
-                @if (!string.IsNullOrEmpty(_cacheResetMessage))
-                {
-                    <div class="alert @_cacheResetMessageClass mb-4" role="alert">@_cacheResetMessage</div>
-                }
-
-                @if (HomeModel is not null)
-                {
-                    <div class="main-card">
-                        <h1 class="text-center mb-4 text-white fs-2">Random Steam Picker</h1>
-                        <p class="text-center text-muted small mb-4">
-                            Paste a Steam ID or vanity URL to pick a random game from your library.
-                        </p>
-                        <p class="text-center text-muted small mb-4">
-                            @_selectedTagline
-                        </p>
-
-                        <EditForm Model="HomeModel" OnValidSubmit="HandleValidSubmit" FormName="steamPickerForm">
-                            <DataAnnotationsValidator />
-
-                            <div class="mb-3">
-                                <label for="steamIdInput" class="form-label">17 Digit Steam ID</label>
-                                <InputText id="steamIdInput" class="form-control modern-input" @bind-Value="HomeModel.SteamId" />
-                                <ValidationMessage For="() => HomeModel.SteamId" />
-                            </div>
-
-                            <div class="text-center fw-bold my-2 text-muted" aria-hidden="true">OR</div>
-
-                            <div class="mb-4">
-                                <label for="vanityUrlInput" class="form-label">Steam Vanity/Custom URL</label>
-                                <InputText id="vanityUrlInput" class="form-control modern-input" @bind-Value="HomeModel.VanityUrl" />
-                                <ValidationMessage For="() => HomeModel.VanityUrl" />
-                            </div>
-
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-steam py-2" disabled="@_isBusy">
-                                    @if (_isBusy)
-                                    {
-                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                    }
-                                    Generate Random Game
-                                </button>
-
-                                <button type="button"
-                                        class="btn btn-outline-warning py-2"
-                                        disabled="@(!_canResetOwnedGamesCache || _isBusy || _isResettingOwnedGamesCache)"
-                                        @onclick="ResetOwnedGamesCacheAsync">
-                                    @if (_isResettingOwnedGamesCache)
-                                    {
-                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                    }
-                                    I just bought a new game - refresh owned games cache
-                                </button>
-                            </div>
-                        </EditForm>
-                    </div>
-
-                    <footer class="text-center mt-4 text-muted small">
-                        <p>
-                            Need help finding your Steam ID? Check the <a href="https://help.steampowered.com/en/faqs/view/2816-BE67-5B69-0FEC" target="_blank" class="text-info" rel="noopener noreferrer">Steam ID guide</a>.
-                            Ensure your <a href="https://help.steampowered.com/en/faqs/view/588C-C67D-0251-C276" target="_blank" class="text-info" rel="noopener noreferrer">profile is public</a>.
-                        </p>
-                        <p>
-                            Total Hits: @_totalHits | Unique Visitors: @_uniqueVisitors | Random Games Generated: @_randomGamesGenerated
-                        </p>
-                        <p>
-                            Please Report Any <span class="text-danger">Bugs:</span> <a href="https://github.com/JoyfulReaper/RandomSteamGame/issues" target="_blank" class="text-info" rel="noopener noreferrer">GitHub Issues</a>
-                        </p>
-                    </footer>
-                }
-            </div>
-        </div>
-    </main>
-}
+</main>
 
 @code {
-    [SupplyParameterFromForm(FormName = "steamPickerForm")]
-    public HomeModel? HomeModel { get; set; }
-
-    private string? _errorMessage;
-    private string? _cacheResetMessage;
-    private string _cacheResetMessageClass = "alert-success";
-    private DateTimeOffset? _ownedGamesCacheResetAtUtc;
-    private DateTimeOffset? _ownedGamesCacheNextAvailableAtUtc;
-    private bool _isBusy = false;
-    private bool _isResettingOwnedGamesCache = false;
-    private bool _isInitialLoadComplete = false;
-    private bool _hasAttemptedBrowserIdentityHydration = false;
-    private string _selectedTagline = Taglines[Random.Shared.Next(Taglines.Length)];
-
-    private long _totalHits;
-    private long _uniqueVisitors;
-    private long _randomGamesGenerated;
-
-    private PersistingComponentStateSubscription _persistingSubscription;
     private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
-    private static TimeSpan OwnedGamesCacheResetCooldown => TimeSpan.FromHours(12);
-    private static readonly string[] Taglines =
-    [
-        "Blazing Fast. Backed by hybrid caching.",
-        "Blazing Fast. Backed by hybrid caching. 🔥",
-        "Discover your next Steam game in seconds.",
-        "Find your next favorite game in seconds.",
-        "Rediscover games you've forgotten you own.",
-        "Your next Steam adventure is one click away.",
-        "Too many games. One perfect choice.",
-        "Stop scrolling. Start playing.",
-        "Break your backlog. Discover your next game.",
-        "Let fate decide your next Steam adventure.",
-        "One click. One random game. Endless possibilities.",
-        "The fastest way to answer: \"What should I play?\"",
-        "Your backlog is waiting. Let's pick something worth playing.",
-        "Hundreds of games. Zero decisions.",
-        "You've already bought your next favorite game. Let's find it.",
-        "Turn your Steam library into your next adventure.",
-        "Roll the dice. Discover your next game. 🎲",
-        "Ready Player One? Let's find something to play.",
-        "Press Start on something unexpected.",
-        "Every great gaming session starts with one random pick.",
-        "Because staring at your Steam library isn't a game.",
-        "Decision paralysis ends here.",
-        "Your backlog called. It misses you.",
-        "Steam Sale Victim? We've got you covered."
-    ];
-    private bool _canResetOwnedGamesCache => !string.IsNullOrWhiteSpace(HomeModel?.SteamId) && !IsOwnedGamesCacheResetOnCooldown();
-
-    private class PageStateData
-    {
-        public long TotalHits { get; set; }
-        public long UniqueVisitors { get; set; }
-        public string? SteamId { get; set; }
-        public string? VanityUrl { get; set; }
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        HomeModel ??= new HomeModel();
-        _persistingSubscription = ApplicationState.RegisterOnPersisting(PersistPageData);
-
-        try
-        {
-            if (ApplicationState.TryTakeFromJson<PageStateData>("pageState", out var restoredData))
-            {
-                _totalHits = restoredData!.TotalHits;
-                _uniqueVisitors = restoredData!.UniqueVisitors;
-                HomeModel.SteamId = CleanInput(restoredData.SteamId);
-                HomeModel.VanityUrl = CleanInput(restoredData.VanityUrl);
-                _isInitialLoadComplete = true;
-            }
-
-            await LoadIdentityAsync();
-
-            if (!RendererInfo.IsInteractive)
-            {
-                await RecordHitAsync();
-            }
-            else
-            {
-                await FetchStatsOnlyAsync();
-            }
-        }
-        finally
-        {
-            _isInitialLoadComplete = true;
-        }
-    }
-
-    private async Task LoadIdentityAsync()
-    {
-        var identity = await SteamIdentityReader.GetIdentityAsync();
-
-        if (HomeModel is null)
-        {
-            return;
-        }
-
-        var steamId = CleanInput(identity.SteamId);
-        var vanityUrl = CleanInput(identity.VanityUrl);
-
-        if (steamId is not null)
-        {
-            HomeModel.SteamId = steamId;
-            HomeModel.VanityUrl = null;
-        }
-        else if (HomeModel.SteamId is null)
-        {
-            HomeModel.VanityUrl = vanityUrl;
-        }
-
-        NormalizeIdentifierChoice();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!RendererInfo.IsInteractive || _hasAttemptedBrowserIdentityHydration)
-        {
-            return;
-        }
-
-        try
-        {
-            var stateChanged = false;
-
-            if (await LoadBrowserIdentityAsync())
-            {
-                stateChanged = true;
-            }
-
-            if (await LoadOwnedGamesCacheResetCooldownAsync())
-            {
-                stateChanged = true;
-            }
-
-            if (stateChanged)
-            {
-                StateHasChanged();
-                return;
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Failed to hydrate Steam identity from browser storage during interactive render.");
-        }
-        finally
-        {
-            _hasAttemptedBrowserIdentityHydration = true;
-        }
-    }
-
-    private Task PersistPageData()
-    {
-        ApplicationState.PersistAsJson("pageState", new PageStateData
-        {
-            TotalHits = _totalHits,
-            UniqueVisitors = _uniqueVisitors,
-            SteamId = HomeModel?.SteamId,
-            VanityUrl = HomeModel?.VanityUrl ?? string.Empty
-        });
-
-        return Task.CompletedTask;
-    }
-
-    private async Task HandleValidSubmit()
-    {
-        _errorMessage = null;
-        _cacheResetMessage = null;
-        _isBusy = true;
-
-        try
-        {
-            if (HomeModel is null)
-            {
-                _errorMessage = "Please enter a valid Steam ID or Vanity URL.";
-                return;
-            }
-
-            HomeModel.SteamId = CleanInput(HomeModel.SteamId);
-            HomeModel.VanityUrl = ExtractVanityFromUrl(HomeModel.VanityUrl);
-
-            if (HomeModel.SteamId is null && HomeModel.VanityUrl is not null)
-            {
-                var result = await ApiClient.ResolveVanityUrlAsync("steam", HomeModel.VanityUrl);
-                if (result.IsSuccess)
-                {
-                    HomeModel.SteamId = result.Value.ToString();
-                    HomeModel.VanityUrl = null;
-                }
-                else
-                {
-                    _errorMessage = result.GetErrorMessage("Unable to resolve vanity URL.");
-                    return;
-                }
-            }
-
-            if (HomeModel.SteamId is not null)
-            {
-                await PersistIdentityAsync(HomeModel.SteamId);
-                NavManager.NavigateTo($"/random-game/steam/{HomeModel.SteamId}");
-            }
-            else
-            {
-                _errorMessage = "Please enter a valid Steam ID or Vanity URL.";
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to submit Steam picker form.");
-            _errorMessage = "Something went wrong while saving your Steam ID. Please try again.";
-        }
-        finally
-        {
-            _isBusy = false;
-        }
-    }
-
-    private async Task ResetOwnedGamesCacheAsync()
-    {
-        _errorMessage = null;
-        _cacheResetMessage = null;
-        _isResettingOwnedGamesCache = true;
-
-        try
-        {
-            if (!TryGetCurrentSteamId(out var steamId))
-            {
-                _cacheResetMessageClass = "alert-warning";
-                _cacheResetMessage = "Enter a Steam ID first, then use the cache reset.";
-                return;
-            }
-
-            if (IsOwnedGamesCacheResetOnCooldown())
-            {
-                _cacheResetMessageClass = "alert-warning";
-                _cacheResetMessage = GetOwnedGamesCacheCooldownMessage();
-                return;
-            }
-
-            var result = await ApiClient.InvalidateOwnedGamesCacheAsync("steam", steamId);
-
-            if (!result.IsSuccess)
-            {
-                _cacheResetMessageClass = "alert-danger";
-                _cacheResetMessage = result.GetErrorMessage("Unable to reset the owned games cache right now.");
-                return;
-            }
-
-            _cacheResetMessageClass = "alert-success";
-            _cacheResetMessage = "Owned games cache cleared. The next random game request will fetch fresh library data.";
-            _ownedGamesCacheResetAtUtc = new DateTimeOffset(DateTimeProvider.UtcNow);
-            _ownedGamesCacheNextAvailableAtUtc = _ownedGamesCacheResetAtUtc.Value.Add(OwnedGamesCacheResetCooldown);
-            await BrowserIdentityStore.SetOwnedGamesCacheResetAtAsync(_ownedGamesCacheResetAtUtc.Value);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to invalidate owned games cache.");
-            _cacheResetMessageClass = "alert-danger";
-            _cacheResetMessage = "Something went wrong while resetting the cache. Please try again.";
-        }
-        finally
-        {
-            _isResettingOwnedGamesCache = false;
-        }
-    }
-
-    private static string? CleanInput(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
-    private static string? ExtractVanityFromUrl(string? url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            return null;
-        }
-
-        url = url.Trim();
-
-        // Check if it's a full Steam community URL (protocol optional)
-        var match = System.Text.RegularExpressions.Regex.Match(
-            url,
-            @"(?:https?://)?(?:www\.)?steamcommunity\.com/id/([^/]+)/?",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        if (match.Success)
-        {
-            return match.Groups[1].Value;
-        }
-
-        // If not a full URL, return as-is (assuming it's already just the vanity portion)
-        return url;
-    }
-
-    private void NormalizeIdentifierChoice()
-    {
-        if (!string.IsNullOrWhiteSpace(HomeModel?.SteamId))
-        {
-            HomeModel.VanityUrl = null;
-        }
-    }
-
-    private bool TryGetCurrentSteamId(out long steamId)
-    {
-        steamId = 0;
-
-        if (string.IsNullOrWhiteSpace(HomeModel?.SteamId))
-        {
-            return false;
-        }
-
-        return long.TryParse(HomeModel.SteamId, out steamId);
-    }
-
-    private bool IsOwnedGamesCacheResetOnCooldown()
-    {
-        if (_ownedGamesCacheNextAvailableAtUtc is null)
-        {
-            return false;
-        }
-
-        return new DateTimeOffset(DateTimeProvider.UtcNow) < _ownedGamesCacheNextAvailableAtUtc.Value;
-    }
-
-    private string GetOwnedGamesCacheCooldownMessage()
-    {
-        if (_ownedGamesCacheNextAvailableAtUtc is null)
-        {
-            return "The cache reset is temporarily unavailable right now.";
-        }
-
-        var remaining = _ownedGamesCacheNextAvailableAtUtc.Value - new DateTimeOffset(DateTimeProvider.UtcNow);
-        if (remaining <= TimeSpan.Zero)
-        {
-            return "The cache reset is available again.";
-        }
-
-        var formattedRemaining = remaining.TotalHours >= 1
-            ? $"{Math.Ceiling(remaining.TotalHours):0} hour{(remaining.TotalHours >= 2 ? "s" : string.Empty)}"
-            : $"{Math.Ceiling(remaining.TotalMinutes):0} minute{(remaining.TotalMinutes >= 2 ? "s" : string.Empty)}";
-
-        return $"You can reset the owned games cache again in about {formattedRemaining}.";
-    }
-
-    private async Task<bool> LoadOwnedGamesCacheResetCooldownAsync()
-    {
-        var resetAt = await BrowserIdentityStore.GetOwnedGamesCacheResetAtAsync();
-
-        if (resetAt is null)
-        {
-            if (_ownedGamesCacheResetAtUtc is null && _ownedGamesCacheNextAvailableAtUtc is null)
-            {
-                return false;
-            }
-
-            _ownedGamesCacheResetAtUtc = null;
-            _ownedGamesCacheNextAvailableAtUtc = null;
-            return true;
-        }
-
-        var nextAvailableAt = resetAt.Value.Add(OwnedGamesCacheResetCooldown);
-        _ownedGamesCacheResetAtUtc = resetAt;
-        _ownedGamesCacheNextAvailableAtUtc = nextAvailableAt;
-
-        if (new DateTimeOffset(DateTimeProvider.UtcNow) >= nextAvailableAt)
-        {
-            await BrowserIdentityStore.ClearOwnedGamesCacheResetAtAsync();
-            _ownedGamesCacheResetAtUtc = null;
-            _ownedGamesCacheNextAvailableAtUtc = null;
-            return true;
-        }
-
-        _cacheResetMessageClass = "alert-warning";
-        _cacheResetMessage = GetOwnedGamesCacheCooldownMessage();
-        return true;
-    }
-
-    private async Task<bool> LoadBrowserIdentityAsync()
-    {
-        var identity = await BrowserIdentityStore.GetIdentityAsync();
-        var steamId = CleanInput(identity.SteamId);
-
-        if (HomeModel is null || steamId is null)
-        {
-            return false;
-        }
-
-        if (HomeModel.SteamId == steamId && HomeModel.VanityUrl is null)
-        {
-            return false;
-        }
-
-        HomeModel.SteamId = steamId;
-        HomeModel.VanityUrl = null;
-        return true;
-    }
-
-    private async Task PersistIdentityAsync(string steamId)
-    {
-        try
-        {
-            var ident = new SteamIdentity(steamId, null);
-            await BrowserIdentityStore.SetIdentityAsync(ident);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Failed to persist Steam identity to browser storage.");
-        }
-    }
-
-    private async Task RecordHitAsync()
-    {
-        var result = await ApiClient.RecordHitAsync();
-        if (result.IsSuccess)
-        {
-            ApplyStats(result.Value);
-        }
-    }
-
-    private async Task FetchStatsOnlyAsync()
-    {
-        var result = await ApiClient.GetStatsAsync();
-        if (result.IsSuccess)
-        {
-            ApplyStats(result.Value);
-        }
-    }
-
-    private void ApplyStats(AppStatsResponse? stats)
-    {
-        if (stats is null)
-        {
-            return;
-        }
-
-        _totalHits = stats.TotalHits;
-        _uniqueVisitors = stats.UniqueVisitors;
-        _randomGamesGenerated = stats.RandomGamesGenerated;
-    }
-
-    public void Dispose()
-    {
-        _persistingSubscription.Dispose();
-    }
 }

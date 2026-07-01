@@ -5,11 +5,11 @@
  * Licensed under the MIT License.
  */
 
-namespace RandomSteamGame.Client.Pages;
+namespace RandomSteamGame.Client.Models;
 
 using System.ComponentModel.DataAnnotations;
 
-public class HomeModel : IValidatableObject
+public class SteamPickerFormModel : IValidatableObject
 {
     public string? SteamId { get; set; } = null;
     public string? VanityUrl { get; set; }
