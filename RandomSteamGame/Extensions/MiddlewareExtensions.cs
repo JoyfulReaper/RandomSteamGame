@@ -22,6 +22,7 @@ public static class MiddlewareExtensions
         if (env.IsDevelopment())
         {
             app.UseWebAssemblyDebugging();
+            //app.UseExceptionHandler("/Error", createScopeForErrors: true);
         }
         else
         {

@@ -1,0 +1,112 @@
+.random-game-page {
+    min-height: 100vh;
+    width: 100%;
+    background: linear-gradient(135deg, #1a0b2e 0%, #000000 100%);
+    background-image: var(--bg-url);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    transition: background-image 0.5s ease-in-out;
+    padding: 3rem 0.5rem;
+    overflow-y: auto;
+    color: #e5e7eb;
+}
+
+.random-game-panel {
+    position: relative;
+    background-color: rgba(17, 24, 39, 0.4);
+    border-radius: 1rem;
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+    margin: 0 auto;
+    max-width: 1700px;
+    width: 98%;
+}
+
+.random-game-stage {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding-bottom: 6.5rem;
+}
+
+.random-game-layout {
+    flex: 1;
+}
+
+.random-game-body {
+    flex: 1;
+    min-height: 150px;
+}
+
+.random-game-shell {
+    min-height: 300px;
+}
+
+.random-game-title {
+    font-size: 1.8rem;
+    line-height: 1.2;
+}
+
+.random-game-summary {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.random-game-actions-fixed {
+    position: fixed;
+    left: 50%;
+    bottom: 2rem;
+    transform: translateX(-50%);
+    width: min(1700px, 98vw);
+    padding: 0 2rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    z-index: 20;
+}
+
+.random-game-action-slot {
+    width: 100%;
+    min-width: 0;
+}
+
+.random-game-action-placeholder {
+    visibility: hidden;
+}
+
+.random-game-actions-fixed .btn {
+    white-space: nowrap;
+}
+
+.random-game-actions-fixed .btn,
+.random-game-actions-fixed .random-game-action-placeholder {
+    min-height: 3rem;
+}
+
+.random-game-busy {
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+@media (min-width: 768px) {
+    .random-game-page {
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+
+    .random-game-panel {
+        width: 98%;
+    }
+
+    .random-game-actions-fixed {
+        width: 98vw;
+        bottom: 2rem;
+        padding: 0 0.5rem;
+    }
+}

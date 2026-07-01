@@ -9,51 +9,67 @@
     <PageTitle>Random Steam Game Picker - @_gameDetails.Name</PageTitle>
 }
 
-<div class="game-page-wrapper" style="--bg-url: url('@_background')">
-    <div class="container-fluid px-3 px-md-5 py-5">
+<div class="random-game-page" style="--bg-url: url('@_background')">
+    <div class="container-fluid px-3 px-md-5 py-5 random-game-panel">
+        <div class="random-game-stage">
+            <div class="random-game-body">
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="alert alert-warning">@_errorMessage</div>
+                }
+
+                @if (_gameDetails is not null && string.IsNullOrEmpty(_errorMessage) && !_isBusy)
+                {
+                    <div class="row random-game-layout">
+                        <div class="col-12 col-md-5 d-flex flex-column random-game-shell">
+                            <div id="randomGame" class="random-game-summary">
+                                <h4 class="text-info">You should play:</h4>
+                                <h1 class="h2 random-game-title">
+                                    @_gameDetails.Name
+                                </h1>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-7">
+                            <h3 class="mb-3">About the Game</h3>
+                            <div id="gameDescription">
+                                @((MarkupString)_gameDetails.Description)
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (_isBusy)
+                {
+                    <div class="random-game-busy text-center text-white">
+                        <h1>Picking a game!</h1>
+                        <div class="spinner-border" role="status"></div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="random-game-actions-fixed">
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
-            <div class="alert alert-warning">@_errorMessage</div>
-            <button class="btn btn-primary btn-lg" @onclick="UpdateData">Try Again</button>
+            <button class="btn btn-primary btn-lg random-game-action-slot" @onclick="UpdateData">Try Again</button>
+            <span class="random-game-action-slot random-game-action-placeholder" aria-hidden="true"></span>
         }
-
-        @if (_gameDetails is not null && string.IsNullOrEmpty(_errorMessage) && !_isBusy)
+        else if (_gameDetails is not null && !_isBusy)
         {
-            <div class="row">
-                <div class="col-12 col-md-5 d-flex flex-column" style="min-height: 300px;">
-                    <div id="randomGame" class="flex-grow-1">
-                        <h4 class="text-info">You should play:</h4>
-                        <h1 class="h2" style="font-size: 1.8rem; line-height: 1.2;">
-                            @_gameDetails.Name
-                        </h1>
-                    </div>
+            <button class="btn btn-primary btn-lg random-game-action-slot" @onclick="UpdateData">
+                Choose Again
+            </button>
 
-                    <div class="button-footer">
-                        <button class="btn btn-primary btn-lg" @onclick="UpdateData">
-                            Choose Again
-                        </button>
-
-                        <a href="steam://run/@_gameDetails.Id/"
-                           class="btn btn-success btn-lg ms-2">
-                            Run game
-                        </a>
-                    </div>
-                </div>
-
-                <div class="col-12 col-md-7">
-                    <h3 class="mb-3">About the Game</h3>
-                    <div id="gameDescription">
-                        @((MarkupString)_gameDetails.Description)
-                    </div>
-                </div>
-            </div>
+            <a href="steam://run/@_gameDetails.Id/"
+               class="btn btn-success btn-lg random-game-action-slot">
+                Run game
+            </a>
         }
-        else if (_isBusy)
+        else
         {
-            <div class="text-center text-white">
-                <h1>Picking a game!</h1>
-                <div class="spinner-border" role="status"></div>
-            </div>
+            <span class="random-game-action-slot random-game-action-placeholder" aria-hidden="true"></span>
+            <span class="random-game-action-slot random-game-action-placeholder" aria-hidden="true"></span>
         }
     </div>
 </div>

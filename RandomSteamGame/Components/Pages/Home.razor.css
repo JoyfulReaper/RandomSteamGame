@@ -1,1 +1,8 @@
-/* CSS for Home component */
+.home-card {
+    background-color: #111827;
+    border: 1px solid #374151;
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    color: #e5e7eb;
+}

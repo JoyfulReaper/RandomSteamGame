@@ -3,6 +3,10 @@ html, body {
     margin: 0;
 }
 
+.global-header {
+    flex-shrink: 0;
+}
+
 .page-wrapper {
     min-height: 100vh;
     display: flex;

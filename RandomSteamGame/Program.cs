@@ -27,6 +27,16 @@ app.MapMethods("/", [HttpMethods.Head], (HttpContext context) =>
     return Results.Empty;
 });
 
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/dev/throw", () =>
+    {
+        throw new InvalidOperationException("Intentional test exception for 500 page.");
+    });
+
+    app.MapGet("/dev/500", () => Results.StatusCode(StatusCodes.Status500InternalServerError));
+}
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
