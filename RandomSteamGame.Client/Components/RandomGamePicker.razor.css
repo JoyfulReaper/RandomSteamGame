@@ -110,6 +110,17 @@
     flex: 1 1 11rem;
 }
 
+.button-footer-secondary {
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.button-footer-secondary .btn {
+    flex: 1 1 14rem;
+}
+
 .button-footer .btn:hover,
 .button-footer .btn:focus-visible {
     transform: translateY(-1px);
@@ -141,8 +152,22 @@
     border-color: rgba(251, 191, 36, 0.9);
 }
 
-.button-footer .dont-choose-again-button {
-    order: 3;
+.choose-again-button {
+    border-color: rgba(148, 163, 184, 0.55);
+    color: #e2e8f0;
+    background: rgba(148, 163, 184, 0.08);
+    font-size: 0.8rem;
+    line-height: 1.1;
+    padding: 0.7rem 0.85rem;
+    min-width: 0;
+    white-space: normal;
+}
+
+.choose-again-button:hover,
+.choose-again-button:focus-visible {
+    color: #ffffff;
+    background: rgba(148, 163, 184, 0.18);
+    border-color: rgba(226, 232, 240, 0.9);
 }
 
 #gameDescription {
@@ -250,8 +275,14 @@
         padding-bottom: 0.8rem;
     }
 
-    .button-footer .dont-choose-again-button {
-        order: 0;
+    .button-footer-secondary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+    }
+
+    .button-footer .dont-choose-again-button,
+    .button-footer .choose-again-button {
         font-size: 0.78rem;
         padding: 0.55rem 0.75rem;
         line-height: 1.1;

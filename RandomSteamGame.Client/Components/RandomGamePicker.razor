@@ -44,11 +44,20 @@
                             </a>
                         </div>
 
-                        <button type="button"
-                                class="btn btn-outline-warning btn-lg dont-choose-again-button"
-                                @onclick="DoNotChooseThisGameAgainAsync">
-                            Don't choose this game again
-                        </button>
+                        <div class="button-footer-secondary">
+                            <button type="button"
+                                    class="btn btn-outline-warning btn-lg dont-choose-again-button"
+                                    @onclick="DoNotChooseThisGameAgainAsync">
+                                Don't choose this game again
+                            </button>
+
+                            <button type="button"
+                                    class="btn btn-outline-light btn-lg choose-again-button"
+                                    disabled="@_isBusy"
+                                    @onclick="ResetBlockedGamesAsync">
+                                Reset blocked games
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -239,6 +248,24 @@
         {
             Logger.LogError(ex, "Failed to save excluded game id {AppId}.", _gameDetails.Id);
             _errorMessage = "Unable to remember that game right now. Please try again.";
+        }
+    }
+
+    private async Task ResetBlockedGamesAsync()
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            await BrowserIdentityStore.ClearExcludedGameIdsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to clear excluded game ids.");
+            _errorMessage = "Unable to reset blocked games right now. Please try again.";
         }
     }
 
