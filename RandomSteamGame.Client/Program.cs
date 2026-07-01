@@ -20,11 +20,6 @@ builder.Services.AddHttpClient<RandomSteamApiClient>(client =>
     client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
 });
 
-// ==========================================
-// CORE SECURITY & STORAGE FOUNDATIONS
-// ==========================================
-builder.Services.AddAuthorizationCore();
-
 builder.Services.AddScoped<BrowserSteamIdentityStore>();
 builder.Services.AddScoped<IBrowserSteamIdentityStore>(sp => sp.GetRequiredService<BrowserSteamIdentityStore>());
 builder.Services.AddScoped<ISteamIdentityReader>(sp => sp.GetRequiredService<BrowserSteamIdentityStore>());
