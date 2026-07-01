@@ -10,21 +10,24 @@
 
 @if (!_isInitialLoadComplete)
 {
-    <div class="position-relative">
-        <div class="picker-form-loader mt-5">
-            <div class="picker-form-loader-box">
-                <div class="picker-form-spinner-line text-start">
-                    <span style="color: #38bdf8;">kyle@kgivler:~$</span> dotnet run WASM_Client...
-                </div>
-                <div class="text-start mt-3" style="color: #e2e8f0; font-size: 0.95rem;">
-                    <span class="inline-css-spinner me-2"></span>
-                    Initializing framework runtime <span class="picker-form-blinking-cursor"></span>
-                </div>
-                <div class="loader-subtext text-start border-top border-secondary mt-3 pt-2">
-                    Allocating local buffers & parsing assemblies...
+    <div class="picker-form-loading-shell">
+        @if (_showInitialLoader)
+        {
+            <div class="picker-form-loader mt-5">
+                <div class="picker-form-loader-box">
+                    <div class="picker-form-spinner-line text-start">
+                        <span style="color: #38bdf8;">kyle@kgivler:~$</span> dotnet run WASM_Client...
+                    </div>
+                    <div class="picker-form-loader-detail text-start mt-3">
+                        <span class="inline-css-spinner me-2"></span>
+                        Initializing framework runtime <span class="picker-form-blinking-cursor"></span>
+                    </div>
+                    <div class="loader-subtext text-start border-top border-secondary mt-3 pt-2">
+                        Allocating local buffers & parsing assemblies...
+                    </div>
                 </div>
             </div>
-        </div>
+        }
     </div>
 }
 else
@@ -67,23 +70,35 @@ else
             </div>
 
             <div class="d-grid gap-2">
-                <button type="submit" class="btn picker-form-submit py-2" disabled="@_isBusy">
+                <button type="submit"
+                        class="btn picker-form-submit py-2 @( _isBusy ? "picker-form-submit-busy" : string.Empty )"
+                        disabled="@_isBusy"
+                        aria-busy="@_isBusy">
                     @if (_isBusy)
                     {
                         <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        <span>Generating...</span>
                     }
-                    Generate Random Game
+                    else
+                    {
+                        <span>Generate Random Game</span>
+                    }
                 </button>
 
                 <button type="button"
-                        class="btn btn-outline-warning py-2"
+                        class="btn btn-outline-warning py-2 picker-form-secondary"
                         disabled="@(!_canResetOwnedGamesCache || _isBusy || _isResettingOwnedGamesCache)"
+                        aria-busy="@_isResettingOwnedGamesCache"
                         @onclick="ResetOwnedGamesCacheAsync">
                     @if (_isResettingOwnedGamesCache)
                     {
                         <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        <span>Refreshing cache...</span>
                     }
-                    I just bought a new game - refresh owned games cache
+                    else
+                    {
+                        <span>I just bought a new game - refresh owned games cache</span>
+                    }
                 </button>
             </div>
         </EditForm>
@@ -104,11 +119,13 @@ else
     private bool _isBusy;
     private bool _isResettingOwnedGamesCache;
     private bool _isInitialLoadComplete;
+    private bool _showInitialLoader;
     private bool _hasAttemptedBrowserIdentityHydration;
 
     private string _selectedTagline = Taglines[Random.Shared.Next(Taglines.Length)];
 
     private PersistingComponentStateSubscription _persistingSubscription;
+    private CancellationTokenSource? _initialLoadLoaderCts;
 
     private static TimeSpan OwnedGamesCacheResetCooldown => TimeSpan.FromHours(12);
 
@@ -154,6 +171,8 @@ else
     {
         HomeModel ??= new SteamPickerFormModel();
         _persistingSubscription = ApplicationState.RegisterOnPersisting(PersistFormData);
+        _initialLoadLoaderCts = new CancellationTokenSource();
+        _ = ShowInitialLoaderIfNeededAsync(_initialLoadLoaderCts.Token);
 
         try
         {
@@ -168,6 +187,7 @@ else
         finally
         {
             _isInitialLoadComplete = true;
+            _initialLoadLoaderCts.Cancel();
         }
     }
 
@@ -218,6 +238,26 @@ else
         return Task.CompletedTask;
     }
 
+    private async Task ShowInitialLoaderIfNeededAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(250, cancellationToken);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        if (_isInitialLoadComplete || cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _showInitialLoader = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task LoadIdentityAsync()
     {
         var identity = await SteamIdentityReader.GetIdentityAsync();
@@ -245,6 +285,11 @@ else
 
     private async Task HandleValidSubmit()
     {
+        if (_isBusy)
+        {
+            return;
+        }
+
         _errorMessage = null;
         _cacheResetMessage = null;
         _isBusy = true;
@@ -299,6 +344,11 @@ else
 
     private async Task ResetOwnedGamesCacheAsync()
     {
+        if (_isResettingOwnedGamesCache)
+        {
+            return;
+        }
+
         _errorMessage = null;
         _cacheResetMessage = null;
         _isResettingOwnedGamesCache = true;
@@ -481,6 +531,8 @@ else
 
     public void Dispose()
     {
+        _initialLoadLoaderCts?.Cancel();
+        _initialLoadLoaderCts?.Dispose();
         _persistingSubscription.Dispose();
     }
 }

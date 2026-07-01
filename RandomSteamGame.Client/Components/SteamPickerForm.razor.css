@@ -1,20 +1,32 @@
+.picker-form-loading-shell {
+    min-height: 18rem;
+}
+
 .picker-form-loader {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background-color: #0b111e;
+    background:
+        radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 45%),
+        linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(15, 23, 42, 0.98));
     color: #38bdf8;
     font-family: monospace;
 }
 
 .picker-form-loader-box {
-    background-color: #111827;
-    border: 1px solid #374151;
-    border-radius: 0.5rem;
+    background-color: rgba(17, 24, 39, 0.88);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 0.75rem;
     width: 100%;
-    max-width: 500px;
-    padding: 2rem;
+    max-width: 520px;
+    padding: 1.75rem;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+.picker-form-loader-detail {
+    color: #e2e8f0;
+    font-size: 0.95rem;
 }
 
 .inline-css-spinner {
@@ -36,8 +48,8 @@
 
 .picker-form-spinner-line {
     color: #4ade80;
-    font-weight: bold;
-    font-size: 1.15rem;
+    font-weight: 700;
+    font-size: 1.1rem;
 }
 
 .picker-form-blinking-cursor {
@@ -67,12 +79,46 @@
     }
 
 .picker-form-submit {
-    background-color: #2563eb;
+    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
     border: none;
     color: white;
+    font-weight: 700;
+    min-height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+    .picker-form-submit:hover:not(:disabled),
+    .picker-form-submit:focus-visible:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 24px rgba(37, 99, 235, 0.28);
+    }
+
+    .picker-form-submit:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+        filter: saturate(0.75);
+        pointer-events: none;
+    }
+
+    .picker-form-submit-busy {
+        background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%);
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+.picker-form-secondary {
+    min-height: 3rem;
     font-weight: 600;
 }
 
-.picker-form-submit:hover {
-        background-color: #1d4ed8;
+    .picker-form-secondary:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+        pointer-events: none;
     }

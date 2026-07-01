@@ -11,21 +11,25 @@
 
 <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
-<main class="container mt-5">
+<main class="container mt-5 home-shell">
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
 
             <div class="home-card">
-                <h1 class="text-center mb-4 text-white fs-2">Random Steam Picker</h1>
+                <p class="home-eyebrow text-center mb-2">
+                    Steam library roulette
+                </p>
 
-                <p class="text-center text-muted small mb-4">
+                <h1 class="home-title text-center mb-3">Random Steam Picker</h1>
+
+                <p class="home-lead text-center small mb-4">
                     Paste a Steam ID or vanity URL to pick a random game from your library.
                 </p>
 
                 <SteamPickerForm @rendermode="InteractiveAuto" />
             </div>
 
-            <footer class="text-center mt-4 text-muted small">
+            <footer class="home-footer text-center mt-4 text-muted small">
                 <p>
                     Need help finding your Steam ID?
                     Check the

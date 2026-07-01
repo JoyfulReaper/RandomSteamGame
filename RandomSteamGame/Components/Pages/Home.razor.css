@@ -1,8 +1,70 @@
+.home-shell {
+    max-width: 58rem;
+}
+
+@media (min-width: 1200px) {
+    .home-shell {
+        max-width: 64rem;
+    }
+}
+
 .home-card {
-    background-color: #111827;
-    border: 1px solid #374151;
-    border-radius: 1rem;
+    position: relative;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 35%),
+        linear-gradient(180deg, rgba(17, 24, 39, 0.94), rgba(15, 23, 42, 0.98));
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 1.1rem;
     padding: 2rem;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.34);
     color: #e5e7eb;
+}
+
+.home-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+    background: linear-gradient(90deg, #38bdf8, #2563eb 50%, #22c55e);
+}
+
+.home-eyebrow {
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #38bdf8;
+}
+
+.home-title {
+    margin: 0;
+    font-size: clamp(2rem, 4vw, 2.4rem);
+    line-height: 1.05;
+    color: #f8fafc;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.home-lead {
+    color: #cbd5e1;
+    line-height: 1.6;
+    max-width: 32rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.home-footer {
+    max-width: 40rem;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.65;
+}
+
+.home-footer a {
+    font-weight: 600;
+}
+
+.home-footer p:last-child {
+    margin-bottom: 0;
 }
