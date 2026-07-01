@@ -34,14 +34,16 @@
                             Choose Again
                         </button>
 
-                        <button type="button" class="btn btn-outline-warning btn-lg" @onclick="DoNotChooseThisGameAgainAsync">
-                            Don't choose this game again
-                        </button>
-
-                    <a href="steam://run/@_gameDetails.Id/"
-                       class="btn btn-success btn-lg ms-2 run-game-button">
+                        <a href="steam://run/@_gameDetails.Id/"
+                           class="btn btn-success btn-lg ms-2 run-game-button">
                             Run game
                         </a>
+
+                        <button type="button"
+                                class="btn btn-outline-warning btn-lg dont-choose-again-button"
+                                @onclick="DoNotChooseThisGameAgainAsync">
+                            Don't choose this game again
+                        </button>
                     </div>
                 </div>
 

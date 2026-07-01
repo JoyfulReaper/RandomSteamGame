@@ -98,6 +98,30 @@
     text-decoration: none !important;
 }
 
+.dont-choose-again-button {
+    border-color: rgba(245, 158, 11, 0.6);
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.06);
+    font-size: 0.84rem;
+    line-height: 1.15;
+    padding: 0.8rem 0.85rem;
+    min-width: 13.5rem;
+    max-width: 13.5rem;
+    white-space: nowrap;
+}
+
+.dont-choose-again-button:hover,
+.dont-choose-again-button:focus-visible {
+    color: #fff7ed;
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(251, 191, 36, 0.9);
+}
+
+.button-footer .dont-choose-again-button {
+    order: 3;
+    flex: 0 0 13.5rem;
+}
+
 #gameDescription {
     color: var(--game-text-color);
     line-height: 1.7;
@@ -142,5 +166,21 @@
     .game-page-wrapper {
         padding-left: 2rem;
         padding-right: 2rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .button-footer .btn {
+        width: 100%;
+    }
+
+    .button-footer .dont-choose-again-button {
+        order: 0;
+        font-size: 0.95rem;
+        line-height: 1.15;
+        min-width: 0;
+        max-width: none;
+        padding-inline: 1rem;
+        white-space: normal;
     }
 }
