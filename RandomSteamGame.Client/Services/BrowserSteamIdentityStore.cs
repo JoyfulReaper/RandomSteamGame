@@ -8,6 +8,7 @@
 using Microsoft.JSInterop;
 using RandomSteamGame.Shared.Contracts;
 using RandomSteamGame.Shared.Interfaces;
+using System.Globalization;
 
 namespace RandomSteamGame.Client.Services;
 
@@ -19,7 +20,9 @@ public sealed class BrowserSteamIdentityStore :
 {
     private const string SteamIdCookieName = "SteamId";
     private const string VanityUrlCookieName = "VanityUrl";
+    private const string OwnedGamesCacheResetAtCookieName = "OwnedGamesCacheResetAt";
     private const int CookieLifetimeDays = 365;
+    private const int OwnedGamesCacheResetCookieLifetimeDays = 2;
 
     private readonly IJSRuntime _jsRuntime;
     private IJSObjectReference? _cookieModule;
@@ -63,6 +66,41 @@ public sealed class BrowserSteamIdentityStore :
         var cookieModule = await GetCookieModuleAsync();
         await cookieModule.InvokeVoidAsync("deleteCookie", SteamIdCookieName);
         await cookieModule.InvokeVoidAsync("deleteCookie", VanityUrlCookieName);
+    }
+
+    public async ValueTask<DateTimeOffset?> GetOwnedGamesCacheResetAtAsync()
+    {
+        var cookieModule = await GetCookieModuleAsync();
+        var cookieValue = CleanInput(await cookieModule.InvokeAsync<string>("getCookie", OwnedGamesCacheResetAtCookieName));
+
+        if (cookieValue is null)
+        {
+            return null;
+        }
+
+        return DateTimeOffset.TryParse(
+            cookieValue,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.RoundtripKind,
+            out var resetAt)
+            ? resetAt
+            : null;
+    }
+
+    public async ValueTask SetOwnedGamesCacheResetAtAsync(DateTimeOffset resetAt)
+    {
+        var cookieModule = await GetCookieModuleAsync();
+        await cookieModule.InvokeVoidAsync(
+            "setCookie",
+            OwnedGamesCacheResetAtCookieName,
+            resetAt.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),
+            OwnedGamesCacheResetCookieLifetimeDays);
+    }
+
+    public async ValueTask ClearOwnedGamesCacheResetAtAsync()
+    {
+        var cookieModule = await GetCookieModuleAsync();
+        await cookieModule.InvokeVoidAsync("deleteCookie", OwnedGamesCacheResetAtCookieName);
     }
 
     public async ValueTask DisposeAsync()

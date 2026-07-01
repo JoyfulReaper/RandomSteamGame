@@ -14,6 +14,7 @@ using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
+using RandomSteamGame.Shared.Services;
 using SteamApiClient;
 using SteamApiClient.Settings;
 using System.Threading.RateLimiting;
@@ -86,6 +87,7 @@ public static class ServiceExtensions
         }
 
         services.AddScoped<GameProviderFactory>();
+        services.AddScoped<IOwnedGamesCacheResetTracker, OwnedGamesCacheResetTracker>();
 
         return services;
     }
@@ -93,6 +95,7 @@ public static class ServiceExtensions
     private static IServiceCollection AddPersistenceServices(this IServiceCollection services, string connectionString)
     {
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
+        services.AddScoped<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<SqliteConnection>(_ => new SqliteConnection(connectionString));
 
         return services;

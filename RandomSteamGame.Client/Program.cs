@@ -7,8 +7,8 @@
 
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using RandomSteamGame.Client.Services;
-using RandomSteamGame.Client.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
+using RandomSteamGame.Shared.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
