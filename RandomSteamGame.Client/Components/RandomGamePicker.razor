@@ -3,6 +3,7 @@
 @inject PersistentComponentState ApplicationState
 @inject ILogger<RandomGamePicker> Logger
 @inject RandomSteamApiClient ApiClient
+@inject IBrowserSteamIdentityStore BrowserIdentityStore
 @inject IJSRuntime JSRuntime
 
 @if (_gameDetails is not null)
@@ -31,6 +32,10 @@
                     <div class="button-footer">
                         <button class="btn btn-primary btn-lg" @onclick="UpdateData">
                             Choose Again
+                        </button>
+
+                        <button type="button" class="btn btn-outline-warning btn-lg" @onclick="DoNotChooseThisGameAgainAsync">
+                            Don't choose this game again
                         </button>
 
                     <a href="steam://run/@_gameDetails.Id/"
@@ -195,6 +200,28 @@
         finally
         {
             _isBusy = false;
+        }
+    }
+
+    private async Task DoNotChooseThisGameAgainAsync()
+    {
+        if (_gameDetails is null || _isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            var excludedGameIds = (await BrowserIdentityStore.GetExcludedGameIdsAsync()).ToList();
+            excludedGameIds.Add(_gameDetails.Id);
+
+            await BrowserIdentityStore.SetExcludedGameIdsAsync(excludedGameIds);
+            await UpdateData();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save excluded game id {AppId}.", _gameDetails.Id);
+            _errorMessage = "Unable to remember that game right now. Please try again.";
         }
     }
 

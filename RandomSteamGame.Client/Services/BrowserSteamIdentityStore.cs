@@ -21,7 +21,9 @@ public sealed class BrowserSteamIdentityStore :
     private const string SteamIdCookieName = "SteamId";
     private const string VanityUrlCookieName = "VanityUrl";
     private const string OwnedGamesCacheResetAtCookieName = "OwnedGamesCacheResetAt";
+    private const string ExcludedGameIdsCookieName = "ExcludedGameIds";
     private const int CookieLifetimeDays = 365;
+    private const int ExcludedGameIdsCookieLifetimeDays = 365;
     private const int OwnedGamesCacheResetCookieLifetimeDays = 2;
 
     private readonly IJSRuntime _jsRuntime;
@@ -66,6 +68,53 @@ public sealed class BrowserSteamIdentityStore :
         var cookieModule = await GetCookieModuleAsync();
         await cookieModule.InvokeVoidAsync("deleteCookie", SteamIdCookieName);
         await cookieModule.InvokeVoidAsync("deleteCookie", VanityUrlCookieName);
+    }
+
+    public async ValueTask<IReadOnlyCollection<int>> GetExcludedGameIdsAsync()
+    {
+        var cookieModule = await GetCookieModuleAsync();
+        var cookieValue = CleanInput(await cookieModule.InvokeAsync<string>("getCookie", ExcludedGameIdsCookieName));
+
+        if (cookieValue is null)
+        {
+            return Array.Empty<int>();
+        }
+
+        return cookieValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => int.TryParse(value, out var appId) ? appId : (int?)null)
+            .Where(appId => appId.HasValue)
+            .Select(appId => appId!.Value)
+            .Distinct()
+            .ToArray();
+    }
+
+    public async ValueTask SetExcludedGameIdsAsync(IEnumerable<int> appIds)
+    {
+        var distinctAppIds = appIds
+            .Where(appId => appId > 0)
+            .Distinct()
+            .ToArray();
+
+        var cookieModule = await GetCookieModuleAsync();
+
+        if (distinctAppIds.Length == 0)
+        {
+            await cookieModule.InvokeVoidAsync("deleteCookie", ExcludedGameIdsCookieName);
+            return;
+        }
+
+        await cookieModule.InvokeVoidAsync(
+            "setCookie",
+            ExcludedGameIdsCookieName,
+            string.Join(",", distinctAppIds),
+            ExcludedGameIdsCookieLifetimeDays);
+    }
+
+    public async ValueTask ClearExcludedGameIdsAsync()
+    {
+        var cookieModule = await GetCookieModuleAsync();
+        await cookieModule.InvokeVoidAsync("deleteCookie", ExcludedGameIdsCookieName);
     }
 
     public async ValueTask<DateTimeOffset?> GetOwnedGamesCacheResetAtAsync()

@@ -6,6 +6,7 @@
  */
 
 using ErrorOr;
+using Microsoft.AspNetCore.Http;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
@@ -18,6 +19,7 @@ public class SteamProvider : IGameProvider
 {
     private readonly ISteamClient _steamClient;
     private readonly ISteamStoreClient _steamStoreClient;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IHtmlSanitizerService _htmlSanitizer;
     private readonly ILogger<SteamProvider> _logger;
 
@@ -28,12 +30,14 @@ public class SteamProvider : IGameProvider
     public SteamProvider(
         ISteamClient steamClient,
         ISteamStoreClient steamStoreClient,
+        IHttpContextAccessor httpContextAccessor,
         IHtmlSanitizerService htmlSanitizerService,
         ILogger<SteamProvider> logger)
     {
         _htmlSanitizer = htmlSanitizerService;
         _steamClient = steamClient;
         _steamStoreClient = steamStoreClient;
+        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
 
@@ -96,11 +100,13 @@ public class SteamProvider : IGameProvider
                 return Errors.Steam.EmptyLibrary;
             }
 
-            var appData = await GetRandomGameDataAsync(ownedGames);
-            if (appData is null)
+            var appDataResult = await GetRandomGameDataAsync(ownedGames);
+            if (appDataResult.IsError)
             {
-                return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
+                return appDataResult.Errors;
             }
+
+            var appData = appDataResult.Value;
 
             return new GameDetails
             {
@@ -127,11 +133,13 @@ public class SteamProvider : IGameProvider
                 return Errors.Steam.EmptyLibrary;
             }
 
-            var appData = await GetRandomGameDataAsync(ownedGames);
-            if (appData is null)
+            var appDataResult = await GetRandomGameDataAsync(ownedGames);
+            if (appDataResult.IsError)
             {
-                return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
+                return appDataResult.Errors;
             }
+
+            var appData = appDataResult.Value;
 
             var matchingGame = ownedGames.Games.FirstOrDefault(g => g.AppId == appData.SteamAppId);
             if (matchingGame == null)
@@ -166,21 +174,29 @@ public class SteamProvider : IGameProvider
         }
     }
 
-    private async Task<AppData?> GetRandomGameDataAsync(SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames)
+    private async Task<ErrorOr<AppData>> GetRandomGameDataAsync(SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames)
     {
-        var shuffledGames = ownedGames.Games.ToList();
-        Shuffle(shuffledGames);
+        var excludedGameIds = GetExcludedGameIds();
+        var shuffledGameIds = GameSelectionHelper.GetSelectableGameIds(
+            ownedGames.Games.Select(game => game.AppId),
+            excludedGameIds);
+
+        if (shuffledGameIds.Count == 0)
+        {
+            _logger.LogDebug("All owned games were excluded for the current request.");
+            return Errors.Steam.NoSelectableGamesAfterExclusions;
+        }
 
         int attempts = 0;
 
-        foreach (var selectedGame in shuffledGames)
+        foreach (var selectedAppId in shuffledGameIds)
         {
             if (attempts >= MAX_ATTEMPTS)
             {
                 break;
             }
 
-            var appData = await _steamStoreClient.GetAppData(selectedGame.AppId);
+            var appData = await _steamStoreClient.GetAppData(selectedAppId);
             attempts++;
 
             if (appData != null)
@@ -188,19 +204,27 @@ public class SteamProvider : IGameProvider
                 return appData;
             }
 
-            _logger.LogDebug("Steam store confirmed AppId {AppId} is unavailable.", selectedGame.AppId);
+            _logger.LogDebug("Steam store confirmed AppId {AppId} is unavailable.", selectedAppId);
         }
 
-        return null;
+        return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
     }
 
-    private static void Shuffle<T>(IList<T> items)
+    private HashSet<int> GetExcludedGameIds()
     {
-        for (var i = items.Count - 1; i > 0; i--)
+        var cookieValue = _httpContextAccessor.HttpContext?.Request.Cookies["ExcludedGameIds"];
+
+        if (string.IsNullOrWhiteSpace(cookieValue))
         {
-            var j = Random.Shared.Next(i + 1);
-            (items[i], items[j]) = (items[j], items[i]);
+            return [];
         }
+
+        return cookieValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => int.TryParse(value, out var appId) ? appId : (int?)null)
+            .Where(appId => appId.HasValue)
+            .Select(appId => appId!.Value)
+            .ToHashSet();
     }
 
     private static OwnedGamesResponse MapToOwnedGamesResponse(long steamId, SteamApiClient.Contracts.SteamApi.OwnedGames sdkOwnedGames)

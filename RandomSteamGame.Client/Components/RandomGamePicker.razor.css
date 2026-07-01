@@ -77,10 +77,12 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 .button-footer .btn {
     min-width: 11rem;
+    flex: 1 1 11rem;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
     transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
