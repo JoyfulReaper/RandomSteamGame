@@ -14,4 +14,9 @@ public sealed record GameDetails
     public string Description { get; init; } = default!;
     public string HeaderImage { get; init; } = default!;
     public int PlaytimeForever { get; init; }
+    public int PlaytimeWindowsForever { get; init; }
+    public int PlaytimeMacForever { get; init; }
+    public int PlaytimeLinuxForever { get; init; }
+    public int Playtime2Weeks { get; init; }
+    public long RTimeLastPlayed { get; init; }
 }

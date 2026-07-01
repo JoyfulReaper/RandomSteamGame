@@ -119,7 +119,12 @@ public class SteamProvider : IGameProvider
                 Name = appData.Name,
                 Description = _htmlSanitizer.Sanitize(appData.AboutTheGame),
                 HeaderImage = appData.HeaderImage,
-                PlaytimeForever = matchingGame.PlaytimeForever
+                PlaytimeForever = matchingGame.PlaytimeForever,
+                PlaytimeWindowsForever = matchingGame.PlaytimeWindowsForever,
+                PlaytimeMacForever = matchingGame.PlaytimeMacForever,
+                PlaytimeLinuxForever = matchingGame.PlaytimeLinuxForever,
+                Playtime2Weeks = matchingGame.Playtime2Weeks,
+                RTimeLastPlayed = matchingGame.RTimeLastPlayed
             };
         }
         catch (Exception ex)
@@ -245,6 +250,15 @@ public class SteamProvider : IGameProvider
                game.PlaytimeLinuxForever <= 0 &&
                game.Playtime2Weeks <= 0 &&
                game.RTimeLastPlayed <= 0;
+    }
+
+    internal static int GetDisplayPlaytimeMinutes(SteamApiClient.Contracts.SteamApi.Game game)
+    {
+        var platformTotal = game.PlaytimeWindowsForever + game.PlaytimeMacForever + game.PlaytimeLinuxForever;
+
+        return Math.Max(
+            game.PlaytimeForever,
+            Math.Max(platformTotal, game.Playtime2Weeks));
     }
 
     private static OwnedGamesResponse MapToOwnedGamesResponse(long steamId, SteamApiClient.Contracts.SteamApi.OwnedGames sdkOwnedGames)

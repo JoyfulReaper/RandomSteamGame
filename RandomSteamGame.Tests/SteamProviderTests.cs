@@ -39,6 +39,29 @@ public class SteamProviderTests
         Assert.False(SteamProvider.IsUnplayed(game));
     }
 
+    [Theory]
+    [InlineData(120, 0, 0, 0, 0, 120)]
+    [InlineData(0, 80, 40, 0, 0, 120)]
+    [InlineData(60, 80, 40, 0, 0, 120)]
+    [InlineData(0, 0, 0, 0, 45, 45)]
+    public void GetDisplayPlaytimeMinutes_UsesBestAvailableSteamPlaytimeSignal(
+        int playtimeForever,
+        int playtimeWindowsForever,
+        int playtimeMacForever,
+        int playtimeLinuxForever,
+        int playtime2Weeks,
+        int expectedMinutes)
+    {
+        var game = CreateGame(
+            playtimeForever: playtimeForever,
+            playtimeWindowsForever: playtimeWindowsForever,
+            playtimeMacForever: playtimeMacForever,
+            playtimeLinuxForever: playtimeLinuxForever,
+            playtime2Weeks: playtime2Weeks);
+
+        Assert.Equal(expectedMinutes, SteamProvider.GetDisplayPlaytimeMinutes(game));
+    }
+
     private static Game CreateGame(
         int playtimeForever = 0,
         int playtimeWindowsForever = 0,

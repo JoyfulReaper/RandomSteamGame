@@ -28,7 +28,7 @@
                             @_gameDetails.Name
                         </h1>
                         <div class="game-playtime">
-                            @FormatPlaytime(_gameDetails.PlaytimeForever)
+                            @FormatPlaytime(_gameDetails)
                         </div>
                     </div>
 
@@ -242,15 +242,32 @@
         }
     }
 
-    private static string FormatPlaytime(int minutes)
+    private static string FormatPlaytime(GameDetails gameDetails)
     {
-        if (minutes <= 0)
+        var minutes = GetDisplayPlaytimeMinutes(gameDetails);
+        if (minutes > 0)
         {
-            return "No playtime recorded yet";
+            var hours = minutes / 60d;
+            return $"{hours:0.#} hours played";
         }
 
-        var hours = minutes / 60d;
-        return $"{hours:0.#} hours played";
+        if (gameDetails.RTimeLastPlayed > 0)
+        {
+            return "Played on Steam, but playtime is unavailable";
+        }
+
+        return "No playtime recorded yet";
+    }
+
+    private static int GetDisplayPlaytimeMinutes(GameDetails gameDetails)
+    {
+        var platformTotal = gameDetails.PlaytimeWindowsForever +
+                            gameDetails.PlaytimeMacForever +
+                            gameDetails.PlaytimeLinuxForever;
+
+        return Math.Max(
+            gameDetails.PlaytimeForever,
+            Math.Max(platformTotal, gameDetails.Playtime2Weeks));
     }
 
     public void Dispose()
