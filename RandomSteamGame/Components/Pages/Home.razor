@@ -13,7 +13,7 @@
 <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
 <main class="container mt-5 home-shell">
-    @if (_betaAvailable)
+    @if (_betaAvailable && !_isBetaSite)
     {
         <div class="home-beta-banner mb-4">
             <div>
@@ -77,9 +77,18 @@
 @code {
     private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
     private bool _betaAvailable;
+    private bool _isBetaSite;
 
     protected override async Task OnInitializedAsync()
     {
-        _betaAvailable = await BetaAvailabilityService.IsBetaAvailableAsync();
+        _isBetaSite = string.Equals(
+            NavManager.ToAbsoluteUri(NavManager.Uri).Host,
+            "randombeta.kgivler.com",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!_isBetaSite)
+        {
+            _betaAvailable = await BetaAvailabilityService.IsBetaAvailableAsync();
+        }
     }
 }
