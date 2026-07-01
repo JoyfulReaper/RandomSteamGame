@@ -30,8 +30,9 @@ public static class SteamApiDependencyInjection
         // Cache Provider Logic
         if (steamOptions.CacheProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase))
         {
-            var dataFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
-            Directory.CreateDirectory(dataFolder);
+            services.AddOptions<SqliteDistributedCacheOptions>()
+                .Configure(options =>
+                {
                     options.ConnectionString = BuildSqliteConnectionString(steamOptions.ConnectionString);
                 });
 
