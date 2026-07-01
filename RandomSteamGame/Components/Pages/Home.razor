@@ -13,22 +13,39 @@
 <PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
 
 <main class="container mt-5 home-shell">
-    @if (_betaAvailable && !_isBetaSite)
-    {
-        <div class="home-beta-banner mb-4">
-            <div>
-                <span class="home-beta-pill">Beta available</span>
-                <span class="home-beta-text">A live beta picker is running right now.</span>
-            </div>
-            <a href="https://randombeta.kgivler.com/"
-               target="_blank"
-               rel="noopener noreferrer"
-               class="home-beta-link">Click here to try it</a>
-        </div>
-    }
-
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
+            @if (_isBetaSite)
+            {
+                <div class="home-beta-note-wrap mb-4">
+                    <div class="home-beta-note" role="note">
+                        <span class="home-beta-note-pill">Beta site</span>
+                        <span class="home-beta-note-text">
+                            You are on the beta build.
+                            Stable release is at
+                            <a href="https://randomsteam.kgivler.com/"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="home-beta-note-link">randomsteam.kgivler.com</a>.
+                        </span>
+                    </div>
+                </div>
+            }
+            else if (_betaAvailable)
+            {
+                <div class="home-beta-banner-wrap mb-4">
+                    <div class="home-beta-banner">
+                        <div class="text-center text-md-start">
+                            <span class="home-beta-pill">Beta available</span>
+                            <span class="home-beta-text">A live beta picker is running right now.</span>
+                        </div>
+                        <a href="https://randombeta.kgivler.com/"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="home-beta-link">Click here to try it</a>
+                    </div>
+                </div>
+            }
 
             <div class="home-card">
                 <p class="home-eyebrow text-center mb-2">
