@@ -27,6 +27,9 @@
                         <h1 class="game-title">
                             @_gameDetails.Name
                         </h1>
+                        <div class="game-playtime">
+                            @FormatPlaytime(_gameDetails.PlaytimeForever)
+                        </div>
                     </div>
 
                     <div class="button-footer">
@@ -227,6 +230,17 @@
             Logger.LogError(ex, "Failed to save excluded game id {AppId}.", _gameDetails.Id);
             _errorMessage = "Unable to remember that game right now. Please try again.";
         }
+    }
+
+    private static string FormatPlaytime(int minutes)
+    {
+        if (minutes <= 0)
+        {
+            return "No playtime recorded yet";
+        }
+
+        var hours = minutes / 60d;
+        return $"{hours:0.#} hours played";
     }
 
     public void Dispose()

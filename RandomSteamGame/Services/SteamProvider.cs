@@ -107,13 +107,19 @@ public class SteamProvider : IGameProvider
             }
 
             var appData = appDataResult.Value;
+            var matchingGame = ownedGames.Games.FirstOrDefault(g => g.AppId == appData.SteamAppId);
+            if (matchingGame == null)
+            {
+                return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
+            }
 
             return new GameDetails
             {
                 Id = appData.SteamAppId,
                 Name = appData.Name,
                 Description = _htmlSanitizer.Sanitize(appData.AboutTheGame),
-                HeaderImage = appData.HeaderImage
+                HeaderImage = appData.HeaderImage,
+                PlaytimeForever = matchingGame.PlaytimeForever
             };
         }
         catch (Exception ex)

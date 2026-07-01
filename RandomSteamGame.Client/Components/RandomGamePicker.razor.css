@@ -64,6 +64,14 @@
     line-height: 1.15;
 }
 
+.game-playtime {
+    margin-top: 0.25rem;
+    color: var(--game-muted-color);
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
 #randomGame h4 {
     color: var(--game-accent-color) !important;
     font-weight: 600;
@@ -199,6 +207,11 @@
     .game-title {
         font-size: clamp(1.55rem, 7vw, 1.9rem);
         line-height: 1.12;
+    }
+
+    .game-playtime {
+        font-size: 0.84rem;
+        margin-top: 0.2rem;
     }
 
     #randomGame {
