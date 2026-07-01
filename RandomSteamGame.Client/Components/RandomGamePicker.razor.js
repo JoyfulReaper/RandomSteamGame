@@ -50,7 +50,7 @@ async function measureAverageLuminance(imageUrl) {
 
     const blob = await response.blob();
     const bitmap = await createImageBitmap(blob);
-    const sampleWidth = 64;
+    const sampleWidth = 96;
     const sampleHeight = Math.max(1, Math.round((bitmap.height / bitmap.width) * sampleWidth));
     const canvas = document.createElement("canvas");
     canvas.width = sampleWidth;
@@ -65,18 +65,47 @@ async function measureAverageLuminance(imageUrl) {
     context.drawImage(bitmap, 0, 0, sampleWidth, sampleHeight);
 
     const { data } = context.getImageData(0, 0, sampleWidth, sampleHeight);
-    let total = 0;
-    let samples = 0;
+    const regionSamples = [];
+    const regions = [
+        { x: 0.16, y: 0.16, weight: 0.75 },
+        { x: 0.5, y: 0.16, weight: 1 },
+        { x: 0.84, y: 0.16, weight: 1.35 },
+        { x: 0.16, y: 0.5, weight: 0.85 },
+        { x: 0.5, y: 0.5, weight: 1.15 },
+        { x: 0.84, y: 0.5, weight: 1.7 },
+        { x: 0.16, y: 0.84, weight: 0.75 },
+        { x: 0.5, y: 0.84, weight: 1 },
+        { x: 0.84, y: 0.84, weight: 1.35 }
+    ];
 
-    for (let i = 0; i < data.length; i += 16) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        total += 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        samples++;
+    const patchWidth = Math.max(4, Math.round(sampleWidth * 0.18));
+    const patchHeight = Math.max(4, Math.round(sampleHeight * 0.18));
+
+    for (const region of regions) {
+        const startX = clamp(Math.round(region.x * sampleWidth - patchWidth / 2), 0, sampleWidth - 1);
+        const startY = clamp(Math.round(region.y * sampleHeight - patchHeight / 2), 0, sampleHeight - 1);
+        const endX = Math.min(sampleWidth, startX + patchWidth);
+        const endY = Math.min(sampleHeight, startY + patchHeight);
+        regionSamples.push({
+            luminance: measureRegionLuminance(data, sampleWidth, startX, startY, endX, endY),
+            weight: region.weight
+        });
     }
 
-    return samples > 0 ? total / samples : 128;
+    const weightedSamples = regionSamples
+        .sort((a, b) => a.luminance - b.luminance)
+        .filter((sample) => Number.isFinite(sample.luminance) && Number.isFinite(sample.weight));
+
+    if (weightedSamples.length === 0) {
+        return 128;
+    }
+
+    if (weightedSamples.length <= 3) {
+        return weightedAverage(weightedSamples);
+    }
+
+    const trimmed = weightedSamples.slice(1, -1);
+    return trimmed.length > 0 ? weightedAverage(trimmed) : weightedAverage(weightedSamples);
 }
 
 function applyTheme(root, theme) {
@@ -87,4 +116,56 @@ function applyTheme(root, theme) {
     root.style.setProperty("--game-panel-bg", theme.panelBg);
     root.style.setProperty("--game-panel-border", theme.panelBorder);
     root.style.setProperty("--game-panel-shadow", theme.panelShadow);
+}
+
+function measureRegionLuminance(data, width, startX, startY, endX, endY) {
+    let total = 0;
+    let samples = 0;
+
+    for (let y = startY; y < endY; y += 2) {
+        for (let x = startX; x < endX; x += 2) {
+            const index = (y * width + x) * 4;
+            const alpha = data[index + 3];
+
+            if (alpha === 0) {
+                continue;
+            }
+
+            const r = data[index];
+            const g = data[index + 1];
+            const b = data[index + 2];
+            total += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            samples++;
+        }
+    }
+
+    return samples > 0 ? total / samples : 128;
+}
+
+function average(values) {
+    if (values.length === 0) {
+        return 128;
+    }
+
+    return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function weightedAverage(values) {
+    if (values.length === 0) {
+        return 128;
+    }
+
+    let total = 0;
+    let weightTotal = 0;
+
+    for (const sample of values) {
+        total += sample.luminance * sample.weight;
+        weightTotal += sample.weight;
+    }
+
+    return weightTotal > 0 ? total / weightTotal : 128;
+}
+
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
 }
