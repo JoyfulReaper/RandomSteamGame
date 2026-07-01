@@ -16,6 +16,7 @@ using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
 using RandomSteamGame.Shared.Services;
 using SteamApiClient;
+using SteamApiClient.Caching;
 using SteamApiClient.Settings;
 using System.Threading.RateLimiting;
 
@@ -28,6 +29,8 @@ public static class ServiceExtensions
         IConfiguration config,
         IWebHostEnvironment env)
     {
+        SqliteProviderInitializer.Initialize();
+
         const string schemaSql = """
             CREATE TABLE IF NOT EXISTS AppStats (
                 Id INTEGER PRIMARY KEY CHECK (Id = 1),

@@ -7,7 +7,7 @@
 
 namespace SteamApiClient.Caching;
 
-internal static class SqliteProviderInitializer
+public static class SqliteProviderInitializer
 {
     private static int _initialized;
 
