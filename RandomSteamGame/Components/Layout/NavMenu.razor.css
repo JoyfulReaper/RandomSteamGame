@@ -24,20 +24,27 @@
     color: #9ca3af !important;
     font-size: 0.95rem !important;
     padding: 0.5rem 1rem !important;
-    display: flex !important;
+    display: inline-flex !important;
     align-items: center;
+    gap: 0.45rem;
+    white-space: nowrap;
+    line-height: 1.2;
 }
 
     .nav-link:hover, .nav-link.active {
         color: #ffffff !important;
     }
 
-    .nav-link .bi {
-        margin-right: 0.5rem !important;
+    .nav-icon {
+        width: 1rem;
+        height: 1rem;
+        flex: 0 0 auto;
+        display: inline-block;
+        vertical-align: -0.125em;
         color: #9ca3af !important;
     }
 
-    .nav-link:hover .bi, .nav-link.active .bi {
+    .nav-link:hover .nav-icon, .nav-link.active .nav-icon {
         color: #ffffff !important;
     }
 
