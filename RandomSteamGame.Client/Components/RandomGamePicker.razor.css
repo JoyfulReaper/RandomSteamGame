@@ -1,4 +1,4 @@
-.random-game-page {
+.game-page-wrapper {
     min-height: 100vh;
     width: 100%;
     background: linear-gradient(135deg, #1a0b2e 0%, #000000 100%);
@@ -13,100 +13,95 @@
     color: #e5e7eb;
 }
 
-.random-game-panel {
-    position: relative;
+/* --- Columns & Alignment --- */
+.d-flex.flex-column {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+#randomGame {
+    flex-grow: 1;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+}
+
+    #randomGame h1 {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: 2.5rem;
+        line-height: 1.2;
+        padding-bottom: 0.3rem;
+        margin-bottom: 0.5rem;
+    }
+
+.button-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    flex-shrink: 0;
+}
+
+/* --- Global Elements & Description Styling --- */
+h1, h2 {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+#gameDescription {
+    color: #cbd5e1;
+    line-height: 1.6;
+    width: 100%;
+}
+
+    #gameDescription ::deep img {
+        max-width: 100% !important;
+        height: auto !important;
+        display: block;
+        margin: 1rem auto;
+    }
+
+    #gameDescription ::deep table {
+        max-width: 100%;
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    #gameDescription ::deep a, #gameDescription ::deep div, #gameDescription ::deep p, #gameDescription ::deep span {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+.container, .container-fluid {
     background-color: rgba(17, 24, 39, 0.4);
     border-radius: 1rem;
     padding: 2rem;
     backdrop-filter: blur(10px);
     margin: 0 auto;
+}
+
+.container {
+    max-width: 1600px;
+    width: 98%;
+}
+
+.container-fluid {
     max-width: 1700px;
     width: 98%;
 }
 
-.random-game-stage {
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-    padding-bottom: 6.5rem;
-}
-
-.random-game-layout {
-    flex: 1;
-}
-
-.random-game-body {
-    flex: 1;
-    min-height: 150px;
-}
-
-.random-game-shell {
-    min-height: 300px;
-}
-
-.random-game-title {
-    font-size: 1.8rem;
-    line-height: 1.2;
-}
-
-.random-game-summary {
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-.random-game-actions-fixed {
-    position: fixed;
-    left: 50%;
-    bottom: 2rem;
-    transform: translateX(-50%);
-    width: min(1700px, 98vw);
-    padding: 0 2rem;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-    z-index: 20;
-}
-
-.random-game-action-slot {
-    width: 100%;
-    min-width: 0;
-}
-
-.random-game-action-placeholder {
-    visibility: hidden;
-}
-
-.random-game-actions-fixed .btn {
-    white-space: nowrap;
-}
-
-.random-game-actions-fixed .btn,
-.random-game-actions-fixed .random-game-action-placeholder {
-    min-height: 3rem;
-}
-
-.random-game-busy {
-    min-height: 300px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+@media (min-width: 1800px) {
+    .container {
+        width: 95%;
+    }
 }
 
 @media (min-width: 768px) {
-    .random-game-page {
+    .game-page-wrapper {
         padding-left: 2rem;
         padding-right: 2rem;
-    }
-
-    .random-game-panel {
-        width: 98%;
-    }
-
-    .random-game-actions-fixed {
-        width: 98vw;
-        bottom: 2rem;
-        padding: 0 0.5rem;
     }
 }
