@@ -17,6 +17,7 @@
 .navbar-brand {
     color: #ffffff !important;
     font-weight: 600;
+    line-height: 1;
 }
 
 /* Link and Icon styling */
@@ -24,33 +25,46 @@
     color: #9ca3af !important;
     font-size: 0.95rem !important;
     padding: 0.5rem 1rem !important;
-    display: inline-flex !important;
+    display: flex !important;
     align-items: center;
     gap: 0.45rem;
     white-space: nowrap;
-    line-height: 1.2;
+    line-height: 1;
 }
 
-    .nav-link:hover, .nav-link.active {
-        color: #ffffff !important;
+    .nav-link span {
+        display: inline-block;
+        line-height: 1;
     }
 
     .nav-icon {
         width: 1rem;
         height: 1rem;
-        flex: 0 0 auto;
-        display: inline-block;
-        vertical-align: -0.125em;
-        color: #9ca3af !important;
+        flex: 0 0 1rem;
+        display: block;
+        color: currentColor !important;
     }
 
-    .nav-link:hover .nav-icon, .nav-link.active .nav-icon {
+    .nav-link:hover,
+    .nav-link.active {
         color: #ffffff !important;
     }
+
+.navbar-collapse {
+    align-items: center;
+}
+
+.navbar-nav {
+    align-items: center;
+}
 
 /* Mobile adjustments */
 @media (max-width: 768px) {
     .navbar-collapse {
         padding-top: 1rem;
+    }
+
+    .navbar-nav {
+        align-items: flex-start;
     }
 }
