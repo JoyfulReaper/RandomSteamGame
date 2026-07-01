@@ -273,7 +273,7 @@ else
             }
 
             HomeModel.SteamId = CleanInput(HomeModel.SteamId);
-            HomeModel.VanityUrl = CleanInput(HomeModel.VanityUrl);
+            HomeModel.VanityUrl = ExtractVanityFromUrl(HomeModel.VanityUrl);
 
             if (HomeModel.SteamId is null && HomeModel.VanityUrl is not null)
             {
@@ -363,6 +363,30 @@ else
     private static string? CleanInput(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static string? ExtractVanityFromUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        url = url.Trim();
+
+        // Check if it's a full Steam community URL
+        var match = System.Text.RegularExpressions.Regex.Match(
+            url,
+            @"https?://(?:www\.)?steamcommunity\.com/id/([^/]+)/?",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        if (match.Success)
+        {
+            return match.Groups[1].Value;
+        }
+
+        // If not a full URL, return as-is (assuming it's already just the vanity portion)
+        return url;
     }
 
     private void NormalizeIdentifierChoice()
