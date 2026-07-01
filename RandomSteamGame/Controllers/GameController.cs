@@ -26,11 +26,19 @@ public class GameController : ApiController
 {
     private readonly GameProviderFactory _factory;
     private readonly IOwnedGamesCacheResetTracker _ownedGamesCacheResetTracker;
+    private readonly IAppStatsService _appStatsService;
+    private readonly ILogger<GameController> _logger;
 
-    public GameController(GameProviderFactory factory, IOwnedGamesCacheResetTracker ownedGamesCacheResetTracker)
+    public GameController(
+        GameProviderFactory factory,
+        IOwnedGamesCacheResetTracker ownedGamesCacheResetTracker,
+        IAppStatsService appStatsService,
+        ILogger<GameController> logger)
     {
         _factory = factory;
         _ownedGamesCacheResetTracker = ownedGamesCacheResetTracker;
+        _appStatsService = appStatsService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -105,7 +113,13 @@ public class GameController : ApiController
         }
 
         var result = await service.GetRandomGameAsync(targetId.Value);
-        return result.Match(Ok, Problem);
+        if (result.IsError)
+        {
+            return Problem(result.Errors);
+        }
+
+        await TrackRandomGameGeneratedAsync();
+        return Ok(result.Value);
     }
 
     /// <summary>
@@ -131,7 +145,13 @@ public class GameController : ApiController
         }
 
         var result = await service.GetRandomGameDetailsAsync(targetId.Value);
-        return result.Match(Ok, Problem);
+        if (result.IsError)
+        {
+            return Problem(result.Errors);
+        }
+
+        await TrackRandomGameGeneratedAsync();
+        return Ok(result.Value);
     }
 
     /// <summary>
@@ -181,6 +201,19 @@ public class GameController : ApiController
         }
 
         return userId.Value;
+    }
+
+    private async Task TrackRandomGameGeneratedAsync()
+    {
+        try
+        {
+            await _appStatsService.IncrementRandomGamesGeneratedAsync();
+        }
+        catch (Exception ex)
+        {
+            // This should never block game generation.
+            _logger.LogWarning(ex, "Failed to increment random games generated counter.");
+        }
     }
 
 }
