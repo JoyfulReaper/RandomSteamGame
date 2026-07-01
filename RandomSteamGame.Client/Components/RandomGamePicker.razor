@@ -21,23 +21,25 @@
         @if (_gameDetails is not null && string.IsNullOrEmpty(_errorMessage) && !_isBusy)
         {
             <div class="row">
-                <div class="col-12 col-md-5 d-flex flex-column" style="min-height: 300px;">
+                <div class="col-12 col-md-4 col-lg-4 d-flex flex-column" style="min-height: 300px;">
                     <div id="randomGame">
                         <h4 class="text-info">You should play:</h4>
-                        <h1 class="h2">
+                        <h1 class="game-title">
                             @_gameDetails.Name
                         </h1>
                     </div>
 
                     <div class="button-footer">
-                        <button class="btn btn-primary btn-lg" @onclick="UpdateData">
-                            Choose Again
-                        </button>
+                        <div class="button-footer-main">
+                            <button class="btn btn-primary btn-lg" @onclick="UpdateData">
+                                Choose Again
+                            </button>
 
-                        <a href="steam://run/@_gameDetails.Id/"
-                           class="btn btn-success btn-lg ms-2 run-game-button">
-                            Run game
-                        </a>
+                            <a href="steam://run/@_gameDetails.Id/"
+                               class="btn btn-success btn-lg ms-2 run-game-button">
+                                Run game
+                            </a>
+                        </div>
 
                         <button type="button"
                                 class="btn btn-outline-warning btn-lg dont-choose-again-button"
@@ -47,7 +49,7 @@
                     </div>
                 </div>
 
-                <div class="col-12 col-md-7">
+                <div class="col-12 col-md-8 col-lg-8">
                     <h3 class="mb-3">About the Game</h3>
                     <div id="gameDescription">
                         @((MarkupString)_gameDetails.Description)

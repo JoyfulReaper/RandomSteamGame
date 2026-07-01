@@ -51,12 +51,17 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    font-size: 2.5rem;
+    font-size: clamp(1.9rem, 2.4vw, 2.25rem);
     line-height: 1.2;
     padding-bottom: 0.3rem;
     margin-bottom: 0.5rem;
     color: var(--game-heading-color) !important;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.game-title {
+    font-size: clamp(1.9rem, 2.4vw, 2.25rem);
+    line-height: 1.15;
 }
 
 #randomGame h4 {
@@ -75,16 +80,26 @@
     padding-top: 1rem;
     flex-shrink: 0;
     display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+.button-footer .btn {
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.button-footer-main {
+    display: flex;
     align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
 }
 
-.button-footer .btn {
+.button-footer-main .btn {
     min-width: 11rem;
     flex: 1 1 11rem;
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .button-footer .btn:hover,
@@ -102,12 +117,13 @@
     border-color: rgba(245, 158, 11, 0.6);
     color: #fbbf24;
     background: rgba(245, 158, 11, 0.06);
-    font-size: 0.84rem;
-    line-height: 1.15;
-    padding: 0.8rem 0.85rem;
-    min-width: 13.5rem;
-    max-width: 13.5rem;
-    white-space: nowrap;
+    font-size: 0.8rem;
+    line-height: 1.1;
+    padding: 0.7rem 0.85rem;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    white-space: normal;
 }
 
 .dont-choose-again-button:hover,
@@ -119,7 +135,6 @@
 
 .button-footer .dont-choose-again-button {
     order: 3;
-    flex: 0 0 13.5rem;
 }
 
 #gameDescription {
@@ -170,17 +185,54 @@
 }
 
 @media (max-width: 767.98px) {
+    .game-page-wrapper {
+        padding: 1rem 0.35rem;
+        background-attachment: scroll;
+    }
+
+    .game-page-wrapper > .container-fluid {
+        padding: 1rem 0.9rem;
+        border-radius: 0.85rem;
+        width: 100%;
+    }
+
+    .game-title {
+        font-size: clamp(1.55rem, 7vw, 1.9rem);
+        line-height: 1.12;
+    }
+
+    #randomGame h4 {
+        font-size: 1rem;
+    }
+
+    .col-12.col-md-8.col-lg-8 {
+        margin-top: 1.25rem;
+    }
+
+    .button-footer {
+        gap: 0.6rem;
+        padding-top: 0.85rem;
+    }
+
     .button-footer .btn {
+        width: 100%;
+    }
+
+    .button-footer-main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+    }
+
+    .button-footer-main .btn {
+        min-width: 0;
         width: 100%;
     }
 
     .button-footer .dont-choose-again-button {
         order: 0;
-        font-size: 0.95rem;
-        line-height: 1.15;
-        min-width: 0;
-        max-width: none;
-        padding-inline: 1rem;
-        white-space: normal;
+        font-size: 0.78rem;
+        padding: 0.6rem 0.75rem;
+        line-height: 1.1;
     }
 }
