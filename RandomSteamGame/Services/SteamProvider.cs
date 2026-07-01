@@ -168,26 +168,39 @@ public class SteamProvider : IGameProvider
 
     private async Task<AppData?> GetRandomGameDataAsync(SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames)
     {
-        int attempts = 0;
-        var triedThisRequest = new HashSet<int>();
+        var shuffledGames = ownedGames.Games.ToList();
+        Shuffle(shuffledGames);
 
-        while (attempts < MAX_ATTEMPTS && triedThisRequest.Count < ownedGames.Games.Count)
+        int attempts = 0;
+
+        foreach (var selectedGame in shuffledGames)
         {
-            var selectedGame = ownedGames.Games[Random.Shared.Next(0, ownedGames.Games.Count)];
-            if (!triedThisRequest.Add(selectedGame.AppId))
-                continue;
+            if (attempts >= MAX_ATTEMPTS)
+            {
+                break;
+            }
 
             var appData = await _steamStoreClient.GetAppData(selectedGame.AppId);
+            attempts++;
 
             if (appData != null)
             {
                 return appData;
             }
 
-            attempts++;
             _logger.LogDebug("Steam store confirmed AppId {AppId} is unavailable.", selectedGame.AppId);
         }
+
         return null;
+    }
+
+    private static void Shuffle<T>(IList<T> items)
+    {
+        for (var i = items.Count - 1; i > 0; i--)
+        {
+            var j = Random.Shared.Next(i + 1);
+            (items[i], items[j]) = (items[j], items[i]);
+        }
     }
 
     private static OwnedGamesResponse MapToOwnedGamesResponse(long steamId, SteamApiClient.Contracts.SteamApi.OwnedGames sdkOwnedGames)
