@@ -19,4 +19,9 @@
     <ProjectReference Include="..\RandomSteamGame.Shared\RandomSteamGame.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Components\" />
+    <Folder Include="Pages\" />
+  </ItemGroup>
+
 </Project>
