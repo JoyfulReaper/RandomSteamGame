@@ -21,6 +21,12 @@ app.ConfigurePipeline(app.Environment);
 app.MapStaticAssets();
 app.MapControllers();
 
+app.MapMethods("/", [HttpMethods.Head], (HttpContext context) =>
+{
+    context.Response.ContentType = "text/html; charset=utf-8";
+    return Results.Empty;
+});
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
