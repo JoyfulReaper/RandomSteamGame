@@ -1,4 +1,12 @@
 .game-page-wrapper {
+    --game-text-color: #e5e7eb;
+    --game-heading-color: #ffffff;
+    --game-muted-color: #cbd5e1;
+    --game-accent-color: #38bdf8;
+    --game-panel-bg: rgba(17, 24, 39, 0.4);
+    --game-panel-border: rgba(255, 255, 255, 0.08);
+    --game-panel-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+
     min-height: 100vh;
     width: 100%;
     background: linear-gradient(135deg, #1a0b2e 0%, #000000 100%);
@@ -10,10 +18,21 @@
     transition: background-image 0.5s ease-in-out;
     padding: 3rem 0.5rem;
     overflow-y: auto;
-    color: #e5e7eb;
+    color: var(--game-text-color);
 }
 
-/* --- Columns & Alignment --- */
+.game-page-wrapper > .container-fluid {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, var(--game-panel-bg) 100%);
+    border-radius: 1rem;
+    padding: 2rem;
+    backdrop-filter: blur(14px);
+    margin: 0 auto;
+    max-width: 1700px;
+    width: 98%;
+    border: 1px solid var(--game-panel-border);
+    box-shadow: var(--game-panel-shadow);
+}
+
 .d-flex.flex-column {
     display: flex;
     flex-direction: column;
@@ -27,69 +46,82 @@
     flex-direction: column;
 }
 
-    #randomGame h1 {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        font-size: 2.5rem;
-        line-height: 1.2;
-        padding-bottom: 0.3rem;
-        margin-bottom: 0.5rem;
-    }
+#randomGame h1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 2.5rem;
+    line-height: 1.2;
+    padding-bottom: 0.3rem;
+    margin-bottom: 0.5rem;
+    color: var(--game-heading-color) !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+#randomGame h4 {
+    color: var(--game-accent-color) !important;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.game-page-wrapper h3 {
+    color: var(--game-heading-color) !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+}
 
 .button-footer {
     margin-top: auto;
     padding-top: 1rem;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
-/* --- Global Elements & Description Styling --- */
-h1, h2 {
-    color: #ffffff !important;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+.button-footer .btn {
+    min-width: 11rem;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.button-footer .btn:hover,
+.button-footer .btn:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px rgba(0, 0, 0, 0.24);
 }
 
 #gameDescription {
-    color: #cbd5e1;
-    line-height: 1.6;
+    color: var(--game-text-color);
+    line-height: 1.7;
     width: 100%;
+    font-size: 1.02rem;
 }
 
-    #gameDescription ::deep img {
-        max-width: 100% !important;
-        height: auto !important;
-        display: block;
-        margin: 1rem auto;
-    }
+#gameDescription ::deep img {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block;
+    margin: 1rem auto;
+}
 
-    #gameDescription ::deep table {
-        max-width: 100%;
-        display: block;
-        overflow-x: auto;
-        white-space: nowrap;
-    }
+#gameDescription ::deep table {
+    max-width: 100%;
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+}
 
-    #gameDescription ::deep a, #gameDescription ::deep div, #gameDescription ::deep p, #gameDescription ::deep span {
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-    }
-
-.container, .container-fluid {
-    background-color: rgba(17, 24, 39, 0.4);
-    border-radius: 1rem;
-    padding: 2rem;
-    backdrop-filter: blur(10px);
-    margin: 0 auto;
+#gameDescription ::deep a,
+#gameDescription ::deep div,
+#gameDescription ::deep p,
+#gameDescription ::deep span {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .container {
     max-width: 1600px;
-    width: 98%;
-}
-
-.container-fluid {
-    max-width: 1700px;
     width: 98%;
 }
 

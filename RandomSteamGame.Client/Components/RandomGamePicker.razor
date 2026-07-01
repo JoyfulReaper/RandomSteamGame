@@ -1,8 +1,9 @@
-﻿@implements IDisposable
+@implements IDisposable
 
 @inject PersistentComponentState ApplicationState
 @inject ILogger<RandomGamePicker> Logger
 @inject RandomSteamApiClient ApiClient
+@inject IJSRuntime JSRuntime
 
 @if (_gameDetails is not null)
 {
@@ -68,6 +69,8 @@
     private bool _isBusy;
     private string? _errorMessage;
     private string _background = string.Empty;
+    private IJSObjectReference? _themeModule;
+    private bool _themeUpdatePending = true;
 
     private PersistingComponentStateSubscription _subscription;
     private bool _hasRegisteredPersistingCallback;
@@ -98,6 +101,7 @@
             {
                 _gameDetails = restored;
                 _background = _gameDetails?.HeaderImage ?? string.Empty;
+                _themeUpdatePending = true;
                 _lastLoadedProvider = Provider;
                 _lastLoadedSteamId = SteamId;
                 return;
@@ -112,6 +116,31 @@
         }
 
         await UpdateData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_themeUpdatePending)
+        {
+            return;
+        }
+
+        try
+        {
+            _themeModule ??= await JSRuntime.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./Components/RandomGamePicker.razor.js");
+
+            await _themeModule.InvokeVoidAsync("updateTheme", ".game-page-wrapper", _background);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Failed to apply adaptive theme for RandomGamePicker.");
+        }
+        finally
+        {
+            _themeUpdatePending = false;
+        }
     }
 
     private Task PersistState()
@@ -130,6 +159,7 @@
         _isBusy = true;
         _gameDetails = null;
         _background = string.Empty;
+        _themeUpdatePending = true;
 
         try
         {
@@ -153,6 +183,7 @@
             }
 
             _background = _gameDetails.HeaderImage ?? string.Empty;
+            _themeUpdatePending = true;
             _lastLoadedProvider = Provider;
             _lastLoadedSteamId = SteamId;
         }
