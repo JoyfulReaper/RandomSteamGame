@@ -25,10 +25,12 @@ namespace RandomSteamGame.Controllers;
 public class GameController : ApiController
 {
     private readonly GameProviderFactory _factory;
+    private readonly IOwnedGamesCacheResetTracker _ownedGamesCacheResetTracker;
 
-    public GameController(GameProviderFactory factory)
+    public GameController(GameProviderFactory factory, IOwnedGamesCacheResetTracker ownedGamesCacheResetTracker)
     {
         _factory = factory;
+        _ownedGamesCacheResetTracker = ownedGamesCacheResetTracker;
     }
 
     /// <summary>
@@ -61,7 +63,21 @@ public class GameController : ApiController
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);
         }
 
+        var nextAvailableAt = await _ownedGamesCacheResetTracker.GetNextAvailableAtAsync(userId);
+        if (nextAvailableAt is not null)
+        {
+            return StatusCode(
+                StatusCodes.Status429TooManyRequests,
+                new ApiProblem
+                {
+                    Title = "TooManyRequests",
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Detail = $"Owned games cache can only be reset once every 12 hours. Try again after {nextAvailableAt.Value.ToLocalTime():f}."
+                });
+        }
+
         await service.InvalidateOwnedGamesCacheAsync(userId);
+        await _ownedGamesCacheResetTracker.MarkResetAsync(userId);
 
         return NoContent();
     }
@@ -166,4 +182,5 @@ public class GameController : ApiController
 
         return userId.Value;
     }
+
 }

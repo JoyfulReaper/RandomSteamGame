@@ -14,4 +14,7 @@ public interface IBrowserSteamIdentityStore
     ValueTask<SteamIdentity> GetIdentityAsync();
     ValueTask SetIdentityAsync(SteamIdentity identity);
     ValueTask ClearAsync();
+    ValueTask<DateTimeOffset?> GetOwnedGamesCacheResetAtAsync();
+    ValueTask SetOwnedGamesCacheResetAtAsync(DateTimeOffset resetAt);
+    ValueTask ClearOwnedGamesCacheResetAtAsync();
 }

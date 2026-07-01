@@ -5,6 +5,7 @@
 @inject RandomSteamApiClient ApiClient
 @inject PersistentComponentState ApplicationState
 @inject IBrowserSteamIdentityStore BrowserIdentityStore
+@inject IDateTimeProvider DateTimeProvider
 @inject ILogger<Home> Logger
 @inject NavigationManager NavManager
 @inject ISteamIdentityReader SteamIdentityReader
@@ -94,12 +95,12 @@ else
                                     {
                                         <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                                     }
-                                    Reset owned games cache
+                                    I just bought a new game - refresh owned games cache
                                 </button>
                             </div>
 
                             <p class="form-text text-center mt-2 mb-0 text-muted">
-                                Uses the current Steam ID to force a fresh library fetch on the next game pick.
+                                I just bought a new game - refresh the owned games cache so the next pick can see it.
                             </p>
                         </EditForm>
                     </div>
@@ -129,6 +130,8 @@ else
     private string? _errorMessage;
     private string? _cacheResetMessage;
     private string _cacheResetMessageClass = "alert-success";
+    private DateTimeOffset? _ownedGamesCacheResetAtUtc;
+    private DateTimeOffset? _ownedGamesCacheNextAvailableAtUtc;
     private bool _isBusy = false;
     private bool _isResettingOwnedGamesCache = false;
     private bool _isInitialLoadComplete = false;
@@ -139,7 +142,8 @@ else
 
     private PersistingComponentStateSubscription _persistingSubscription;
     private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
-    private bool _canResetOwnedGamesCache => !string.IsNullOrWhiteSpace(HomeModel?.SteamId);
+    private static TimeSpan OwnedGamesCacheResetCooldown => TimeSpan.FromHours(12);
+    private bool _canResetOwnedGamesCache => !string.IsNullOrWhiteSpace(HomeModel?.SteamId) && !IsOwnedGamesCacheResetOnCooldown();
 
     private class PageStateData
     {
@@ -216,7 +220,19 @@ else
 
         try
         {
+            var stateChanged = false;
+
             if (await LoadBrowserIdentityAsync())
+            {
+                stateChanged = true;
+            }
+
+            if (await LoadOwnedGamesCacheResetCooldownAsync())
+            {
+                stateChanged = true;
+            }
+
+            if (stateChanged)
             {
                 StateHasChanged();
                 return;
@@ -311,7 +327,14 @@ else
             if (!TryGetCurrentSteamId(out var steamId))
             {
                 _cacheResetMessageClass = "alert-warning";
-                _cacheResetMessage = "Enter a Steam ID first, then try the cache reset again.";
+                _cacheResetMessage = "Enter a Steam ID first, then use the cache reset.";
+                return;
+            }
+
+            if (IsOwnedGamesCacheResetOnCooldown())
+            {
+                _cacheResetMessageClass = "alert-warning";
+                _cacheResetMessage = GetOwnedGamesCacheCooldownMessage();
                 return;
             }
 
@@ -326,6 +349,9 @@ else
 
             _cacheResetMessageClass = "alert-success";
             _cacheResetMessage = "Owned games cache cleared. The next random game request will fetch fresh library data.";
+            _ownedGamesCacheResetAtUtc = new DateTimeOffset(DateTimeProvider.UtcNow);
+            _ownedGamesCacheNextAvailableAtUtc = _ownedGamesCacheResetAtUtc.Value.Add(OwnedGamesCacheResetCooldown);
+            await BrowserIdentityStore.SetOwnedGamesCacheResetAtAsync(_ownedGamesCacheResetAtUtc.Value);
         }
         catch (Exception ex)
         {
@@ -362,6 +388,69 @@ else
         }
 
         return long.TryParse(HomeModel.SteamId, out steamId);
+    }
+
+    private bool IsOwnedGamesCacheResetOnCooldown()
+    {
+        if (_ownedGamesCacheNextAvailableAtUtc is null)
+        {
+            return false;
+        }
+
+        return new DateTimeOffset(DateTimeProvider.UtcNow) < _ownedGamesCacheNextAvailableAtUtc.Value;
+    }
+
+    private string GetOwnedGamesCacheCooldownMessage()
+    {
+        if (_ownedGamesCacheNextAvailableAtUtc is null)
+        {
+            return "The cache reset is temporarily unavailable right now.";
+        }
+
+        var remaining = _ownedGamesCacheNextAvailableAtUtc.Value - new DateTimeOffset(DateTimeProvider.UtcNow);
+        if (remaining <= TimeSpan.Zero)
+        {
+            return "The cache reset is available again.";
+        }
+
+        var formattedRemaining = remaining.TotalHours >= 1
+            ? $"{Math.Ceiling(remaining.TotalHours):0} hour{(remaining.TotalHours >= 2 ? "s" : string.Empty)}"
+            : $"{Math.Ceiling(remaining.TotalMinutes):0} minute{(remaining.TotalMinutes >= 2 ? "s" : string.Empty)}";
+
+        return $"You can reset the owned games cache again in about {formattedRemaining}.";
+    }
+
+    private async Task<bool> LoadOwnedGamesCacheResetCooldownAsync()
+    {
+        var resetAt = await BrowserIdentityStore.GetOwnedGamesCacheResetAtAsync();
+
+        if (resetAt is null)
+        {
+            if (_ownedGamesCacheResetAtUtc is null && _ownedGamesCacheNextAvailableAtUtc is null)
+            {
+                return false;
+            }
+
+            _ownedGamesCacheResetAtUtc = null;
+            _ownedGamesCacheNextAvailableAtUtc = null;
+            return true;
+        }
+
+        var nextAvailableAt = resetAt.Value.Add(OwnedGamesCacheResetCooldown);
+        _ownedGamesCacheResetAtUtc = resetAt;
+        _ownedGamesCacheNextAvailableAtUtc = nextAvailableAt;
+
+        if (new DateTimeOffset(DateTimeProvider.UtcNow) >= nextAvailableAt)
+        {
+            await BrowserIdentityStore.ClearOwnedGamesCacheResetAtAsync();
+            _ownedGamesCacheResetAtUtc = null;
+            _ownedGamesCacheNextAvailableAtUtc = null;
+            return true;
+        }
+
+        _cacheResetMessageClass = "alert-warning";
+        _cacheResetMessage = GetOwnedGamesCacheCooldownMessage();
+        return true;
     }
 
     private async Task<bool> LoadBrowserIdentityAsync()

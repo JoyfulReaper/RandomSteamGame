@@ -1,15 +1,15 @@
-﻿/*
+/*
  * Random Steam Game
  * 
  * Copyright (c) 2026 Kyle Givler
  * Licensed under the MIT License.
  */
 
-using RandomSteamGame.Client.Services.Interfaces;
+using RandomSteamGame.Shared.Interfaces;
 
-namespace RandomSteamGame.Client.Services;
+namespace RandomSteamGame.Shared.Services;
 
-public class DateTimeProvider : IDateTimeProvider
+public sealed class DateTimeProvider : IDateTimeProvider
 {
     public DateTime UtcNow => DateTime.UtcNow;
 }
