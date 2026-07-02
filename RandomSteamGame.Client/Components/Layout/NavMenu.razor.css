@@ -20,6 +20,14 @@
     line-height: 1;
 }
 
+.navbar-toggler {
+    padding: .25rem;
+}
+
+    .navbar-toggler:focus {
+        box-shadow: none;
+    }
+
 /* Link and Icon styling */
 .nav-link {
     color: #9ca3af !important;
