@@ -1,0 +1,256 @@
+﻿@page "/support"
+
+<PageTitle>Support Random Steam Game Picker</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="Support Random Steam Game Picker with a one-time contribution or sponsor a future roadmap feature." />
+    <link rel="canonical" href="https://randomsteam.kgivler.com/support" />
+</HeadContent>
+
+<div class="support-page">
+    <section class="support-hero">
+        <p class="eyebrow">RSG-UTILITY SUPPORT CHANNEL</p>
+
+        <h1>Support the Picker</h1>
+
+        <p class="lead">
+            Random Steam Game Picker is free to use. If it helped you escape backlog paralysis,
+            you can send a one-time support payment or help sponsor future development.
+        </p>
+
+        <div class="support-actions">
+            <a class="btn btn-primary btn-lg"
+               href="@SupportUrl"
+               target="_blank"
+               rel="noopener noreferrer">
+                Send $5 Support
+            </a>
+
+            <a class="btn btn-outline-light btn-lg" href="@SponsorUrl">
+                Sponsor Development
+            </a>
+        </div>
+
+        <p class="fine-print">
+            Support is appreciation-based. Feature sponsorship helps prioritize development,
+            but it does not buy control of the project or guarantee an exact delivery date.
+        </p>
+    </section>
+
+    <section class="support-panel">
+        <h2>One-Time Support</h2>
+
+        <div class="support-tier">
+            <div>
+                <h3>$5 Supporter</h3>
+                <p>
+                    A simple thank-you contribution. Supporters may optionally be listed on the
+                    contributors page.
+                </p>
+            </div>
+
+            <span class="tier-badge">Manual</span>
+        </div>
+
+        <p>
+            Include a display name if you want to be listed on the contributors page. Optional links,
+            project credits, and sponsor graphics will be managed there.
+        </p>
+
+        <pre class="support-note">@SupportNote</pre>
+    </section>
+
+    <section class="support-panel">
+        <h2>Feature Sponsorship</h2>
+
+        <p>
+            Sponsorship helps fund my development time and decide what gets worked on next.
+            These are not fixed-price feature purchases unless we explicitly agree on a custom scope.
+        </p>
+
+        <div class="boost-grid">
+            @foreach (var tier in SponsorTiers)
+            {
+                <div class="boost-card">
+                    <h3>@tier.Amount</h3>
+                    <p>@tier.Name</p>
+                    <span>@tier.Description</span>
+                </div>
+            }
+        </div>
+
+        <div class="notice-box">
+            <h3>Premium access note</h3>
+            <p>
+                Some sponsored features may later become premium features. If that happens,
+                sponsors of that feature will receive lifetime access to the sponsored feature
+                or equivalent lifetime premium access once account support exists.
+            </p>
+        </div>
+
+        <p class="fine-print">
+            Custom development, guaranteed delivery, integrations, private builds, or separate-license work
+            require a custom scope and may range from $1,000+ depending on complexity.
+        </p>
+    </section>
+
+    <section class="support-panel">
+        <h2>Sponsor Graphics</h2>
+
+        <p>
+            Sponsor graphics may appear on the contributors page, not as intrusive ads in the picker flow.
+            Keep them small, clean, and safe for a general audience.
+        </p>
+
+        <ul class="requirements-list">
+            <li>Recommended size: <strong>600×200px</strong></li>
+            <li>Displayed max size: <strong>300×100px</strong></li>
+            <li>Preferred formats: <strong>PNG, WebP, or SVG</strong></li>
+            <li>Max file size: <strong>250 KB</strong></li>
+            <li>Transparent or dark-background-friendly graphics work best</li>
+        </ul>
+    </section>
+
+    <section class="support-panel">
+        <h2>Roadmap</h2>
+
+        <p>
+            Features marked account-required will need Steam sign-in before they can exist as saved
+            or premium features.
+        </p>
+
+        <div class="table-responsive">
+            <table class="table table-dark table-striped align-middle roadmap-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Status</th>
+                        <th>Account</th>
+                        <th>Sponsor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var feature in Roadmap)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@feature.Name</strong>
+                                <div class="roadmap-description">@feature.Description</div>
+                            </td>
+                            <td>
+                                <span class="status-pill">@feature.Status</span>
+                            </td>
+                            <td>@(feature.RequiresAccount ? "Required" : "No")</td>
+                            <td>@feature.Sponsor</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+@code {
+    private const string SupportUrl = "https://www.paypal.com/paypalme/KyleGivler/5USD";
+    private const string SponsorUrl = "mailto:me@kgivler.com?subject=RSG%20Sponsorship";
+    private const string SupportNote = "RSG Supporter - Display Name: Your Name - Optional Link: https://example.com";
+
+    private static readonly IReadOnlyList<SponsorTier> SponsorTiers =
+    [
+        new(
+            "$50",
+            "Feature Boost",
+            "Adds visible support to a roadmap item and helps prioritize it."),
+
+        new(
+            "$100",
+            "Feature Sponsor",
+            "Optional sponsor credit for a planned feature."),
+
+        new(
+            "$250",
+            "Priority Sponsor",
+            "Stronger roadmap signal and optional contributor graphic."),
+
+        new(
+            "$500+",
+            "Major Sponsor",
+            "Best for larger features, project support, or prominent credit."),
+
+        new(
+            "$1,000+",
+            "White-Glove Custom Implementation",
+            "For scoped custom development, integrations, guaranteed delivery, private builds, or custom licensing beyond the public MIT project.")
+    ];
+
+    private static readonly IReadOnlyList<RoadmapFeature> Roadmap =
+    [
+        new(
+            "Sign in with Steam",
+            "Planned",
+            true,
+            "Foundation for saved preferences, premium features, and account-linked data.",
+            "Available"),
+
+        new(
+            "Permanent blocked games",
+            "Planned",
+            true,
+            "Save excluded games server-side instead of relying on browser cookies.",
+            "Available"),
+
+        new(
+            "Favorites",
+            "Planned",
+            true,
+            "Mark games you might want to play later.",
+            "Available"),
+
+        new(
+            "Picker history",
+            "Planned",
+            true,
+            "Track recent picks and avoid immediate repeats.",
+            "Available"),
+
+        new(
+            "CSV export",
+            "Planned",
+            false,
+            "Export Steam library data to a CSV file.",
+            "Available"),
+
+        new(
+            "Saved game lists",
+            "Later",
+            true,
+            "Create lists like short games, co-op games, or maybe-next games.",
+            "Available"),
+
+        new(
+            "Shareable lists",
+            "Later",
+            true,
+            "Share curated game lists with other users.",
+            "Available"),
+
+        new(
+            "Custom sponsored feature",
+            "By request",
+            true,
+            "White-glove custom development, guaranteed delivery, private builds, or separate-license implementations scoped before work begins.",
+            "Contact me")
+    ];
+
+    private sealed record SponsorTier(
+        string Amount,
+        string Name,
+        string Description);
+
+    private sealed record RoadmapFeature(
+        string Name,
+        string Status,
+        bool RequiresAccount,
+        string Description,
+        string Sponsor);
+}
