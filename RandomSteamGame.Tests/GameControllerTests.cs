@@ -8,6 +8,7 @@ using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using System.Reflection;
+using System.Text;
 
 namespace RandomSteamGame.Tests;
 
@@ -34,6 +35,18 @@ public class GameControllerTests
         var controller = CreateController();
 
         var result = await controller.RefreshLibrary("steam", steamId);
+
+        AssertValidationProblem(result, "Steam.InvalidSteamId");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(123456789)]
+    public async Task ExportLibrary_InvalidSteamId_ReturnsValidationProblem(long steamId)
+    {
+        var controller = CreateController();
+
+        var result = await controller.ExportLibrary("steam", steamId);
 
         AssertValidationProblem(result, "Steam.InvalidSteamId");
     }
@@ -98,12 +111,40 @@ public class GameControllerTests
         Assert.Equal("steam_api_limiter", controllerAttribute.PolicyName);
     }
 
-    private static GameController CreateController()
+    [Fact]
+    public void GameController_UsesRateLimitingPolicy_ForLibraryExportEndpoint()
+    {
+        var controllerAttribute = typeof(GameController).GetCustomAttribute<EnableRateLimitingAttribute>();
+        var action = typeof(GameController).GetMethod(nameof(GameController.ExportLibrary));
+
+        Assert.NotNull(action);
+        Assert.NotNull(controllerAttribute);
+        Assert.Equal("steam_api_limiter", controllerAttribute.PolicyName);
+    }
+
+    [Fact]
+    public async Task ExportLibrary_Success_ReturnsCsvFile()
+    {
+        const long steamId = 76561197960287930L;
+        var controller = CreateController(new FakeGameProvider(new OwnedGamesResponse(steamId, 1, [
+            new Game(10, "Portal", 90, null, 0, 0, 0, 0, 0)
+        ])));
+
+        var result = await controller.ExportLibrary("steam", steamId);
+
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("text/csv; charset=utf-8", file.ContentType);
+        Assert.Equal($"steam-library-{steamId}.csv", file.FileDownloadName);
+        Assert.Equal("game,id,hours,last_played,steam_deck\r\nPortal,10,1.5,,unknown\r\n", Encoding.UTF8.GetString(file.FileContents));
+    }
+
+    private static GameController CreateController(FakeGameProvider? provider = null)
     {
         var controller = new GameController(
-            new GameProviderFactory([new FakeGameProvider()]),
+            new GameProviderFactory([provider ?? new FakeGameProvider()]),
             new FakeOwnedGamesCacheResetTracker(),
             new FakeAppStatsService(),
+            new SteamLibraryExportService(),
             NullLogger<GameController>.Instance);
 
         controller.ControllerContext = new ControllerContext
@@ -124,10 +165,22 @@ public class GameControllerTests
 
     private sealed class FakeGameProvider : IGameProvider
     {
+        private readonly OwnedGamesResponse _library;
+
+        public FakeGameProvider()
+            : this(new OwnedGamesResponse(76561197960287930L, 0, []))
+        {
+        }
+
+        public FakeGameProvider(OwnedGamesResponse library)
+        {
+            _library = library;
+        }
+
         public string ProviderKey => "steam";
 
         public Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)
-            => Task.FromResult<ErrorOr<OwnedGamesResponse>>(new OwnedGamesResponse(userId, 0, []));
+            => Task.FromResult<ErrorOr<OwnedGamesResponse>>(_library with { SteamId = userId });
 
         public Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId, bool unplayedOnly = false)
             => Task.FromResult<ErrorOr<RandomGameResponse>>(CreateRandomGameResponse(userId));
