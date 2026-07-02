@@ -28,7 +28,8 @@ public class SteamClientTests
             Cache = new CacheSettings
             {
                 OwnedGames = new CachePolicy { AbsoluteMinutes = 60 },
-                VanitySuccess = new CachePolicy { AbsoluteMinutes = 120 }
+                VanitySuccess = new CachePolicy { AbsoluteMinutes = 120 },
+                VanityNotFound = new CachePolicy { AbsoluteMinutes = 15 }
             }
         });
     }
@@ -65,32 +66,26 @@ public class SteamClientTests
     }
 
     [Fact]
-    public async Task GetOwnedGames_HttpError_ReturnsEmptyResult()
+    public async Task GetOwnedGames_HttpError_Throws()
     {
         // Arrange
         var client = CreateClient(string.Empty, HttpStatusCode.InternalServerError);
 
-        // Act
-        var result = await client.GetOwnedGames(76561197960287930L);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(0, result.GameCount);
-        Assert.Empty(result.Games);
+        // Act / Assert
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => client.GetOwnedGames(76561197960287930L));
     }
 
     [Fact]
-    public async Task GetOwnedGames_MalformedJson_ReturnsEmptyResult()
+    public async Task GetOwnedGames_MalformedJson_Throws()
     {
         // Arrange
         var invalidJson = "{ \"response\": null }";
         var client = CreateClient(invalidJson, HttpStatusCode.OK);
 
-        // Act
-        var result = await client.GetOwnedGames(76561197960287930L);
-
-        // Assert
-        Assert.Equal(0, result.GameCount);
+        // Act / Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => client.GetOwnedGames(76561197960287930L));
     }
 
     #endregion
@@ -144,7 +139,7 @@ public class SteamClientTests
     }
 
     [Fact]
-    public async Task GetSteamIdFromVanityUrl_OtherSteamFailureStatus_ReturnsZero()
+    public async Task GetSteamIdFromVanityUrl_OtherSteamFailureStatus_Throws()
     {
         // Arrange
         var fakeResponse = new
@@ -158,11 +153,9 @@ public class SteamClientTests
         var json = JsonSerializer.Serialize(fakeResponse);
         var client = CreateClient(json, HttpStatusCode.OK);
 
-        // Act
-        var result = await client.GetSteamIdFromVanityUrl("error_route");
-
-        // Assert
-        Assert.Equal(0L, result);
+        // Act / Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => client.GetSteamIdFromVanityUrl("error_route"));
     }
 
     #endregion

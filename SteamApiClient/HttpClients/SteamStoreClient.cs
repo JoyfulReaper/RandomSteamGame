@@ -57,39 +57,50 @@ public class SteamStoreClient : ISteamStoreClient
         entryTags.Add("app_details");
         entryTags.Add($"app_{appId}");
 
-        var cachedResult = await _cache.GetOrCreateAsync(cacheKey, async (token) =>
+        var cachedResult = await _cache.GetAsync<AppDataWrapper>(cacheKey, ct);
+        if (cachedResult is not null)
         {
-            using var response = await _httpClient.GetAsync(
-                $"api/appdetails?appids={appId}&l=english", token);
+            return cachedResult.Data;
+        }
 
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning(
-                    "Steam Store API failed (AppDetails). AppId: {AppId}, StatusCode: {StatusCode}",
-                    appId,
-                    response.StatusCode);
+        using var response = await _httpClient.GetAsync(
+            $"api/appdetails?appids={appId}&l=english", ct);
 
-                return new AppDataWrapper(null);
-            }
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning(
+                "Steam Store API failed (AppDetails). AppId: {AppId}, StatusCode: {StatusCode}",
+                appId,
+                response.StatusCode);
 
-            var json = await response.Content.ReadAsStringAsync(token);
-            using var doc = JsonDocument.Parse(json);
+            return null;
+        }
 
-            if (!doc.RootElement.TryGetProperty(appId.ToString(), out var root))
-            {
-                _logger.LogWarning(
-                    "Steam Store API malformed response (missing app key). AppId: {AppId}",
-                    appId);
+        var json = await response.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(json);
 
-                return new AppDataWrapper(null);
-            }
+        if (!doc.RootElement.TryGetProperty(appId.ToString(), out var root))
+        {
+            _logger.LogWarning(
+                "Steam Store API malformed response (missing app key). AppId: {AppId}",
+                appId);
 
-            var responseData = JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions);
+            return null;
+        }
 
-            return new AppDataWrapper(responseData?.AppData);
+        var responseData = JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions);
+        if (responseData?.Success != true || responseData.AppData is null)
+        {
+            return null;
+        }
 
-        }, _steamOptions.Cache.AppDetails, entryTags, ct);
+        await _cache.SetAsync(
+            cacheKey,
+            new AppDataWrapper(responseData.AppData),
+            _steamOptions.Cache.AppDetails,
+            entryTags,
+            ct);
 
-        return cachedResult.Data;
+        return responseData.AppData;
     }
 }

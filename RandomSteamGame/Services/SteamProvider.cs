@@ -55,7 +55,16 @@ public class SteamProvider : IGameProvider
 
     public async Task<ErrorOr<OwnedGamesResponse>> FetchOwnedGamesAsync(long steamId)
     {
-        var ownedGames = await _steamClient.GetOwnedGames(steamId);
+        SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames;
+        try
+        {
+            ownedGames = await _steamClient.GetOwnedGames(steamId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting owned games for SteamID: {SteamId}", steamId);
+            return Errors.Steam.SteamApiFailed;
+        }
 
         if (ownedGames?.Games == null || ownedGames.Games.Count == 0)
         {

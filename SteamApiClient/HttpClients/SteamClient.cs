@@ -82,7 +82,8 @@ public class SteamClient : ISteamClient
                     steamId,
                     response.StatusCode);
 
-                return new OwnedGames(0, []);
+                throw new HttpRequestException(
+                    $"Steam API failed to return owned games. StatusCode={response.StatusCode}");
             }
 
             var json = await response.Content.ReadAsStringAsync(token);
@@ -94,7 +95,7 @@ public class SteamClient : ISteamClient
                     "Steam API invalid JSON (OwnedGames). SteamId={SteamId}",
                     steamId);
 
-                return new OwnedGames(0, []);
+                throw new InvalidOperationException("Steam API returned an invalid owned-games response.");
             }
 
             return parsed.Response;
@@ -106,63 +107,77 @@ public class SteamClient : ISteamClient
         string vanityUrl,
         CancellationToken ct = default)
     {
-        var cacheKey = $"vanity_{vanityUrl}";
+        var successCacheKey = $"vanity_{vanityUrl}";
+        var notFoundCacheKey = $"vanity_not_found_{vanityUrl}";
         var tags = new[] { $"vanity_{vanityUrl}", "vanity_urls" };
 
-        return await _cache.GetOrCreateAsync(cacheKey, async (token) =>
+        var cachedSuccess = await _cache.GetAsync<long?>(successCacheKey, ct);
+        if (cachedSuccess.HasValue)
         {
-            // _logger.LogDebug("Cache miss or expired. Resolving VanityUrl from Steam API: {VanityUrl}", vanityUrl);
+            return cachedSuccess.Value;
+        }
 
-            var encoded = Uri.EscapeDataString(vanityUrl);
-            var url =
-                $"ISteamUser/ResolveVanityURL/v0001/" +
-                $"?key={_steamOptions.ApiKey}" +
-                $"&vanityurl={encoded}&format=json";
+        var cachedNotFound = await _cache.GetAsync<bool?>(notFoundCacheKey, ct);
+        if (cachedNotFound == true)
+        {
+            return 0L;
+        }
 
-            using var response = await _httpClient.GetAsync(url, token);
+        // _logger.LogDebug("Cache miss or expired. Resolving VanityUrl from Steam API: {VanityUrl}", vanityUrl);
 
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning(
-                    "Steam API failure (VanityUrl). VanityUrl={VanityUrl}, StatusCode={StatusCode}",
-                    vanityUrl,
-                    response.StatusCode);
+        var encoded = Uri.EscapeDataString(vanityUrl);
+        var url =
+            $"ISteamUser/ResolveVanityURL/v0001/" +
+            $"?key={_steamOptions.ApiKey}" +
+            $"&vanityurl={encoded}&format=json";
 
-                return 0L;
-            }
+        using var response = await _httpClient.GetAsync(url, ct);
 
-            var json = await response.Content.ReadAsStringAsync(token);
-            var parsed = JsonSerializer.Deserialize<ResolveVanityUrlResponse>(json, _jsonOptions);
-            var r = parsed?.Response;
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning(
+                "Steam API failure (VanityUrl). VanityUrl={VanityUrl}, StatusCode={StatusCode}",
+                vanityUrl,
+                response.StatusCode);
 
-            if (r is null)
-            {
-                _logger.LogWarning(
-                    "Steam API invalid response (VanityUrl). VanityUrl={VanityUrl}",
-                    vanityUrl);
+            throw new HttpRequestException(
+                $"Steam API failed to resolve vanity URL. StatusCode={response.StatusCode}");
+        }
 
-                return 0L;
-            }
+        var json = await response.Content.ReadAsStringAsync(ct);
+        var parsed = JsonSerializer.Deserialize<ResolveVanityUrlResponse>(json, _jsonOptions);
+        var r = parsed?.Response;
 
-            if (r.Success == STEAM_VANITY_NO_MATCH)
-            {
-                // _logger.LogInformation("Vanity URL not found: {VanityUrl}", vanityUrl);
-                return 0L;
-            }
+        if (r is null)
+        {
+            _logger.LogWarning(
+                "Steam API invalid response (VanityUrl). VanityUrl={VanityUrl}",
+                vanityUrl);
 
-            if (r.Success != STEAM_VANITY_SUCCESS)
-            {
-                _logger.LogWarning(
-                    "Steam API failure status (VanityUrl). VanityUrl={VanityUrl}, Success={Success}",
-                    vanityUrl,
-                    r.Success);
+            throw new InvalidOperationException("Steam API returned an invalid vanity response.");
+        }
 
-                return 0L;
-            }
+        if (r.Success == STEAM_VANITY_NO_MATCH)
+        {
+            // _logger.LogInformation("Vanity URL not found: {VanityUrl}", vanityUrl);
+            await _cache.SetAsync(notFoundCacheKey, true, _steamOptions.Cache.VanityNotFound, tags, ct);
+            return 0L;
+        }
 
-            return long.Parse(r.SteamId!);
+        if (r.Success != STEAM_VANITY_SUCCESS)
+        {
+            _logger.LogWarning(
+                "Steam API failure status (VanityUrl). VanityUrl={VanityUrl}, Success={Success}",
+                vanityUrl,
+                r.Success);
 
-        }, _steamOptions.Cache.VanitySuccess, tags, ct);
+            throw new InvalidOperationException(
+                $"Steam API returned vanity failure status {r.Success}.");
+        }
+
+        var steamId = long.Parse(r.SteamId!);
+        await _cache.SetAsync(successCacheKey, steamId, _steamOptions.Cache.VanitySuccess, tags, ct);
+        return steamId;
     }
 
     public async Task InvalidateOwnedGamesCacheAsync(long userId)
