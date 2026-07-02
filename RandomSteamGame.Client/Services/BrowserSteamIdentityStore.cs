@@ -22,6 +22,7 @@ public sealed class BrowserSteamIdentityStore :
     private const string ExcludedGameIdsCookieName = "ExcludedGameIds";
     private const int CookieLifetimeDays = 365;
     private const int ExcludedGameIdsCookieLifetimeDays = 365;
+    private const int MaxExcludedGameIds = 100;
     private const int OwnedGamesCacheResetCookieLifetimeDays = 2;
 
     private readonly IJSRuntime _jsRuntime;
@@ -93,11 +94,7 @@ public sealed class BrowserSteamIdentityStore :
 
     public async ValueTask SetExcludedGameIdsAsync(IEnumerable<int> appIds)
     {
-        var distinctAppIds = appIds
-            .Where(appId => appId > 0)
-            .Distinct()
-            .Order()
-            .ToArray();
+        var distinctAppIds = NormalizeExcludedGameIds(appIds);
 
         var cookieModule = await GetCookieModuleAsync();
 
@@ -180,4 +177,28 @@ public sealed class BrowserSteamIdentityStore :
 
     private static string? CleanInput(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static int[] NormalizeExcludedGameIds(IEnumerable<int> appIds)
+    {
+        var newestIds = new List<int>(MaxExcludedGameIds);
+        var seen = new HashSet<int>();
+
+        foreach (var appId in appIds.Reverse())
+        {
+            if (appId <= 0 || !seen.Add(appId))
+            {
+                continue;
+            }
+
+            newestIds.Add(appId);
+
+            if (newestIds.Count == MaxExcludedGameIds)
+            {
+                break;
+            }
+        }
+
+        newestIds.Reverse();
+        return newestIds.ToArray();
+    }
 }
