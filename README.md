@@ -1,73 +1,131 @@
-# [RSG-UTILITY: SYSTEMS ARCHITECTURE MANUAL]
+# RSG-UTILITY: Random Steam Game Picker
 
-**PROTOCOL ID:** RSG-RANDOMIZER-01  
-**CODENAME:** Random Steam Game Picker  
-**SYSTEM STATUS:** OPERATIONAL  
-**MAINTAINER:** K. GIVLER (ADMIN)  
+**Protocol ID:** RSG-RANDOMIZER-01  
+**Codename:** Random Steam Game Picker  
+**Status:** Operational  
+**Maintainer:** Kyle Givler  
+
+> A fast random game picker for Steam libraries.  
+> Built to answer the ancient question: **“What should I play?”**
+
+**Live instance:** [https://randomsteam.kgivler.com](https://randomsteam.kgivler.com)
 
 ---
 
-## 1.0 SYSTEM OVERVIEW
+## 1.0 System Overview
 
-The **Random Steam Game (RSG)** utility is a high-performance heuristic decision-making engine designed to eliminate decision paralysis within the Steam software environment. This module interfaces directly with the Steam API to query, aggregate, and randomize local user assets, serving the next logical execution path for the user’s gaming cycle.
+Random Steam Game Picker is a small web utility that selects a random game from a public Steam library.
 
-## 1.1 DEPLOYMENT
-The operational instance of the RSG utility is hosted and accessible at the following secure URI:
+It is designed for people with too many games, too little decision-making energy, and a dangerous relationship with the "Choose Again" button.
 
-**[https://randomsteam.kgivler.com](https://randomsteam.kgivler.com)**
+Enter a SteamID or Vanity URL, let the system query your library, and receive one game from the backlog.
 
-## 2.0 ARCHITECTURAL COMPONENTS
+---
 
-The system is comprised of three primary subsystems interacting within the .NET ecosystem:
+## 2.0 Core Features
 
-| Subsystem | Function | Implementation |
+- Pick a random game from a Steam library
+- Supports SteamID and Vanity URL lookup
+- Fast responses using server-side caching
+- Optionally block games from future picks in the browser
+- Reset blocked games
+- View basic game details and playtime
+- Launch directly with `steam://run/{appId}` on supported desktop systems
+
+---
+
+## 3.0 Architecture
+
+The system is built around a small .NET stack:
+
+| Layer | Purpose | Implementation |
 | --- | --- | --- |
-| **Interface** | User Input/Output | Blazor Interactive Auto |
-| **Executive** | Logic & API Gateway | ASP.NET Core API |
-| **Integration** | Data Retrieval | Steam API / Store API |
+| Interface | User input and result display | Blazor Interactive Auto |
+| API | Game selection, validation, Steam access | ASP.NET Core |
+| Steam Integration | Library and app data retrieval | Steam Web API / Store API |
+| Cache | Reduce Steam API calls and improve response time | SQLite-backed distributed cache |
+| Browser State | Remember local picker preferences | Cookies |
 
-* **Data Management:** All volatile state is managed via a distributed caching layer (SQLite by default; SQL Server caching is not supported by default anymore).
-* **Identity Management:** Steam identifiers are remembered with a browser cookie to keep the picker fast between visits.
-
-## 3.0 OPERATIONAL PROCEDURES
-
-To initiate the RSG algorithm, the user must provide a valid unique identifier (SteamID or Vanity URL).
-
-1. **Query Phase:** Input identifier into the Client Interface.
-2. **Processing Phase:** Executive subsystem executes secure API handshake with the Steam Global Network.
-3. **Result Phase:** Heuristic selection of a software asset from the user's backlog.
-
-## 4.0 EXPANSION MODULES (ROADMAP)
-
-The following protocols are currently in the staging environment and scheduled for integration:
-
-* **[PENDING] Authentication Protocols:** Secure JWT-based session handling.
-* **[PLANNED] Favorites Management:** Persistence of high-priority assets.
-* **[PLANNED] Exclusion Protocol:** Heuristic filtering to permanently purge specific assets from the randomized selection pool.
-* **[PLANNED] Playtime Filtering:** Latency-based filtering (e.g., exclude assets with `< 1 hr` runtime).
-
-## 5.0 LEGAL & COMPLIANCE
-
-**COPYRIGHT NOTICE:** © 2026 KYLE GIVLER.
-
-**DISTRIBUTION:** This software is provided under the MIT Open Source License. The author assumes no responsibility for lost time, increased backlogs, or user dissatisfaction with the selected asset. Execute at your own risk.
+The application favors speed over spectacle. The goal is to get a usable answer quickly, not simulate a casino wheel for eight seconds.
 
 ---
 
-# [RSG-UTILITY: SYSTEMS ARCHITECTURE MANUAL]
+## 4.0 Runtime Flow
 
-## 6.0 VISUAL TELEMETRY
+1. User enters a SteamID or Steam Vanity URL.
+2. The server validates the request.
+3. Steam library data is loaded from cache or retrieved from Steam.
+4. A random eligible game is selected.
+5. Game details are returned to the UI.
+6. The user either plays the game, chooses again, or blocks it from future local picks.
 
-The following exhibits provide visual verification of the system's operational state during runtime.
+---
 
-### FIGURE 6.1: EXECUTIVE INTERFACE (DASHBOARD)
+## 5.0 Screenshots
+
+### Main Interface
+
 ![Home Page](docs/images/RandomSteam_Main.png)
-The primary user interface provides high-level control over the heuristic selection process.
 
-> **ADMIN NOTE:** Ensure the browser environment supports WebAssembly for optimal rendering performance of the executive interface.
+The main screen accepts a SteamID or Vanity URL and starts the selection process.
 
-### FIGURE 6.2: HEURISTIC SELECTION OUTPUT
+### Selection Output
+
 ![Results](docs/images/RandomSteam_Game.png)
-The output terminal displaying the asset selected by the randomization algorithm.
 
-> **SYSTEM VERIFICATION:** The output accurately reflects the result of the randomized query against the Steam API network.
+The result screen displays the selected game, playtime, description, and available actions.
+
+---
+
+## 6.0 Roadmap
+
+Planned or considered modules:
+
+- Sign in with Steam
+- Permanent blocked games
+- Favorites
+- Game filters
+- Picker history
+- Export library to CSV
+- Saved game lists
+- Shared game lists
+- Games from other services
+- Manual game entries
+- Admin dashboard
+
+Some features may eventually become supporter or premium features.
+
+---
+
+## 7.0 Known Limitations
+
+- Steam library visibility depends on the user's Steam privacy settings.
+- Browser-based blocked games are stored locally and may be lost if cookies are cleared.
+- `steam://run/{appId}` is mainly useful on desktop systems with Steam installed.
+- Steam API availability and response time can affect uncached requests.
+
+---
+
+## 8.0 Development Notes
+
+This project is intentionally practical and cache-heavy.
+
+The picker is built around the idea that a random game response should feel instant whenever possible. Steam API calls are cached server-side, and browser identity/preferences are kept lightweight.
+
+Current major areas of interest:
+
+- API hardening
+- cache behavior
+- Blazor render mode boundaries
+- user features
+- future authentication/persistence
+
+---
+
+## 9.0 License
+
+Copyright © 2026 Kyle Givler
+
+This project is licensed under the MIT License.
+
+The author assumes no responsibility for lost time, increased backlog guilt, or the system selecting exactly the game you were secretly avoiding.
