@@ -94,21 +94,26 @@ else
                     }
                 </button>
 
-                <button type="button"
-                        class="btn btn-outline-warning py-2 picker-form-secondary"
-                        disabled="@(!_canResetOwnedGamesCache || _isBusy || _isResettingOwnedGamesCache)"
-                        aria-busy="@_isResettingOwnedGamesCache"
-                        @onclick="ResetOwnedGamesCacheAsync">
-                    @if (_isResettingOwnedGamesCache)
-                    {
-                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                        <span>Refreshing cache...</span>
-                    }
-                    else
-                    {
-                        <span>I just bought a new game - refresh owned games cache</span>
-                    }
-                </button>
+                <div class="text-center mt-2">
+                    <button type="button"
+                            class="picker-form-cache-link"
+                            disabled="@(!_canResetOwnedGamesCache || _isBusy || _isResettingOwnedGamesCache)"
+                            aria-busy="@_isResettingOwnedGamesCache"
+                            @onclick="ResetOwnedGamesCacheAsync">
+                        @if (_isResettingOwnedGamesCache)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            <span>Refreshing cache...</span>
+                        }
+                        else
+                        {
+                            <span>Library changed? Refresh Steam game list</span>
+                        }
+                    </button>
+                    <div class="picker-form-cache-help">
+                        Use after buying new games if picks look out of date.
+                    </div>
+                </div>
             </div>
         </EditForm>
     }
