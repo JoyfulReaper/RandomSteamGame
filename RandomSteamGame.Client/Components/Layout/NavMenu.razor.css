@@ -9,70 +9,146 @@
 
 /* Navbar background */
 .navbar {
+    position: relative;
+    z-index: 1000;
     background-color: #2F3033 !important;
     border-bottom: 1px solid #1f2937;
     padding: 0.5rem 0;
 }
 
-.navbar-brand {
+/* Brand - NavLink needs ::deep because it renders an <a> internally */
+.rsg-nav-container ::deep .navbar-brand,
+.rsg-nav-container .navbar-brand {
     color: #ffffff !important;
     font-weight: 600;
     line-height: 1;
+    white-space: nowrap;
+    margin-right: 1.25rem;
+    text-decoration: none !important;
 }
 
+    .rsg-nav-container ::deep .navbar-brand:hover,
+    .rsg-nav-container ::deep .navbar-brand:focus,
+    .rsg-nav-container .navbar-brand:hover,
+    .rsg-nav-container .navbar-brand:focus {
+        color: #ffffff !important;
+        text-decoration: none !important;
+    }
+
 .navbar-toggler {
-    padding: .25rem;
+    padding: 0.25rem;
+    color: #e5e7eb;
 }
 
     .navbar-toggler:focus {
         box-shadow: none;
     }
 
-/* Link and Icon styling */
-.nav-link {
-    color: #9ca3af !important;
-    font-size: 0.95rem !important;
-    padding: 0.5rem 1rem !important;
-    display: flex !important;
-    align-items: center;
-    gap: 0.45rem;
-    white-space: nowrap;
-    line-height: 1;
-}
-
-    .nav-link span {
-        display: inline-block;
-        line-height: 1;
-    }
-
-    .nav-icon {
-        width: 1rem;
-        height: 1rem;
-        flex: 0 0 1rem;
-        display: block;
-        color: currentColor !important;
-    }
-
-    .nav-link:hover,
-    .nav-link.active {
-        color: #ffffff !important;
-    }
-
+/* Collapse container */
 .navbar-collapse {
     align-items: center;
 }
 
+/* Nav list */
 .navbar-nav {
+    display: flex;
+    flex-direction: row;
     align-items: center;
+    gap: 0.15rem;
 }
 
+    /* Nav item */
+    .navbar-nav .nav-item {
+        display: flex;
+        align-items: center;
+    }
+
+        /*
+   Internal NavLink anchors require ::deep.
+   External normal <a> tags are covered by the non-::deep selectors too.
+*/
+        .navbar-nav .nav-item ::deep .nav-link,
+        .navbar-nav .nav-item .nav-link {
+            color: #9ca3af !important;
+            font-size: 0.95rem !important;
+            padding: 0.5rem 0.75rem !important;
+            display: inline-flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            gap: 0.45rem;
+            white-space: nowrap;
+            line-height: 1;
+            text-decoration: none !important;
+        }
+
+            /* SVG icon normalization */
+            .navbar-nav .nav-item ::deep .nav-link .nav-icon,
+            .navbar-nav .nav-item .nav-link .nav-icon {
+                width: 1rem;
+                height: 1rem;
+                min-width: 1rem;
+                flex: 0 0 1rem;
+                display: block !important;
+                margin: 0 !important;
+                color: currentColor !important;
+                line-height: 1;
+                vertical-align: middle;
+            }
+
+            /* Text normalization */
+            .navbar-nav .nav-item ::deep .nav-link span,
+            .navbar-nav .nav-item .nav-link span {
+                display: inline-block;
+                line-height: 1;
+                margin: 0;
+            }
+
+            /* Hover / active */
+            .navbar-nav .nav-item ::deep .nav-link:hover,
+            .navbar-nav .nav-item ::deep .nav-link:focus,
+            .navbar-nav .nav-item ::deep .nav-link.active,
+            .navbar-nav .nav-item .nav-link:hover,
+            .navbar-nav .nav-item .nav-link:focus,
+            .navbar-nav .nav-item .nav-link.active {
+                color: #ffffff !important;
+                text-decoration: none !important;
+            }
+
 /* Mobile adjustments */
-@media (max-width: 768px) {
+@media (max-width: 767.98px) {
+    .rsg-nav-container {
+        align-items: center;
+    }
+
     .navbar-collapse {
         padding-top: 1rem;
     }
 
     .navbar-nav {
+        flex-direction: column;
         align-items: flex-start;
+        gap: 0.25rem;
+        width: 100%;
     }
+
+        .navbar-nav .nav-item {
+            width: 100%;
+        }
+
+            .navbar-nav .nav-item ::deep .nav-link,
+            .navbar-nav .nav-item .nav-link {
+                width: 100%;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
+                padding: 0.65rem 0.75rem !important;
+            }
+
+                .navbar-nav .nav-item ::deep .nav-link .nav-icon,
+                .navbar-nav .nav-item .nav-link .nav-icon {
+                    width: 1rem;
+                    height: 1rem;
+                    flex: 0 0 1rem;
+                }
 }

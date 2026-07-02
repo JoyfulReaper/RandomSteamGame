@@ -1,0 +1,266 @@
+﻿@page "/contributors"
+
+<PageTitle>Contributors - Random Steam Game Picker</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="Supporters, sponsors, and contributors for Random Steam Game Picker." />
+    <link rel="canonical" href="https://randomsteam.kgivler.com/contributors" />
+</HeadContent>
+
+<div class="contributors-page">
+    <section class="contributors-hero">
+        <p class="eyebrow">RSG-UTILITY CONTRIBUTOR LOG</p>
+
+        <h1>Contributors & Sponsors</h1>
+
+        <p class="lead">
+            Random Steam Game Picker is free to use. This page recognizes the people and projects
+            that help support development, hosting, caffeine, and future features.
+        </p>
+
+        <div class="contributors-actions">
+            <a class="btn btn-primary btn-lg" href="/support">
+                Support the Picker
+            </a>
+
+            <a class="btn btn-outline-light btn-lg" href="@SponsorUrl">
+                Contact About Sponsorship
+            </a>
+        </div>
+
+        <p class="fine-print">
+            Sponsor links and graphics are manually reviewed. Listings do not imply endorsement,
+            partnership, or control over the project.
+        </p>
+    </section>
+
+    <section class="contributors-panel">
+        <h2>Featured Sponsors</h2>
+
+        @if (FeaturedSponsors.Count == 0)
+        {
+            <p class="empty-message">
+                No featured sponsors listed yet. The sponsor uplink is standing by.
+            </p>
+        }
+        else
+        {
+            <div class="featured-sponsor-grid">
+                @foreach (var sponsor in FeaturedSponsors)
+                {
+                    <article class="featured-sponsor-card">
+                        @if (!string.IsNullOrWhiteSpace(sponsor.ImageUrl))
+                        {
+                            <div class="sponsor-image-wrap">
+                                @if (!string.IsNullOrWhiteSpace(sponsor.Url))
+                                {
+                                    <a href="@sponsor.Url" target="_blank" rel="noopener noreferrer">
+                                        <img src="@sponsor.ImageUrl" alt="@($"{sponsor.Name} sponsor graphic")" />
+                                    </a>
+                                }
+                                else
+                                {
+                                    <img src="@sponsor.ImageUrl" alt="@($"{sponsor.Name} sponsor graphic")" />
+                                }
+                            </div>
+                        }
+
+                        <div class="sponsor-card-body">
+                            <div class="sponsor-card-header">
+                                <h3>
+                                    @if (!string.IsNullOrWhiteSpace(sponsor.Url))
+                                    {
+                                        <a href="@sponsor.Url" target="_blank" rel="noopener noreferrer">
+                                            @sponsor.Name
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        @sponsor.Name
+                                    }
+                                </h3>
+
+                                <span class="tier-badge">@sponsor.Tier</span>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(sponsor.Description))
+                            {
+                                <p>@sponsor.Description</p>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="contributors-panel">
+        <h2>Supporters</h2>
+
+        @if (Supporters.Count == 0)
+        {
+            <p class="empty-message">
+                No supporters listed yet. You could be the first line in the log.
+            </p>
+        }
+        else
+        {
+            <ul class="contributor-list">
+                @foreach (var supporter in Supporters)
+                {
+                    <li>
+                        <div>
+                            <strong>
+                                @if (!string.IsNullOrWhiteSpace(supporter.Url))
+                                {
+                                    <a href="@supporter.Url" target="_blank" rel="noopener noreferrer">
+                                        @supporter.Name
+                                    </a>
+                                }
+                                else
+                                {
+                                    @supporter.Name
+                                }
+                            </strong>
+
+                            @if (!string.IsNullOrWhiteSpace(supporter.Note))
+                            {
+                                <span>@supporter.Note</span>
+                            }
+                        </div>
+
+                        <span class="contributor-tier">@supporter.Tier</span>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="contributors-panel">
+        <h2>Feature Sponsors</h2>
+
+        @if (FeatureSponsors.Count == 0)
+        {
+            <p class="empty-message">
+                No feature sponsors listed yet.
+            </p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-dark table-striped align-middle contributors-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>Sponsor</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sponsor in FeatureSponsors)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@sponsor.FeatureName</strong>
+                                    @if (!string.IsNullOrWhiteSpace(sponsor.Description))
+                                    {
+                                        <div class="contributor-description">@sponsor.Description</div>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(sponsor.Url))
+                                    {
+                                        <a href="@sponsor.Url" target="_blank" rel="noopener noreferrer">
+                                            @sponsor.Name
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        @sponsor.Name
+                                    }
+                                </td>
+                                <td>
+                                    <span class="status-pill">@sponsor.Status</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="contributors-panel">
+        <h2>Sponsor Graphic Guidelines</h2>
+
+        <p>
+            Sponsor graphics are optional and may be displayed on this page. They are kept small so
+            the picker does not turn into an ad landfill.
+        </p>
+
+        <ul class="requirements-list">
+            <li>Recommended source size: <strong>600×200px</strong></li>
+            <li>Displayed max size: <strong>300×100px</strong></li>
+            <li>Preferred formats: <strong>PNG, WebP, or SVG</strong></li>
+            <li>Max file size: <strong>250 KB</strong></li>
+            <li>Transparent or dark-background-friendly graphics work best</li>
+            <li>No tracking scripts, animated banners, adult content, malware, scams, or political/extremist content</li>
+        </ul>
+    </section>
+</div>
+
+@code {
+    private const string SponsorUrl = "mailto:me@kgivler.com?subject=RSG%20Sponsorship";
+
+    private static readonly IReadOnlyList<FeaturedSponsor> FeaturedSponsors =
+    [
+        // Example:
+        // new(
+        //     "Joyful Reaper",
+        //     "Major Sponsor",
+        //     "/images/contributors/joyful-reaper.png",
+        //     "https://example.com",
+        //     "Supporting future Random Steam Game Picker development.")
+    ];
+
+    private static readonly IReadOnlyList<Contributor> Supporters =
+    [
+        // Example:
+        // new(
+        //     "Example Supporter",
+        //     "$5 Supporter",
+        //     "https://example.com",
+        //     "Thanks for supporting the picker.")
+    ];
+
+    private static readonly IReadOnlyList<FeatureSponsor> FeatureSponsors =
+    [
+        // Example:
+        // new(
+        //     "CSV export",
+        //     "Example Sponsor",
+        //     "https://example.com",
+        //     "Sponsored",
+        //     "Export Steam library data to CSV.")
+    ];
+
+    private sealed record FeaturedSponsor(
+        string Name,
+        string Tier,
+        string? ImageUrl = null,
+        string? Url = null,
+        string? Description = null);
+
+    private sealed record Contributor(
+        string Name,
+        string Tier,
+        string? Url = null,
+        string? Note = null);
+
+    private sealed record FeatureSponsor(
+        string FeatureName,
+        string Name,
+        string? Url,
+        string Status,
+        string? Description = null);
+}

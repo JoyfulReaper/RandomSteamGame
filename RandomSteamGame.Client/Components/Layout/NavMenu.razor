@@ -3,46 +3,79 @@
 
 <nav class="navbar navbar-expand-md navbar-dark bg-dark">
     <div class="container-fluid rsg-nav-container">
-        <a class="navbar-brand" href="">Random Steam</a>
+        <NavLink class="navbar-brand" href="" Match="NavLinkMatch.All" @onclick="CloseNavMenu">
+            Random Steam
+        </NavLink>
 
         <button class="navbar-toggler border-0 shadow-none p-1"
                 @onclick="ToggleNavMenu"
-                aria-label="Toggle navigation">
-
+                aria-label="Toggle navigation"
+                aria-expanded="@(!collapseNavMenu)">
             <svg width="24"
                  height="24"
                  viewBox="0 0 24 24"
                  fill="none"
                  stroke="currentColor"
                  stroke-width="2"
-                 stroke-linecap="round">
+                 stroke-linecap="round"
+                 aria-hidden="true"
+                 focusable="false">
                 <path d="M3 6h18" />
                 <path d="M3 12h18" />
                 <path d="M3 18h18" />
             </svg>
-
         </button>
 
         <div class="collapse navbar-collapse @(collapseNavMenu ? "" : "show")">
             <ul class="navbar-nav me-auto mb-2 mb-md-0">
                 <li class="nav-item">
-                    <a class="nav-link" href="">
-                        <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
+                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All" @onclick="CloseNavMenu">
+                        <svg class="nav-icon nav-icon-home" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
                             <path d="M6.5 14.5v-3.505c0-.245.25-.495.5-.495h2c.25 0 .5.25.5.5v3.5a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.146-.354L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 1.5 7.5v7a.5.5 0 0 0 .5.5h4a.5.5 0 0 0 .5-.5" />
                         </svg>
                         <span>Home</span>
-                    </a>
+                    </NavLink>
                 </li>
+
                 <li class="nav-item">
-                    <a class="nav-link" href="https://kgivler.com" target="_blank" rel="noopener noreferrer">
+                    <NavLink class="nav-link" href="support" @onclick="CloseNavMenu">
+                        <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
+                            <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053.918 3.995.78 5.323 1.508 6.574c.708 1.215 2.054 2.545 4.522 4.302L8 12.278l1.97-1.402c2.468-1.757 3.814-3.087 4.522-4.302.728-1.251.59-2.579.108-3.521-1.114-2.175-4.2-2.772-5.883-1.042z" />
+                        </svg>
+                        <span>Support</span>
+                    </NavLink>
+                </li>
+
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="contributors" @onclick="CloseNavMenu">
+                        <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
+                            <path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6" />
+                            <path fill-rule="evenodd" d="M5.216 14A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1z" />
+                            <path d="M4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5" />
+                        </svg>
+                        <span>Contributors</span>
+                    </NavLink>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="https://kgivler.com"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       @onclick="CloseNavMenu">
                         <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
                             <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2" />
                         </svg>
                         <span>About</span>
                     </a>
                 </li>
+
                 <li class="nav-item">
-                    <a class="nav-link" href="https://github.com/JoyfulReaper/RandomSteamGame" target="_blank" rel="noopener noreferrer">
+                    <a class="nav-link"
+                       href="https://github.com/JoyfulReaper/RandomSteamGame"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       @onclick="CloseNavMenu">
                         <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
                             <path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm9.5 5.5h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1m-6.354-.354a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2a.5.5 0 1 0-.708.708L4.793 6.5z" />
                         </svg>
@@ -57,5 +90,13 @@
 @code {
     private bool collapseNavMenu = true;
 
-    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    private void CloseNavMenu()
+    {
+        collapseNavMenu = true;
+    }
 }

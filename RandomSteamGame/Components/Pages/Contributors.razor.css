@@ -1,0 +1,216 @@
+.contributors-page {
+    min-height: 100vh;
+    padding: 3rem 1rem;
+    color: #e5e7eb;
+    background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 32rem), linear-gradient(135deg, #1a0b2e 0%, #000000 100%);
+}
+
+.contributors-hero,
+.contributors-panel {
+    max-width: 1100px;
+    margin: 0 auto 1.5rem auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(17, 24, 39, 0.58);
+    border-radius: 1rem;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(14px);
+}
+
+.contributors-hero {
+    padding: 2.25rem;
+}
+
+.contributors-panel {
+    padding: 1.5rem;
+}
+
+.eyebrow {
+    margin-bottom: 0.75rem;
+    color: #38bdf8;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.contributors-hero h1 {
+    margin-bottom: 1rem;
+    color: #ffffff;
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    line-height: 1.05;
+}
+
+.lead {
+    max-width: 780px;
+    color: #cbd5e1;
+    font-size: 1.15rem;
+    line-height: 1.7;
+}
+
+.contributors-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 1.5rem 0 1rem 0;
+}
+
+.fine-print,
+.empty-message {
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.featured-sponsor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.featured-sponsor-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 0.85rem;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sponsor-image-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    border-radius: 0.75rem;
+    background: rgba(2, 6, 23, 0.55);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+    .sponsor-image-wrap img {
+        display: block;
+        max-width: 300px;
+        max-height: 100px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+    }
+
+.sponsor-card-body {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.sponsor-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+    .sponsor-card-header h3 {
+        margin: 0;
+        color: #ffffff;
+        font-size: 1.2rem;
+    }
+
+.sponsor-card-body p {
+    margin: 0;
+    color: #cbd5e1;
+}
+
+.tier-badge,
+.status-pill,
+.contributor-tier {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.25rem 0.65rem;
+    color: #bae6fd;
+    background: rgba(14, 165, 233, 0.16);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.contributor-list {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+    .contributor-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.9rem 1rem;
+        border-radius: 0.75rem;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .contributor-list strong {
+        display: block;
+        color: #ffffff;
+    }
+
+    .contributor-list span {
+        display: block;
+        margin-top: 0.2rem;
+        color: #94a3b8;
+        font-size: 0.9rem;
+    }
+
+.contributors-page a {
+    color: #38bdf8;
+}
+
+.contributors-table {
+    margin-bottom: 0;
+}
+
+.contributor-description {
+    margin-top: 0.25rem;
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.requirements-list {
+    display: grid;
+    gap: 0.45rem;
+    margin-bottom: 0;
+    padding-left: 1.25rem;
+    color: #cbd5e1;
+}
+
+@media (max-width: 767.98px) {
+    .contributors-page {
+        padding: 1rem 0.5rem;
+    }
+
+    .contributors-hero,
+    .contributors-panel {
+        padding: 1rem;
+        border-radius: 0.85rem;
+    }
+
+    .featured-sponsor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .contributors-actions .btn {
+        width: 100%;
+    }
+
+    .sponsor-card-header,
+    .contributor-list li {
+        flex-direction: column;
+    }
+
+    .sponsor-image-wrap img {
+        max-width: 240px;
+        max-height: 80px;
+    }
+}
