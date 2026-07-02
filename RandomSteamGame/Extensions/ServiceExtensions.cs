@@ -113,6 +113,7 @@ public static class ServiceExtensions
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<IAppStatsService, AppStatsService>();
+        services.AddScoped<ISteamLibraryExportService, SteamLibraryExportService>();
         services.AddScoped<SqliteConnection>(_ => new SqliteConnection(connectionString));
 
         return services;

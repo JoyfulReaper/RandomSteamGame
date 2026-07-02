@@ -34,17 +34,20 @@ public class GameController : ApiController
     private readonly GameProviderFactory _factory;
     private readonly IOwnedGamesCacheResetTracker _ownedGamesCacheResetTracker;
     private readonly IAppStatsService _appStatsService;
+    private readonly ISteamLibraryExportService _steamLibraryExportService;
     private readonly ILogger<GameController> _logger;
 
     public GameController(
         GameProviderFactory factory,
         IOwnedGamesCacheResetTracker ownedGamesCacheResetTracker,
         IAppStatsService appStatsService,
+        ISteamLibraryExportService steamLibraryExportService,
         ILogger<GameController> logger)
     {
         _factory = factory;
         _ownedGamesCacheResetTracker = ownedGamesCacheResetTracker;
         _appStatsService = appStatsService;
+        _steamLibraryExportService = steamLibraryExportService;
         _logger = logger;
     }
 
@@ -68,6 +71,35 @@ public class GameController : ApiController
 
         var result = await service.GetOwnedGamesAsync(steamId);
         return result.Match(Ok, Problem);
+    }
+
+    /// <summary>
+    /// Exports the list of owned games for a specific Steam ID as CSV.
+    /// GET /api/steam/{steamId}/library/export.csv
+    /// </summary>
+    [HttpGet("{steamId:long}/library/export.csv")]
+    [Produces("text/csv")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportLibrary(string provider, long steamId)
+    {
+        if (!TryGetProvider(provider, out var service))
+        {
+            return Problem([Errors.Steam.UnsupportedProvider(provider)]);
+        }
+
+        if (!IsValidSteamId(steamId))
+        {
+            return Problem([Errors.Steam.InvalidSteamId]);
+        }
+
+        var result = await service.GetOwnedGamesAsync(steamId);
+        if (result.IsError)
+        {
+            return Problem(result.Errors);
+        }
+
+        var csvBytes = _steamLibraryExportService.Export(result.Value);
+        return File(csvBytes, "text/csv; charset=utf-8", $"steam-library-{steamId}.csv");
     }
 
     /// <summary>
