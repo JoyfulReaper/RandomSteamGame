@@ -21,6 +21,22 @@ app.ConfigurePipeline(app.Environment);
 app.MapStaticAssets();
 app.MapControllers();
 
+app.MapMethods("/", [HttpMethods.Head], (HttpContext context) =>
+{
+    context.Response.ContentType = "text/html; charset=utf-8";
+    return Results.Empty;
+});
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/dev/throw", () =>
+    {
+        throw new InvalidOperationException("Intentional test exception for 500 page.");
+    });
+
+    app.MapGet("/dev/500", () => Results.StatusCode(StatusCodes.Status500InternalServerError));
+}
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()

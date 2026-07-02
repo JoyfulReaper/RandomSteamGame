@@ -1,0 +1,111 @@
+﻿@page "/"
+
+@inject NavigationManager NavManager
+@inject IBetaAvailabilityService BetaAvailabilityService
+
+<HeadContent>
+    <link rel="canonical" href="@CanonicalUrl" />
+    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve, Game, Video Game, videogame" />
+    <meta name="description" content="Discover your next Steam game with our blazing fast random Steam game picker with caching that works with Steam IDs or vanity URLs." />
+    <meta name="author" content="Kyle Givler" />
+</HeadContent>
+
+<PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
+
+<main class="container mt-5 home-shell">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            @if (_isBetaSite)
+            {
+                <div class="home-beta-note-wrap mb-4">
+                    <div class="home-beta-note" role="note">
+                        <span class="home-beta-note-pill">Beta site</span>
+                        <span class="home-beta-note-text">
+                            You are on the beta build.
+                            Stable release is at
+                            <a href="https://randomsteam.kgivler.com/"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               class="home-beta-note-link">randomsteam.kgivler.com</a>.
+                        </span>
+                    </div>
+                </div>
+            }
+            else if (_betaAvailable)
+            {
+                <div class="home-beta-banner-wrap mb-4">
+                    <div class="home-beta-banner">
+                        <div class="text-center text-md-start">
+                            <span class="home-beta-pill">Beta available</span>
+                            <span class="home-beta-text">A live beta picker is running right now.</span>
+                        </div>
+                        <a href="https://randombeta.kgivler.com/"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="home-beta-link">Click here to try it</a>
+                    </div>
+                </div>
+            }
+
+            <div class="home-card">
+                <p class="home-eyebrow text-center mb-2">
+                    Steam library roulette
+                </p>
+
+                <h1 class="home-title text-center mb-3">Random Steam Picker</h1>
+
+                <p class="home-lead text-center small mb-4">
+                    Paste a Steam ID or vanity URL to pick a random game from your library.
+                </p>
+
+                <SteamPickerForm @rendermode="InteractiveAuto" />
+            </div>
+
+            <footer class="home-footer text-center mt-4 text-muted small">
+                <p>
+                    Need help finding your Steam ID?
+                    Check the
+                    <a href="https://help.steampowered.com/en/faqs/view/2816-BE67-5B69-0FEC"
+                       target="_blank"
+                       class="text-info"
+                       rel="noopener noreferrer">Steam ID guide</a>.
+                    Ensure your
+                    <a href="https://help.steampowered.com/en/faqs/view/588C-C67D-0251-C276"
+                       target="_blank"
+                       class="text-info"
+                       rel="noopener noreferrer">profile is public</a>.
+                </p>
+
+                <HomeStats />
+
+                <p>
+                    Please Report Any <span class="text-danger">Bugs:</span>
+                    <a href="https://github.com/JoyfulReaper/RandomSteamGame/issues"
+                       target="_blank"
+                       class="text-info"
+                       rel="noopener noreferrer">GitHub Issues</a>
+                </p>
+            </footer>
+
+        </div>
+    </div>
+</main>
+
+@code {
+    private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
+    private bool _betaAvailable;
+    private bool _isBetaSite;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isBetaSite = string.Equals(
+            NavManager.ToAbsoluteUri(NavManager.Uri).Host,
+            "randombeta.kgivler.com",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!_isBetaSite)
+        {
+            _betaAvailable = await BetaAvailabilityService.IsBetaAvailableAsync();
+        }
+    }
+}

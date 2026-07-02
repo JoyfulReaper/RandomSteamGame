@@ -27,30 +27,13 @@ public static class SteamApiDependencyInjection
         var steamOptions = configuration.GetSection("Steam").Get<SteamClientApiOptions>()
                            ?? throw new InvalidOperationException("Steam configuration is missing.");
 
-        // Cache Provider Logic
-        if (steamOptions.CacheProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddOptions<SqliteDistributedCacheOptions>()
-                .Configure(options =>
-                {
-                    options.ConnectionString = BuildSqliteConnectionString(steamOptions.ConnectionString);
-                });
-
-            services.AddSingleton<Microsoft.Extensions.Caching.Distributed.IDistributedCache, SqliteDistributedCache>();
-        }
-        else if (steamOptions.CacheProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
-        {
-            services.AddDistributedSqlServerCache(options =>
+        services.AddOptions<SqliteDistributedCacheOptions>()
+            .Configure(options =>
             {
-                options.ConnectionString = steamOptions.ConnectionString;
-                options.SchemaName = steamOptions.CacheSchema;
-                options.TableName = steamOptions.CacheTable;
+                options.ConnectionString = BuildSqliteConnectionString(steamOptions.ConnectionString);
             });
-        }
-        else
-        {
-            throw new InvalidOperationException($"Unsupported CacheProvider: {steamOptions.CacheProvider}. Use 'SQLite' or 'SqlServer'.");
-        }
+
+        services.AddSingleton<Microsoft.Extensions.Caching.Distributed.IDistributedCache, SqliteDistributedCache>();
 
         // Add hybrid cache (L1 In-Memory + L2 Distributed)
         services.AddHybridCache(options =>

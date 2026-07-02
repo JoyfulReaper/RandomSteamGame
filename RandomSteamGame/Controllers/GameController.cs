@@ -14,6 +14,7 @@ using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 
 namespace RandomSteamGame.Controllers;
 
@@ -24,6 +25,12 @@ namespace RandomSteamGame.Controllers;
 [EnableRateLimiting("steam_api_limiter")]
 public class GameController : ApiController
 {
+    private const long MinSteamId = 10_000_000_000_000_000L;
+    private const long MaxSteamId = 99_999_999_999_999_999L;
+    private static readonly Regex VanityUrlPattern = new(
+        "^[A-Za-z0-9_-]{3,64}$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     private readonly GameProviderFactory _factory;
     private readonly IOwnedGamesCacheResetTracker _ownedGamesCacheResetTracker;
     private readonly IAppStatsService _appStatsService;
@@ -54,6 +61,11 @@ public class GameController : ApiController
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);
         }
 
+        if (!IsValidSteamId(steamId))
+        {
+            return Problem([Errors.Steam.InvalidSteamId]);
+        }
+
         var result = await service.GetOwnedGamesAsync(steamId);
         return result.Match(Ok, Problem);
     }
@@ -69,6 +81,11 @@ public class GameController : ApiController
         if (!TryGetProvider(provider, out var service))
         {
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);
+        }
+
+        if (!IsValidSteamId(userId))
+        {
+            return Problem([Errors.Steam.InvalidSteamId]);
         }
 
         var nextAvailableAt = await _ownedGamesCacheResetTracker.GetNextAvailableAtAsync(userId);
@@ -99,11 +116,18 @@ public class GameController : ApiController
     public async Task<IActionResult> GetRandomGame(
         string provider,
         [FromQuery] long? userId,
-        [FromQuery] string? vanityUrl)
+        [FromQuery] string? vanityUrl,
+        [FromQuery] bool unplayedOnly = false)
     {
         if (!TryGetProvider(provider, out var service))
         {
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);
+        }
+
+        var identifierValidation = ValidateIdentifier(userId, vanityUrl);
+        if (identifierValidation is not null)
+        {
+            return Problem([identifierValidation.Value]);
         }
 
         var targetId = await ResolveIdentifier(service, userId, vanityUrl);
@@ -112,7 +136,7 @@ public class GameController : ApiController
             return Problem(targetId.Errors);
         }
 
-        var result = await service.GetRandomGameAsync(targetId.Value);
+        var result = await service.GetRandomGameAsync(targetId.Value, unplayedOnly);
         if (result.IsError)
         {
             return Problem(result.Errors);
@@ -131,11 +155,18 @@ public class GameController : ApiController
     public async Task<IActionResult> GetRandomGameDetails(
         string provider,
         [FromQuery] long? userId,
-        [FromQuery] string? vanityUrl)
+        [FromQuery] string? vanityUrl,
+        [FromQuery] bool unplayedOnly = false)
     {
         if (!TryGetProvider(provider, out var service))
         {
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);
+        }
+
+        var identifierValidation = ValidateIdentifier(userId, vanityUrl);
+        if (identifierValidation is not null)
+        {
+            return Problem([identifierValidation.Value]);
         }
 
         var targetId = await ResolveIdentifier(service, userId, vanityUrl);
@@ -144,7 +175,7 @@ public class GameController : ApiController
             return Problem(targetId.Errors);
         }
 
-        var result = await service.GetRandomGameDetailsAsync(targetId.Value);
+        var result = await service.GetRandomGameDetailsAsync(targetId.Value, unplayedOnly);
         if (result.IsError)
         {
             return Problem(result.Errors);
@@ -167,6 +198,11 @@ public class GameController : ApiController
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);
         }
 
+        if (!IsValidVanityUrl(vanityUrl))
+        {
+            return Problem([Errors.Steam.InvalidVanityUrl]);
+        }
+
         var result = await service.ResolveIdentifierAsync(vanityUrl);
         return result.Match(
             result => Ok(result),
@@ -178,6 +214,31 @@ public class GameController : ApiController
         [NotNullWhen(true)] out IGameProvider? service)
     {
         return _factory.TryGetProvider(provider, out service);
+    }
+
+    private static Error? ValidateIdentifier(long? userId, string? vanityUrl)
+    {
+        if (userId.HasValue && !IsValidSteamId(userId.Value))
+        {
+            return Errors.Steam.InvalidSteamId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(vanityUrl) && !IsValidVanityUrl(vanityUrl))
+        {
+            return Errors.Steam.InvalidVanityUrl;
+        }
+
+        return null;
+    }
+
+    private static bool IsValidSteamId(long steamId)
+    {
+        return steamId is >= MinSteamId and <= MaxSteamId;
+    }
+
+    private static bool IsValidVanityUrl(string vanityUrl)
+    {
+        return VanityUrlPattern.IsMatch(vanityUrl);
     }
 
     private static async Task<ErrorOr<long>> ResolveIdentifier(

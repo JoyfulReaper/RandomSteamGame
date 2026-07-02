@@ -14,21 +14,23 @@ public class ServerSteamIdentityReader : ISteamIdentityReader
 
     public ValueTask<SteamIdentity> GetIdentityAsync()
     {
-        var steamId = _http.HttpContext?.Request.Cookies["SteamId"];
-        var vanityUrl = _http.HttpContext?.Request.Cookies["VanityUrl"];
+        var steamId = _http.HttpContext?.Request.Cookies[SteamIdentityCookies.SteamId];
+        var vanityUrl = _http.HttpContext?.Request.Cookies[SteamIdentityCookies.VanityUrl];
+        var unplayedOnlyCookie = _http.HttpContext?.Request.Cookies[SteamIdentityCookies.UnplayedOnly];
+        var unplayedOnly = bool.TryParse(unplayedOnlyCookie, out var parsedUnplayedOnly) && parsedUnplayedOnly;
 
-        return ValueTask.FromResult(new SteamIdentity(steamId, vanityUrl));
+        return ValueTask.FromResult(new SteamIdentity(steamId, vanityUrl, unplayedOnly));
     }
 
     public ValueTask<string?> GetSteamIdAsync()
     {
-        var value = _http.HttpContext?.Request.Cookies["SteamId"];
+        var value = _http.HttpContext?.Request.Cookies[SteamIdentityCookies.SteamId];
         return ValueTask.FromResult(value);
     }
 
     public ValueTask<string?> GetVanityUrlAsync()
     {
-        var value = _http.HttpContext?.Request.Cookies["VanityUrl"];
+        var value = _http.HttpContext?.Request.Cookies[SteamIdentityCookies.VanityUrl];
         return ValueTask.FromResult(value);
     }
 }

@@ -18,6 +18,14 @@ public static partial class Errors
             code: "Steam.AmbiguousIdentifier",
             description: "Provide either a Steam ID or vanity URL, not both.");
 
+        public static Error InvalidSteamId => Error.Validation(
+            code: "Steam.InvalidSteamId",
+            description: "Steam ID must be exactly 17 digits.");
+
+        public static Error InvalidVanityUrl => Error.Validation(
+            code: "Steam.InvalidVanityUrl",
+            description: "Steam vanity URL must be 3-64 characters and contain only letters, numbers, underscores, or hyphens.");
+
         public static Error VanityResolutionFailed => Error.NotFound(
             code: "Steam.VanityResolutionFailed",
             description: "Failed to resolve vanity URL.");
@@ -35,5 +43,9 @@ public static partial class Errors
         public static Error SteamApiSuccessButCouldntGetAppData => Error.Failure(
             code: "Steam.ApiSuccessButCouldntGetAppData",
             description: "Steam API returned success but we were unable to get app data for any supplied AppIds after the maximum number of retries.");
+
+        public static Error NoSelectableGamesAfterExclusions => Error.NotFound(
+            code: "Steam.NoSelectableGamesAfterExclusions",
+            description: "Every game in this library is currently excluded. Clear your blocked games and try again.");
     }
 }

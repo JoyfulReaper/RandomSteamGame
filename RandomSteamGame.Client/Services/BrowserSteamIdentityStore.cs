@@ -18,10 +18,11 @@ public sealed class BrowserSteamIdentityStore :
     ISteamIdentityWriter,
     IAsyncDisposable
 {
-    private const string SteamIdCookieName = "SteamId";
-    private const string VanityUrlCookieName = "VanityUrl";
     private const string OwnedGamesCacheResetAtCookieName = "OwnedGamesCacheResetAt";
+    private const string ExcludedGameIdsCookieName = "ExcludedGameIds";
     private const int CookieLifetimeDays = 365;
+    private const int ExcludedGameIdsCookieLifetimeDays = 365;
+    private const int MaxExcludedGameIds = 100;
     private const int OwnedGamesCacheResetCookieLifetimeDays = 2;
 
     private readonly IJSRuntime _jsRuntime;
@@ -35,12 +36,15 @@ public sealed class BrowserSteamIdentityStore :
     public async ValueTask<SteamIdentity> GetIdentityAsync()
     {
         var cookieModule = await GetCookieModuleAsync();
-        var steamId = CleanInput(await cookieModule.InvokeAsync<string>("getCookie", SteamIdCookieName));
+        var steamId = CleanInput(await cookieModule.InvokeAsync<string>("getCookie", SteamIdentityCookies.SteamId));
         var vanityUrl = steamId is null
-            ? CleanInput(await cookieModule.InvokeAsync<string>("getCookie", VanityUrlCookieName))
+            ? CleanInput(await cookieModule.InvokeAsync<string>("getCookie", SteamIdentityCookies.VanityUrl))
             : null;
+        var unplayedOnly = bool.TryParse(
+            CleanInput(await cookieModule.InvokeAsync<string>("getCookie", SteamIdentityCookies.UnplayedOnly)),
+            out var parsedUnplayedOnly) && parsedUnplayedOnly;
 
-        return new SteamIdentity(steamId, vanityUrl);
+        return new SteamIdentity(steamId, vanityUrl, unplayedOnly);
     }
 
     async Task ISteamIdentityWriter.SetIdentityAsync(SteamIdentity identity)
@@ -57,15 +61,60 @@ public sealed class BrowserSteamIdentityStore :
         }
 
         var cookieModule = await GetCookieModuleAsync();
-        await cookieModule.InvokeVoidAsync("setCookie", SteamIdCookieName, identity.SteamId.Trim(), CookieLifetimeDays);
-        await cookieModule.InvokeVoidAsync("deleteCookie", VanityUrlCookieName);
+        await cookieModule.InvokeVoidAsync("setCookie", SteamIdentityCookies.SteamId, identity.SteamId.Trim(), CookieLifetimeDays);
+        await cookieModule.InvokeVoidAsync("deleteCookie", SteamIdentityCookies.VanityUrl);
+        await cookieModule.InvokeVoidAsync("setCookie", SteamIdentityCookies.UnplayedOnly, identity.UnplayedOnly.ToString().ToLowerInvariant(), CookieLifetimeDays);
     }
 
     public async ValueTask ClearAsync()
     {
         var cookieModule = await GetCookieModuleAsync();
-        await cookieModule.InvokeVoidAsync("deleteCookie", SteamIdCookieName);
-        await cookieModule.InvokeVoidAsync("deleteCookie", VanityUrlCookieName);
+        await cookieModule.InvokeVoidAsync("deleteCookie", SteamIdentityCookies.SteamId);
+        await cookieModule.InvokeVoidAsync("deleteCookie", SteamIdentityCookies.VanityUrl);
+        await cookieModule.InvokeVoidAsync("deleteCookie", SteamIdentityCookies.UnplayedOnly);
+    }
+
+    public async ValueTask<IReadOnlyCollection<int>> GetExcludedGameIdsAsync()
+    {
+        var cookieModule = await GetCookieModuleAsync();
+        var cookieValue = CleanInput(await cookieModule.InvokeAsync<string>("getCookie", ExcludedGameIdsCookieName));
+
+        if (cookieValue is null)
+        {
+            return Array.Empty<int>();
+        }
+
+        return cookieValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => int.TryParse(value, out var appId) ? appId : 0)
+            .Where(appId => appId > 0)
+            .Distinct()
+            .ToArray();
+    }
+
+    public async ValueTask SetExcludedGameIdsAsync(IEnumerable<int> appIds)
+    {
+        var distinctAppIds = NormalizeExcludedGameIds(appIds);
+
+        var cookieModule = await GetCookieModuleAsync();
+
+        if (distinctAppIds.Length == 0)
+        {
+            await cookieModule.InvokeVoidAsync("deleteCookie", ExcludedGameIdsCookieName);
+            return;
+        }
+
+        await cookieModule.InvokeVoidAsync(
+            "setCookie",
+            ExcludedGameIdsCookieName,
+            string.Join(",", distinctAppIds),
+            ExcludedGameIdsCookieLifetimeDays);
+    }
+
+    public async ValueTask ClearExcludedGameIdsAsync()
+    {
+        var cookieModule = await GetCookieModuleAsync();
+        await cookieModule.InvokeVoidAsync("deleteCookie", ExcludedGameIdsCookieName);
     }
 
     public async ValueTask<DateTimeOffset?> GetOwnedGamesCacheResetAtAsync()
@@ -128,4 +177,28 @@ public sealed class BrowserSteamIdentityStore :
 
     private static string? CleanInput(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static int[] NormalizeExcludedGameIds(IEnumerable<int> appIds)
+    {
+        var newestIds = new List<int>(MaxExcludedGameIds);
+        var seen = new HashSet<int>();
+
+        foreach (var appId in appIds.Reverse())
+        {
+            if (appId <= 0 || !seen.Add(appId))
+            {
+                continue;
+            }
+
+            newestIds.Add(appId);
+
+            if (newestIds.Count == MaxExcludedGameIds)
+            {
+                break;
+            }
+        }
+
+        newestIds.Reverse();
+        return newestIds.ToArray();
+    }
 }

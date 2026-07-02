@@ -43,10 +43,18 @@ public class CacheServiceIntegrationTests
         };
 
         // Act - First call (Cache Miss)
-        var result1 = await _cacheService.GetOrCreateAsync(key, factory, policy);
+        var result1 = await _cacheService.GetOrCreateAsync(
+            key,
+            factory,
+            policy,
+            ct: TestContext.Current.CancellationToken);
 
         // Act - Second call (Cache Hit)
-        var result2 = await _cacheService.GetOrCreateAsync(key, factory, policy);
+        var result2 = await _cacheService.GetOrCreateAsync(
+            key,
+            factory,
+            policy,
+            ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("SteamData", result1);

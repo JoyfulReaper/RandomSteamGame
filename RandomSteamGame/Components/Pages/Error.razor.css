@@ -1,0 +1,116 @@
+.terminal-theme {
+    background-color: #0b111e;
+    font-family: monospace, sans-serif;
+    color: #e2e8f0;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.main-container {
+    padding: 3rem 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.terminal-window {
+    background-color: #111827;
+    border: 1px solid #374151;
+    border-radius: 0.5rem;
+    width: 100%;
+    max-width: 800px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.terminal-header {
+    background-color: #1f2937;
+    border-bottom: 1px solid #374151;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.terminal-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.close-dot {
+    background-color: #ef4444;
+}
+
+.minimize-dot {
+    background-color: #f59e0b;
+}
+
+.expand-dot {
+    background-color: #10b981;
+}
+
+.terminal-title {
+    color: #cbd5e1;
+}
+
+.terminal-body {
+    padding: 3rem 2rem;
+    text-align: center;
+}
+
+.cmd-line {
+    color: #e2e8f0;
+}
+
+.prompt {
+    color: #4ade80;
+}
+
+.dynamic-pulse {
+    text-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+}
+
+.terminal-lead {
+    color: #ffffff;
+}
+
+.error-internal-fault {
+    background-color: rgba(220, 53, 69, 0.05);
+    border: 1px solid #dc3545;
+    padding: 1rem;
+    max-width: 600px;
+    margin: 2rem auto;
+    text-align: left;
+}
+
+.project-terminal-badge {
+    max-width: 600px;
+}
+
+.error-text-dim {
+    color: #6b7280;
+}
+
+.error-text-light {
+    color: #d1d5db;
+}
+
+.terminal-divider {
+    border-top: 1px solid #374151;
+}
+
+.terminal-btn {
+    display: inline-block;
+    padding: 0.5rem 1.5rem;
+    color: #dc3545;
+    border: 1px solid #dc3545;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: 0.2s;
+}
+
+    .terminal-btn:hover {
+        background-color: #dc3545;
+        color: #fff;
+    }

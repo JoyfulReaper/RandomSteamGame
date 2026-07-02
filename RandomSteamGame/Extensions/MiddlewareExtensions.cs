@@ -22,6 +22,7 @@ public static class MiddlewareExtensions
         if (env.IsDevelopment())
         {
             app.UseWebAssemblyDebugging();
+            //app.UseExceptionHandler("/Error", createScopeForErrors: true);
         }
         else
         {
@@ -53,6 +54,7 @@ public static class MiddlewareExtensions
         });
 
         app.UseForwardedHeaders(forwardedOptions);
+
         app.UseCors("DefaultCors");
         app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 

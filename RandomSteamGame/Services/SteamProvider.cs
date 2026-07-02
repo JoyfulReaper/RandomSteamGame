@@ -6,6 +6,7 @@
  */
 
 using ErrorOr;
+using Microsoft.AspNetCore.Http;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
@@ -18,6 +19,7 @@ public class SteamProvider : IGameProvider
 {
     private readonly ISteamClient _steamClient;
     private readonly ISteamStoreClient _steamStoreClient;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IHtmlSanitizerService _htmlSanitizer;
     private readonly ILogger<SteamProvider> _logger;
 
@@ -28,30 +30,41 @@ public class SteamProvider : IGameProvider
     public SteamProvider(
         ISteamClient steamClient,
         ISteamStoreClient steamStoreClient,
+        IHttpContextAccessor httpContextAccessor,
         IHtmlSanitizerService htmlSanitizerService,
         ILogger<SteamProvider> logger)
     {
         _htmlSanitizer = htmlSanitizerService;
         _steamClient = steamClient;
         _steamStoreClient = steamStoreClient;
+        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
 
     public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)
         => await FetchOwnedGamesAsync(userId);
 
-    public async Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId)
-        => await FetchRandomGameAsync(userId);
+    public async Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId, bool unplayedOnly = false)
+        => await FetchRandomGameAsync(userId, unplayedOnly);
 
-    public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId)
-        => await FetchRandomGameDetailsAsync(userId);
+    public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false)
+        => await FetchRandomGameDetailsAsync(userId, unplayedOnly);
 
     public async Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)
         => await FetchSteamIdFromVanityAsync(identifier);
 
     public async Task<ErrorOr<OwnedGamesResponse>> FetchOwnedGamesAsync(long steamId)
     {
-        var ownedGames = await _steamClient.GetOwnedGames(steamId);
+        SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames;
+        try
+        {
+            ownedGames = await _steamClient.GetOwnedGames(steamId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting owned games for SteamID: {SteamId}", steamId);
+            return Errors.Steam.SteamApiFailed;
+        }
 
         if (ownedGames?.Games == null || ownedGames.Games.Count == 0)
         {
@@ -86,7 +99,7 @@ public class SteamProvider : IGameProvider
         }
     }
 
-    public async Task<ErrorOr<GameDetails>> FetchRandomGameDetailsAsync(long steamId)
+    public async Task<ErrorOr<GameDetails>> FetchRandomGameDetailsAsync(long steamId, bool unplayedOnly = false)
     {
         try
         {
@@ -96,8 +109,15 @@ public class SteamProvider : IGameProvider
                 return Errors.Steam.EmptyLibrary;
             }
 
-            var appData = await GetRandomGameDataAsync(ownedGames);
-            if (appData is null)
+            var appDataResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly);
+            if (appDataResult.IsError)
+            {
+                return appDataResult.Errors;
+            }
+
+            var appData = appDataResult.Value;
+            var matchingGame = ownedGames.Games.FirstOrDefault(g => g.AppId == appData.SteamAppId);
+            if (matchingGame == null)
             {
                 return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
             }
@@ -107,7 +127,13 @@ public class SteamProvider : IGameProvider
                 Id = appData.SteamAppId,
                 Name = appData.Name,
                 Description = _htmlSanitizer.Sanitize(appData.AboutTheGame),
-                HeaderImage = appData.HeaderImage
+                HeaderImage = appData.HeaderImage,
+                PlaytimeForever = matchingGame.PlaytimeForever,
+                PlaytimeWindowsForever = matchingGame.PlaytimeWindowsForever,
+                PlaytimeMacForever = matchingGame.PlaytimeMacForever,
+                PlaytimeLinuxForever = matchingGame.PlaytimeLinuxForever,
+                Playtime2Weeks = matchingGame.Playtime2Weeks,
+                RTimeLastPlayed = matchingGame.RTimeLastPlayed
             };
         }
         catch (Exception ex)
@@ -117,7 +143,7 @@ public class SteamProvider : IGameProvider
         }
     }
 
-    public async Task<ErrorOr<RandomGameResponse>> FetchRandomGameAsync(long steamId)
+    public async Task<ErrorOr<RandomGameResponse>> FetchRandomGameAsync(long steamId, bool unplayedOnly = false)
     {
         try
         {
@@ -127,11 +153,13 @@ public class SteamProvider : IGameProvider
                 return Errors.Steam.EmptyLibrary;
             }
 
-            var appData = await GetRandomGameDataAsync(ownedGames);
-            if (appData is null)
+            var appDataResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly);
+            if (appDataResult.IsError)
             {
-                return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
+                return appDataResult.Errors;
             }
+
+            var appData = appDataResult.Value;
 
             var matchingGame = ownedGames.Games.FirstOrDefault(g => g.AppId == appData.SteamAppId);
             if (matchingGame == null)
@@ -166,28 +194,80 @@ public class SteamProvider : IGameProvider
         }
     }
 
-    private async Task<AppData?> GetRandomGameDataAsync(SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames)
+    private async Task<ErrorOr<AppData>> GetRandomGameDataAsync(
+        SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames,
+        bool unplayedOnly)
     {
-        int attempts = 0;
-        var triedThisRequest = new HashSet<int>();
+        var excludedGameIds = GetExcludedGameIds();
+        var shuffledGameIds = GameSelectionHelper.GetSelectableGameIds(
+            ownedGames.Games,
+            excludedGameIds,
+            game => game.AppId,
+            game => !unplayedOnly || IsUnplayed(game));
 
-        while (attempts < MAX_ATTEMPTS && triedThisRequest.Count < ownedGames.Games.Count)
+        if (shuffledGameIds.Count == 0)
         {
-            var selectedGame = ownedGames.Games[Random.Shared.Next(0, ownedGames.Games.Count)];
-            if (!triedThisRequest.Add(selectedGame.AppId))
-                continue;
+            _logger.LogDebug("All owned games were excluded for the current request.");
+            return Errors.Steam.NoSelectableGamesAfterExclusions;
+        }
 
-            var appData = await _steamStoreClient.GetAppData(selectedGame.AppId);
+        int attempts = 0;
+
+        foreach (var selectedAppId in shuffledGameIds)
+        {
+            if (attempts >= MAX_ATTEMPTS)
+            {
+                break;
+            }
+
+            var appData = await _steamStoreClient.GetAppData(selectedAppId);
+            attempts++;
 
             if (appData != null)
             {
                 return appData;
             }
 
-            attempts++;
-            _logger.LogDebug("Steam store confirmed AppId {AppId} is unavailable.", selectedGame.AppId);
+            _logger.LogDebug("Steam store confirmed AppId {AppId} is unavailable.", selectedAppId);
         }
-        return null;
+
+        return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
+    }
+
+    private HashSet<int> GetExcludedGameIds()
+    {
+        var cookieValue = _httpContextAccessor.HttpContext?.Request.Cookies["ExcludedGameIds"];
+
+        if (string.IsNullOrWhiteSpace(cookieValue))
+        {
+            return [];
+        }
+
+        return cookieValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => int.TryParse(value, out var appId) ? appId : (int?)null)
+            .Where(appId => appId.HasValue)
+            .Select(appId => appId!.Value)
+            .ToHashSet();
+    }
+
+    internal static bool IsUnplayed(SteamApiClient.Contracts.SteamApi.Game game)
+    {
+        return game.PlaytimeForever <= 0 &&
+               game.PlaytimeWindowsForever <= 0 &&
+               game.PlaytimeMacForever <= 0 &&
+               game.PlaytimeLinuxForever <= 0 &&
+               game.Playtime2Weeks <= 0 &&
+               game.RTimeLastPlayed <= 0;
+    }
+
+    internal static int GetDisplayPlaytimeMinutes(SteamApiClient.Contracts.SteamApi.Game game)
+    {
+        var platformTotal = game.PlaytimeWindowsForever + game.PlaytimeMacForever + game.PlaytimeLinuxForever;
+
+        return Math.Max(
+            game.PlaytimeForever,
+            Math.Max(platformTotal, game.Playtime2Weeks));
     }
 
     private static OwnedGamesResponse MapToOwnedGamesResponse(long steamId, SteamApiClient.Contracts.SteamApi.OwnedGames sdkOwnedGames)

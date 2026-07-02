@@ -51,7 +51,9 @@ public class SteamStoreClientTests
         var client = CreateClient(jsonPayload, HttpStatusCode.OK);
 
         // Act
-        var result = await client.GetAppData(targetAppId);
+        var result = await client.GetAppData(
+            targetAppId,
+            ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -65,15 +67,55 @@ public class SteamStoreClientTests
         var client = CreateClient(string.Empty, HttpStatusCode.InternalServerError);
 
         // Act
-        var result = await client.GetAppData(123);
+        var result = await client.GetAppData(
+            123,
+            ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
     }
 
-    private SteamStoreClient CreateClient(string responseContent, HttpStatusCode statusCode)
+    [Fact]
+    public async Task GetAppData_ApiFails_DoesNotCacheNullResult()
     {
-        var httpClient = new HttpClient(new MockHttpMessageHandler(responseContent, statusCode))
+        // Arrange
+        int targetAppId = 400;
+        var successPayload = JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            {
+                targetAppId.ToString(), new
+                {
+                    success = true,
+                    data = new { name = "Portal", steam_appid = targetAppId }
+                }
+            }
+        });
+        var handler = new SequencedHttpMessageHandler(
+            (string.Empty, HttpStatusCode.InternalServerError),
+            (successPayload, HttpStatusCode.OK));
+        var client = CreateClient(handler);
+
+        // Act
+        var failedResult = await client.GetAppData(
+            targetAppId,
+            ct: TestContext.Current.CancellationToken);
+        var successfulResult = await client.GetAppData(
+            targetAppId,
+            ct: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Null(failedResult);
+        Assert.NotNull(successfulResult);
+        Assert.Equal("Portal", successfulResult.Name);
+        Assert.Equal(2, handler.CallCount);
+    }
+
+    private SteamStoreClient CreateClient(string responseContent, HttpStatusCode statusCode)
+        => CreateClient(new MockHttpMessageHandler(responseContent, statusCode));
+
+    private SteamStoreClient CreateClient(HttpMessageHandler handler)
+    {
+        var httpClient = new HttpClient(handler)
         {
             BaseAddress = new Uri("https://store.steampowered.com/")
         };
@@ -117,6 +159,36 @@ public class MockHttpMessageHandler : HttpMessageHandler
         var response = new HttpResponseMessage(_statusCode)
         {
             Content = new StringContent(_responseContent)
+        };
+
+        return Task.FromResult(response);
+    }
+}
+
+public class SequencedHttpMessageHandler : HttpMessageHandler
+{
+    private readonly Queue<(string ResponseContent, HttpStatusCode StatusCode)> _responses;
+
+    public SequencedHttpMessageHandler(params (string ResponseContent, HttpStatusCode StatusCode)[] responses)
+    {
+        _responses = new Queue<(string ResponseContent, HttpStatusCode StatusCode)>(responses);
+    }
+
+    public int CallCount { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        CallCount++;
+
+        var responseData = _responses.Count > 0
+            ? _responses.Dequeue()
+            : throw new InvalidOperationException("No response configured for this request.");
+
+        var response = new HttpResponseMessage(responseData.StatusCode)
+        {
+            Content = new StringContent(responseData.ResponseContent)
         };
 
         return Task.FromResult(response);

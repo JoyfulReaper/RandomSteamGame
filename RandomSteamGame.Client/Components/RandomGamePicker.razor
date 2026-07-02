@@ -1,0 +1,356 @@
+@implements IDisposable
+
+@inject PersistentComponentState ApplicationState
+@inject ILogger<RandomGamePicker> Logger
+@inject RandomSteamApiClient ApiClient
+@inject IBrowserSteamIdentityStore BrowserIdentityStore
+@inject IJSRuntime JSRuntime
+
+@if (_gameDetails is not null)
+{
+    <PageTitle>Random Steam Game Picker - @_gameDetails.Name</PageTitle>
+}
+
+<div class="game-page-wrapper" style="--bg-url: url('@_background')">
+    <div class="container-fluid px-3 px-md-5 py-5">
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-warning d-flex justify-content-between align-items-center gap-3" role="alert">
+                <span>@_errorMessage</span>
+
+                <button type="button"
+                        class="btn btn-sm btn-warning border-dark flex-shrink-0"
+                        @onclick="RetryAsync"
+                        disabled="@(_isRetrying || _isBusy)">
+                    @(_isRetrying ? "Retrying..." : "Retry")
+                </button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <div class="alert alert-success" role="status">
+                @_successMessage
+            </div>
+        }
+
+        @if (_gameDetails is not null && string.IsNullOrEmpty(_errorMessage) && !_isBusy)
+        {
+            <div class="row">
+                <div class="col-12 col-md-4 col-lg-4 d-flex flex-column" style="min-height: 300px;">
+                    <div id="randomGame">
+                        <h4 class="text-info">You should play:</h4>
+                        <h1 class="game-title">
+                            @_gameDetails.Name
+                        </h1>
+                        <div class="game-playtime">
+                            @FormatPlaytime(_gameDetails)
+                        </div>
+                    </div>
+
+                    <div class="button-footer">
+                        <div class="button-footer-main">
+                            <button class="btn btn-primary btn-lg" @onclick="UpdateData">
+                                Choose Again
+                            </button>
+
+                            <a href="steam://run/@_gameDetails.Id/"
+                               class="btn btn-success btn-lg run-game-button">
+                                Run game
+                            </a>
+                        </div>
+
+                        <div class="button-footer-secondary">
+                            <button type="button"
+                                    class="btn btn-outline-warning btn-lg dont-choose-again-button"
+                                    @onclick="DoNotChooseThisGameAgainAsync">
+                                Don't choose this game again
+                            </button>
+
+                            <button type="button"
+                                    class="btn btn-outline-light btn-lg choose-again-button"
+                                    disabled="@_isBusy"
+                                    @onclick="ResetBlockedGamesAsync">
+                                Reset blocked games
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-8 col-lg-8">
+                    <h3 class="mb-3">About the Game</h3>
+                    <div id="gameDescription">
+                        @((MarkupString)_gameDetails.Description)
+                    </div>
+                </div>
+            </div>
+        }
+        else if (_isBusy)
+        {
+            <div class="text-center text-white">
+                <h1>Picking a game!</h1>
+                <div class="spinner-border" role="status"></div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public long SteamId { get; set; }
+
+    [Parameter]
+    public string Provider { get; set; } = "steam";
+
+    [Parameter]
+    public bool UnplayedOnly { get; set; }
+
+    private GameDetails? _gameDetails;
+    private bool _isBusy;
+    private bool _isRetrying;
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string _background = string.Empty;
+    private IJSObjectReference? _themeModule;
+    private bool _themeUpdatePending = true;
+
+    private PersistingComponentStateSubscription _subscription;
+    private bool _hasRegisteredPersistingCallback;
+    private bool _hasRestoredInitialState;
+    private long? _lastLoadedSteamId;
+    private string? _lastLoadedProvider;
+    private bool? _lastLoadedUnplayedOnly;
+
+    private string StateKey => $"random-game-details:{Provider}:{SteamId}:{UnplayedOnly}";
+
+    protected override void OnInitialized()
+    {
+        if (_hasRegisteredPersistingCallback)
+        {
+            return;
+        }
+
+        _subscription = ApplicationState.RegisterOnPersisting(PersistState);
+        _hasRegisteredPersistingCallback = true;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!_hasRestoredInitialState)
+        {
+            _hasRestoredInitialState = true;
+
+            if (ApplicationState.TryTakeFromJson<GameDetails>(StateKey, out var restored))
+            {
+                _gameDetails = restored;
+                _background = _gameDetails?.HeaderImage ?? string.Empty;
+                _themeUpdatePending = true;
+                _lastLoadedProvider = Provider;
+                _lastLoadedSteamId = SteamId;
+                _lastLoadedUnplayedOnly = UnplayedOnly;
+                return;
+            }
+        }
+
+        if (_lastLoadedProvider == Provider &&
+            _lastLoadedSteamId == SteamId &&
+            _lastLoadedUnplayedOnly == UnplayedOnly &&
+            _gameDetails is not null)
+        {
+            return;
+        }
+
+        await UpdateData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_themeUpdatePending)
+        {
+            return;
+        }
+
+        try
+        {
+            _themeModule ??= await JSRuntime.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./Components/RandomGamePicker.razor.js");
+
+            await _themeModule.InvokeVoidAsync("updateTheme", ".game-page-wrapper", _background);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Failed to apply adaptive theme for RandomGamePicker.");
+        }
+        finally
+        {
+            _themeUpdatePending = false;
+        }
+    }
+
+    private Task PersistState()
+    {
+        if (_gameDetails is not null)
+        {
+            ApplicationState.PersistAsJson(StateKey, _gameDetails);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task UpdateData()
+    {
+        _errorMessage = null;
+        _successMessage = null;
+        _isBusy = true;
+        _gameDetails = null;
+        _background = string.Empty;
+        _themeUpdatePending = true;
+
+        try
+        {
+            var result = await ApiClient.GetRandomGameDetailsAsync(
+                Provider,
+                steamId: SteamId,
+                unplayedOnly: UnplayedOnly);
+
+            if (!result.IsSuccess)
+            {
+                _errorMessage = result.IsTooManyRequests
+                    ? "Wow dude, you're like me you like to smash the button. Nicely done you are trying for more than two clicks per second! Please wait a little?"
+                    : result.GetErrorMessage("An unexpected error occurred.");
+
+                return;
+            }
+
+            _gameDetails = result.Value;
+
+            if (_gameDetails is null)
+            {
+                _errorMessage = "Unable to retrieve game: API returned empty data.";
+                return;
+            }
+
+            _background = _gameDetails.HeaderImage ?? string.Empty;
+            _themeUpdatePending = true;
+            _lastLoadedProvider = Provider;
+            _lastLoadedSteamId = SteamId;
+            _lastLoadedUnplayedOnly = UnplayedOnly;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error getting random game for {Provider}/{SteamId}", Provider, SteamId);
+            _errorMessage = "Unable to pick a game right now. Please try again.";
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task DoNotChooseThisGameAgainAsync()
+    {
+        if (_gameDetails is null || _isBusy)
+        {
+            return;
+        }
+
+        var blockedGameName = _gameDetails.Name;
+        var blockedGameId = _gameDetails.Id;
+
+        try
+        {
+            _successMessage = null;
+            _errorMessage = null;
+
+            var excludedGameIds = (await BrowserIdentityStore.GetExcludedGameIdsAsync()).ToList();
+
+            if (!excludedGameIds.Contains(blockedGameId))
+            {
+                excludedGameIds.Add(blockedGameId);
+                await BrowserIdentityStore.SetExcludedGameIdsAsync(excludedGameIds);
+            }
+
+            await UpdateData();
+
+            _successMessage = $"Blocked {blockedGameName}. Picked another game.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to save excluded game id {AppId}.", blockedGameId);
+            _successMessage = null;
+            _errorMessage = "Unable to remember that game right now. Please try again.";
+        }
+    }
+
+    private async Task ResetBlockedGamesAsync()
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            _errorMessage = null;
+            await BrowserIdentityStore.ClearExcludedGameIdsAsync();
+            _successMessage = "Blocked games cleared.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to clear excluded game ids.");
+            _successMessage = null;
+            _errorMessage = "Unable to reset blocked games right now. Please try again.";
+        }
+    }
+
+    private static string FormatPlaytime(GameDetails gameDetails)
+    {
+        var minutes = GetDisplayPlaytimeMinutes(gameDetails);
+        if (minutes > 0)
+        {
+            var hours = minutes / 60d;
+            return $"{hours:0.#} hours played";
+        }
+
+        if (gameDetails.RTimeLastPlayed > 0)
+        {
+            return "Played on Steam, but playtime is unavailable";
+        }
+
+        return "No playtime recorded yet";
+    }
+
+    private static int GetDisplayPlaytimeMinutes(GameDetails gameDetails)
+    {
+        var platformTotal = gameDetails.PlaytimeWindowsForever +
+                            gameDetails.PlaytimeMacForever +
+                            gameDetails.PlaytimeLinuxForever;
+
+        return Math.Max(
+            gameDetails.PlaytimeForever,
+            Math.Max(platformTotal, gameDetails.Playtime2Weeks));
+    }
+
+    private async Task RetryAsync()
+    {
+        if (_isRetrying || _isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            _isRetrying = true;
+            await UpdateData();
+        }
+        finally
+        {
+            _isRetrying = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _subscription.Dispose();
+    }
+}

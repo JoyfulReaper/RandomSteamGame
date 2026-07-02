@@ -7,8 +7,8 @@ public interface IGameProvider
 {
     string ProviderKey { get; }
     Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId);
-    Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId);
-    Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId);
+    Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId, bool unplayedOnly = false);
+    Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false);
     Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier);
     Task InvalidateOwnedGamesCacheAsync(long userId);
 }

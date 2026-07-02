@@ -1,0 +1,32 @@
+﻿@page "/random-game/{Provider}/{SteamId:long}"
+
+@inject NavigationManager NavManager
+
+<HeadContent>
+    <link rel="canonical" href="@CanonicalUrl" />
+    <meta name="robots" content="noindex,follow" />
+    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
+    <meta name="description" content="Discover your next Steam game with our blazing fast random Steam game picker with caching that works with Steam IDs or vanity URLs." />
+    <meta name="author" content="Kyle Givler" />
+</HeadContent>
+
+<PageTitle>Random Steam Game Picker - Random Result</PageTitle>
+
+<RandomGamePicker Provider="@Provider"
+                  SteamId="@SteamId"
+                  UnplayedOnly="@UnplayedOnly"
+                  @rendermode="InteractiveAuto" />
+
+@code {
+    [Parameter]
+    public long SteamId { get; set; }
+
+    [Parameter]
+    public string Provider { get; set; } = "steam";
+
+    [SupplyParameterFromQuery]
+    public bool UnplayedOnly { get; set; }
+
+    private string CanonicalUrl =>
+        $"{NavManager.BaseUri.TrimEnd('/')}/random-game/{Provider}/{SteamId}";
+}

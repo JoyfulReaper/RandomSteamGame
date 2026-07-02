@@ -5,28 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <base href="/" />
+    <ResourcePreloader />
 
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["RandomSteamGame.styles.css"]" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="manifest" href="/site.webmanifest" />
+
+    <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <HeadOutlet @rendermode="InteractiveAuto" />
+    <HeadOutlet/>
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveAuto" />
+    <Routes />
     <ReconnectModal />
-    <div id="blazor-error-ui" class="alert alert-danger position-fixed bottom-0 start-0 end-0 m-3 d-none" role="alert">
-        An unhandled error has occurred.
-        <a href="." class="reload alert-link">Reload</a>
-        <a class="dismiss close text-decoration-none float-end">⚡</a>
-    </div>
+
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 </html>

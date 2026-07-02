@@ -1,0 +1,285 @@
+.game-page-wrapper {
+    --game-text-color: #e5e7eb;
+    --game-heading-color: #ffffff;
+    --game-muted-color: #cbd5e1;
+    --game-accent-color: #38bdf8;
+    --game-panel-bg: rgba(17, 24, 39, 0.4);
+    --game-panel-border: rgba(255, 255, 255, 0.08);
+    --game-panel-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+
+    min-height: 100vh;
+    width: 100%;
+    background: linear-gradient(135deg, #1a0b2e 0%, #000000 100%);
+    background-image: var(--bg-url);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    transition: background-image 0.5s ease-in-out;
+    padding: 3rem 0.5rem;
+    overflow-y: auto;
+    color: var(--game-text-color);
+}
+
+.game-page-wrapper > .container-fluid {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, var(--game-panel-bg) 100%);
+    border-radius: 1rem;
+    padding: 2rem;
+    backdrop-filter: blur(14px);
+    margin: 0 auto;
+    max-width: 1700px;
+    width: 98%;
+    border: 1px solid var(--game-panel-border);
+    box-shadow: var(--game-panel-shadow);
+}
+
+.d-flex.flex-column {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+#randomGame {
+    flex-grow: 1;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+}
+
+#randomGame h1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: clamp(1.9rem, 2.4vw, 2.25rem);
+    line-height: 1.2;
+    padding-bottom: 0.3rem;
+    margin-bottom: 0.5rem;
+    color: var(--game-heading-color) !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.game-title {
+    font-size: clamp(1.9rem, 2.4vw, 2.25rem);
+    line-height: 1.15;
+}
+
+.game-playtime {
+    margin-top: 0.25rem;
+    color: var(--game-muted-color);
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+#randomGame h4 {
+    color: var(--game-accent-color) !important;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.game-page-wrapper h3 {
+    color: var(--game-heading-color) !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+.button-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+.button-footer .btn {
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.button-footer-main {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.button-footer-main .btn {
+    min-width: 0;
+    width: 100%;
+}
+
+.button-footer-secondary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.button-footer-secondary .btn {
+    min-width: 0;
+    width: 100%;
+}
+
+.button-footer .btn:hover,
+.button-footer .btn:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px rgba(0, 0, 0, 0.24);
+}
+
+.run-game-button:hover,
+.run-game-button:focus-visible {
+    text-decoration: none !important;
+}
+
+.dont-choose-again-button {
+    border-color: rgba(245, 158, 11, 0.6);
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.06);
+    font-size: 0.8rem;
+    line-height: 1.1;
+    padding: 0.7rem 0.85rem;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    white-space: normal;
+}
+
+.dont-choose-again-button:hover,
+.dont-choose-again-button:focus-visible {
+    color: #fff7ed;
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(251, 191, 36, 0.9);
+}
+
+.choose-again-button {
+    border-color: rgba(148, 163, 184, 0.55);
+    color: #e2e8f0;
+    background: rgba(148, 163, 184, 0.08);
+    font-size: 0.8rem;
+    line-height: 1.1;
+    padding: 0.7rem 0.85rem;
+    min-width: 0;
+    white-space: normal;
+}
+
+.choose-again-button:hover,
+.choose-again-button:focus-visible {
+    color: #ffffff;
+    background: rgba(148, 163, 184, 0.18);
+    border-color: rgba(226, 232, 240, 0.9);
+}
+
+#gameDescription {
+    color: var(--game-text-color);
+    line-height: 1.7;
+    width: 100%;
+    font-size: 1.02rem;
+}
+
+#gameDescription ::deep img {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block;
+    margin: 1rem auto;
+}
+
+#gameDescription ::deep table {
+    max-width: 100%;
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+#gameDescription ::deep a,
+#gameDescription ::deep div,
+#gameDescription ::deep p,
+#gameDescription ::deep span {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.container {
+    max-width: 1600px;
+    width: 98%;
+}
+
+@media (min-width: 1800px) {
+    .container {
+        width: 95%;
+    }
+}
+
+@media (min-width: 768px) {
+    .game-page-wrapper {
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .game-page-wrapper {
+        padding: 1rem 0.35rem;
+        background-attachment: scroll;
+    }
+
+    .game-page-wrapper > .container-fluid {
+        padding: 1rem 0.9rem;
+        border-radius: 0.85rem;
+        width: 100%;
+    }
+
+    .game-title {
+        font-size: clamp(1.55rem, 7vw, 1.9rem);
+        line-height: 1.12;
+    }
+
+    .game-playtime {
+        font-size: 0.84rem;
+        margin-top: 0.2rem;
+    }
+
+    #randomGame {
+        flex-grow: 0;
+        min-height: 0;
+        margin-bottom: 0.75rem;
+    }
+
+    #randomGame h4 {
+        font-size: 1rem;
+    }
+
+    .col-12.col-md-8.col-lg-8 {
+        margin-top: 1.25rem;
+    }
+
+    .button-footer {
+        gap: 0.6rem;
+        padding-top: 0.25rem;
+    }
+
+    .button-footer .btn {
+        width: 100%;
+    }
+
+    .button-footer-main {
+        gap: 0.6rem;
+    }
+
+    .button-footer-main .btn {
+        min-width: 0;
+        width: 100%;
+        padding-top: 0.8rem;
+        padding-bottom: 0.8rem;
+    }
+
+    .button-footer-secondary {
+        gap: 0.6rem;
+    }
+
+    .button-footer .dont-choose-again-button,
+    .button-footer .choose-again-button {
+        font-size: 0.78rem;
+        padding: 0.55rem 0.75rem;
+        line-height: 1.1;
+    }
+}
