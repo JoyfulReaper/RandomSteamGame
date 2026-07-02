@@ -99,26 +99,25 @@
 }
 
 .button-footer-main {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.75rem;
-    flex-wrap: wrap;
 }
 
 .button-footer-main .btn {
-    min-width: 11rem;
-    flex: 1 1 11rem;
+    min-width: 0;
+    width: 100%;
 }
 
 .button-footer-secondary {
-    display: flex;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.75rem;
-    flex-wrap: wrap;
 }
 
 .button-footer-secondary .btn {
-    flex: 1 1 14rem;
+    min-width: 0;
+    width: 100%;
 }
 
 .button-footer .btn:hover,
@@ -263,8 +262,6 @@
     }
 
     .button-footer-main {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
         gap: 0.6rem;
     }
 
@@ -276,8 +273,6 @@
     }
 
     .button-footer-secondary {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
         gap: 0.6rem;
     }
 
