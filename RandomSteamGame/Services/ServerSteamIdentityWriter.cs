@@ -23,27 +23,17 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
     public Task SetIdentityAsync(SteamIdentity identity)
     {
         var response = _http.HttpContext?.Response;
-        if (response is null || response.HasStarted)
+        if (response is null || response.HasStarted || string.IsNullOrWhiteSpace(identity.SteamId))
         {
             return Task.CompletedTask;
         }
 
-        if (string.IsNullOrWhiteSpace(identity.SteamId))
-        {
-            return Task.CompletedTask;
-        }
+        var options = CreateCookieOptions();
 
-        var options = new CookieOptions
-        {
-            Expires = DateTimeOffset.UtcNow.AddDays(365),
-            SameSite = SameSiteMode.Lax,
-            HttpOnly = false, // Browser JS needs to read it
-            Secure = true
-        };
+        response.Cookies.Append(SteamIdentityCookies.SteamId, identity.SteamId, options);
+        response.Cookies.Append(SteamIdentityCookies.UnplayedOnly, identity.UnplayedOnly.ToString().ToLowerInvariant(), options);
+        response.Cookies.Delete(SteamIdentityCookies.VanityUrl, CreateDeleteCookieOptions());
 
-        response.Cookies.Append("SteamId", identity.SteamId, options);
-        response.Cookies.Delete("VanityUrl", new CookieOptions { Path = "/" });
-        response.Cookies.Append("UnplayedOnly", identity.UnplayedOnly.ToString().ToLowerInvariant(), options);
         return Task.CompletedTask;
     }
 
@@ -55,20 +45,28 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
             return Task.CompletedTask;
         }
 
-        response.Cookies.Delete("SteamId", new CookieOptions
-        {
-            Path = "/"
-        });
+        var options = CreateDeleteCookieOptions();
 
-        response.Cookies.Delete("VanityUrl", new CookieOptions
-        {
-            Path = "/"
-        });
+        response.Cookies.Delete(SteamIdentityCookies.SteamId, options);
+        response.Cookies.Delete(SteamIdentityCookies.VanityUrl, options);
+        response.Cookies.Delete(SteamIdentityCookies.UnplayedOnly, options);
 
-        response.Cookies.Delete("UnplayedOnly", new CookieOptions
-        {
-            Path = "/"
-        });
         return Task.CompletedTask;
     }
+
+    private static CookieOptions CreateCookieOptions() => new()
+    {
+        Expires = DateTimeOffset.UtcNow.AddDays(365),
+        SameSite = SameSiteMode.Lax,
+        HttpOnly = false,
+        Secure = true,
+        Path = "/"
+    };
+
+    private static CookieOptions CreateDeleteCookieOptions() => new()
+    {
+        SameSite = SameSiteMode.Lax,
+        Secure = true,
+        Path = "/"
+    };
 }
