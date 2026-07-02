@@ -26,7 +26,10 @@
                 Send $5 Support
             </a>
 
-            <a class="btn btn-outline-light btn-lg" href="@SponsorUrl">
+            <a class="btn btn-outline-light btn-lg"
+               href="@SponsorUrl"
+               target="_blank"
+               rel="noopener noreferrer">
                 Sponsor Development
             </a>
         </div>
@@ -34,6 +37,7 @@
         <p class="fine-print">
             Support is appreciation-based. Feature sponsorship helps prioritize development,
             but it does not buy control of the project or guarantee an exact delivery date.
+            Sponsorship inquiries currently go through GitHub.
         </p>
     </section>
 
@@ -152,7 +156,10 @@
 
 @code {
     private const string SupportUrl = "https://www.paypal.com/paypalme/KyleGivler/5USD";
-    private const string SponsorUrl = "mailto:me@kgivler.com?subject=RSG%20Sponsorship";
+
+    private const string SponsorUrl =
+        "https://github.com/JoyfulReaper/RandomSteamGame/issues/new?title=RSG%20Sponsorship%20Inquiry&body=I%20am%20interested%20in%20sponsoring%20Random%20Steam%20Game%20Picker.%0A%0AFeature%20or%20sponsorship%20idea%3A%0A%0ASponsor%20name%20or%20display%20name%3A%0A%0AOptional%20link%3A%0A";
+
     private const string SupportNote = "RSG Supporter - Display Name: Your Name - Optional Link: https://example.com";
 
     private static readonly IReadOnlyList<SponsorTier> SponsorTiers =
@@ -239,7 +246,7 @@
             "By request",
             true,
             "White-glove custom development, guaranteed delivery, private builds, or separate-license implementations scoped before work begins.",
-            "Contact me")
+            "Open GitHub issue")
     ];
 
     private sealed record SponsorTier(
