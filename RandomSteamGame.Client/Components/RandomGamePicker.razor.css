@@ -26,7 +26,13 @@
     background-repeat: no-repeat;
     opacity: 0;
     transform: scale(1.015);
-    transition: opacity 350ms ease-in-out, transform 700ms ease-out;
+    transition: opacity 650ms ease-in-out, transform 1200ms ease-out;
+}
+
+@media (max-width: 767.98px) {
+    .game-background {
+        position: absolute;
+    }
 }
 
 .game-page-wrapper > .container-fluid {
@@ -41,12 +47,6 @@
     width: 98%;
     border: 1px solid var(--game-panel-border);
     box-shadow: var(--game-panel-shadow);
-}
-
-@media (max-width: 767.98px) {
-    .game-background {
-        position: absolute;
-    }
 }
 
 .d-flex.flex-column {

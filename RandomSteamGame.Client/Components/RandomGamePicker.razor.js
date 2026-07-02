@@ -58,13 +58,29 @@ export async function updateTheme(rootSelector, imageUrl) {
             return;
         }
 
-        background.style.backgroundImage = [
-            "linear-gradient(90deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.48))",
-            "radial-gradient(circle at center, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.58))",
-            `url("${cssEscapeUrl(imageUrl)}")`
-        ].join(", ");
-        background.style.opacity = "1";
-        background.style.transform = "scale(1)";
+        background.style.opacity = "0";
+        background.style.transform = "scale(1.015)";
+
+        window.setTimeout(() => {
+            if (requestId !== themeRequestId) {
+                return;
+            }
+
+            background.style.backgroundImage = [
+                "linear-gradient(90deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.48))",
+                "radial-gradient(circle at center, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.58))",
+                `url("${cssEscapeUrl(imageUrl)}")`
+            ].join(", ");
+
+            requestAnimationFrame(() => {
+                if (requestId !== themeRequestId) {
+                    return;
+                }
+
+                background.style.opacity = "1";
+                background.style.transform = "scale(1)";
+            });
+        }, 120);
 
         try {
             const luminance = await measureAverageLuminance(imageUrl);
