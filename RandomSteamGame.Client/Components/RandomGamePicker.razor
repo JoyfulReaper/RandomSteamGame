@@ -15,7 +15,22 @@
     <div class="container-fluid px-3 px-md-5 py-5">
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
-            <div class="alert alert-warning">@_errorMessage</div>
+            <div class="alert alert-warning d-flex justify-content-between align-items-center gap-3" role="alert">
+                <span>@_errorMessage</span>
+
+                <button type="button"
+                        class="btn btn-sm btn-warning border-dark flex-shrink-0"
+                        @onclick="RetryAsync"
+                        disabled="@(_isRetrying || _isBusy)">
+                    @(_isRetrying ? "Retrying..." : "Retry")
+                </button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <div class="alert alert-success" role="status">
+                @_successMessage
+            </div>
         }
 
         @if (_gameDetails is not null && string.IsNullOrEmpty(_errorMessage) && !_isBusy)
@@ -91,7 +106,9 @@
 
     private GameDetails? _gameDetails;
     private bool _isBusy;
+    private bool _isRetrying;
     private string? _errorMessage;
+    private string? _successMessage;
     private string _background = string.Empty;
     private IJSObjectReference? _themeModule;
     private bool _themeUpdatePending = true;
@@ -183,6 +200,7 @@
     private async Task UpdateData()
     {
         _errorMessage = null;
+        _successMessage = null;
         _isBusy = true;
         _gameDetails = null;
         _background = string.Empty;
@@ -236,17 +254,30 @@
             return;
         }
 
+        var blockedGameName = _gameDetails.Name;
+        var blockedGameId = _gameDetails.Id;
+
         try
         {
-            var excludedGameIds = (await BrowserIdentityStore.GetExcludedGameIdsAsync()).ToList();
-            excludedGameIds.Add(_gameDetails.Id);
+            _successMessage = null;
+            _errorMessage = null;
 
-            await BrowserIdentityStore.SetExcludedGameIdsAsync(excludedGameIds);
+            var excludedGameIds = (await BrowserIdentityStore.GetExcludedGameIdsAsync()).ToList();
+
+            if (!excludedGameIds.Contains(blockedGameId))
+            {
+                excludedGameIds.Add(blockedGameId);
+                await BrowserIdentityStore.SetExcludedGameIdsAsync(excludedGameIds);
+            }
+
             await UpdateData();
+
+            _successMessage = $"Blocked {blockedGameName}. Picked another game.";
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to save excluded game id {AppId}.", _gameDetails.Id);
+            Logger.LogError(ex, "Failed to save excluded game id {AppId}.", blockedGameId);
+            _successMessage = null;
             _errorMessage = "Unable to remember that game right now. Please try again.";
         }
     }
@@ -260,11 +291,14 @@
 
         try
         {
+            _errorMessage = null;
             await BrowserIdentityStore.ClearExcludedGameIdsAsync();
+            _successMessage = "Blocked games cleared.";
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to clear excluded game ids.");
+            _successMessage = null;
             _errorMessage = "Unable to reset blocked games right now. Please try again.";
         }
     }
@@ -295,6 +329,24 @@
         return Math.Max(
             gameDetails.PlaytimeForever,
             Math.Max(platformTotal, gameDetails.Playtime2Weeks));
+    }
+
+    private async Task RetryAsync()
+    {
+        if (_isRetrying || _isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            _isRetrying = true;
+            await UpdateData();
+        }
+        finally
+        {
+            _isRetrying = false;
+        }
     }
 
     public void Dispose()
