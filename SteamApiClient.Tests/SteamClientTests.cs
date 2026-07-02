@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Steam Api Client
  * 
  * Copyright (c) 2026 Kyle Givler
@@ -57,7 +57,7 @@ public class SteamClientTests
         var client = CreateClient(json, HttpStatusCode.OK);
 
         // Act
-        var result = await client.GetOwnedGames(76561197960287930L);
+        var result = await client.GetOwnedGames(76561197960287930L, ct: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -73,7 +73,7 @@ public class SteamClientTests
 
         // Act / Assert
         await Assert.ThrowsAsync<HttpRequestException>(
-            () => client.GetOwnedGames(76561197960287930L));
+            () => client.GetOwnedGames(76561197960287930L, ct: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -85,7 +85,38 @@ public class SteamClientTests
 
         // Act / Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => client.GetOwnedGames(76561197960287930L));
+            () => client.GetOwnedGames(76561197960287930L, ct: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetOwnedGames_HttpError_DoesNotCacheFailure()
+    {
+        // Arrange
+        var successPayload = JsonSerializer.Serialize(new
+        {
+            response = new
+            {
+                game_count = 1,
+                games = new[]
+                {
+                    new { appid = 400, name = "Portal", playtime_forever = 600 }
+                }
+            }
+        });
+        var handler = new SequencedHttpMessageHandler(
+            (string.Empty, HttpStatusCode.InternalServerError),
+            (successPayload, HttpStatusCode.OK));
+        var client = CreateClient(handler);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => client.GetOwnedGames(76561197960287930L, ct: TestContext.Current.CancellationToken));
+
+        var result = await client.GetOwnedGames(76561197960287930L, ct: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, result.GameCount);
+        Assert.Equal(400, result.Games[0].AppId);
+        Assert.Equal(2, handler.CallCount);
     }
 
     #endregion
@@ -109,7 +140,7 @@ public class SteamClientTests
         var client = CreateClient(json, HttpStatusCode.OK);
 
         // Act
-        var result = await client.GetSteamIdFromVanityUrl("gabelogannewell");
+        var result = await client.GetSteamIdFromVanityUrl("gabelogannewell", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(76561197960287930L, result);
@@ -132,7 +163,7 @@ public class SteamClientTests
         var client = CreateClient(json, HttpStatusCode.OK);
 
         // Act
-        var result = await client.GetSteamIdFromVanityUrl("some_fake_url_that_doesnt_exist");
+        var result = await client.GetSteamIdFromVanityUrl("some_fake_url_that_doesnt_exist", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0L, result);
@@ -155,14 +186,44 @@ public class SteamClientTests
 
         // Act / Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => client.GetSteamIdFromVanityUrl("error_route"));
+            () => client.GetSteamIdFromVanityUrl("error_route", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetSteamIdFromVanityUrl_HttpError_DoesNotCacheFailure()
+    {
+        // Arrange
+        var successPayload = JsonSerializer.Serialize(new
+        {
+            response = new
+            {
+                success = 1,
+                steamid = "76561197960287930"
+            }
+        });
+        var handler = new SequencedHttpMessageHandler(
+            (string.Empty, HttpStatusCode.InternalServerError),
+            (successPayload, HttpStatusCode.OK));
+        var client = CreateClient(handler);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => client.GetSteamIdFromVanityUrl("gabelogannewell", TestContext.Current.CancellationToken));
+
+        var result = await client.GetSteamIdFromVanityUrl("gabelogannewell", TestContext.Current.CancellationToken);
+
+        Assert.Equal(76561197960287930L, result);
+        Assert.Equal(2, handler.CallCount);
     }
 
     #endregion
 
     private SteamClient CreateClient(string responseContent, HttpStatusCode statusCode)
+        => CreateClient(new MockHttpMessageHandler(responseContent, statusCode));
+
+    private SteamClient CreateClient(HttpMessageHandler handler)
     {
-        var httpClient = new HttpClient(new MockHttpMessageHandler(responseContent, statusCode))
+        var httpClient = new HttpClient(handler)
         {
             BaseAddress = new Uri("https://api.steampowered.com/")
         };
@@ -181,3 +242,4 @@ public class SteamClientTests
         return provider.GetRequiredService<ICacheService>();
     }
 }
+

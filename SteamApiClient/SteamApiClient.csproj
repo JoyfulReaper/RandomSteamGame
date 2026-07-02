@@ -12,6 +12,7 @@
 	<Version>0.1.1</Version>
 	<Authors>Kyle Givler</Authors>
 	<Description>Shared utilities and data helpers.</Description>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +24,10 @@
     <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.9" />
     <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="2.1.11" />
     <PackageReference Include="SourceGear.sqlite3" Version="3.50.4.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
