@@ -18,6 +18,14 @@ public static partial class Errors
             code: "Steam.AmbiguousIdentifier",
             description: "Provide either a Steam ID or vanity URL, not both.");
 
+        public static Error InvalidSteamId => Error.Validation(
+            code: "Steam.InvalidSteamId",
+            description: "Steam ID must be exactly 17 digits.");
+
+        public static Error InvalidVanityUrl => Error.Validation(
+            code: "Steam.InvalidVanityUrl",
+            description: "Steam vanity URL must be 3-64 characters and contain only letters, numbers, underscores, or hyphens.");
+
         public static Error VanityResolutionFailed => Error.NotFound(
             code: "Steam.VanityResolutionFailed",
             description: "Failed to resolve vanity URL.");

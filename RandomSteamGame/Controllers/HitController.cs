@@ -6,12 +6,14 @@
  */
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RandomSteamGame.Services.Interfaces;
 
 namespace RandomSteamGame.Controllers;
 
 [Route("api/stats")]
 [ApiController]
+[EnableRateLimiting("steam_api_limiter")]
 public class HitController : ApiController
 {
     private readonly IAppStatsService _appStatsService;
