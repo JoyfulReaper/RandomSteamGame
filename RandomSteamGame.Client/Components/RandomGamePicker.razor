@@ -11,7 +11,9 @@
     <PageTitle>Random Steam Game Picker - @_gameDetails.Name</PageTitle>
 }
 
-<div class="game-page-wrapper" style="--bg-url: url('@_background')">
+<div class="game-page-wrapper">
+    <div class="game-background" aria-hidden="true"></div>
+
     <div class="container-fluid px-3 px-md-5 py-5">
         @if (!string.IsNullOrEmpty(_errorMessage))
         {
