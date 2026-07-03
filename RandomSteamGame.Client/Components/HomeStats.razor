@@ -1,57 +1,14 @@
-﻿@inject RandomSteamApiClient ApiClient
-
 <p>
-    Total Hits: @_totalHits |
-    Unique Visitors: @_uniqueVisitors |
-    Random Games Generated: @_randomGamesGenerated
+    Total Hits: @TotalHits |
+    Unique Visitors: @UniqueVisitors |
+    Random Games Generated: @RandomGamesGenerated
 </p>
 
 @code {
-    private long _totalHits;
-    private long _uniqueVisitors;
-    private long _randomGamesGenerated;
+    [Parameter]
+    public AppStatsResponse? Stats { get; set; }
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (!RendererInfo.IsInteractive)
-        {
-            await RecordHitAsync();
-        }
-        else
-        {
-            await FetchStatsOnlyAsync();
-        }
-    }
-
-    private async Task RecordHitAsync()
-    {
-        var result = await ApiClient.RecordHitAsync();
-
-        if (result.IsSuccess)
-        {
-            ApplyStats(result.Value);
-        }
-    }
-
-    private async Task FetchStatsOnlyAsync()
-    {
-        var result = await ApiClient.GetStatsAsync();
-
-        if (result.IsSuccess)
-        {
-            ApplyStats(result.Value);
-        }
-    }
-
-    private void ApplyStats(AppStatsResponse? stats)
-    {
-        if (stats is null)
-        {
-            return;
-        }
-
-        _totalHits = stats.TotalHits;
-        _uniqueVisitors = stats.UniqueVisitors;
-        _randomGamesGenerated = stats.RandomGamesGenerated;
-    }
+    private long TotalHits => Stats?.TotalHits ?? 0;
+    private long UniqueVisitors => Stats?.UniqueVisitors ?? 0;
+    private long RandomGamesGenerated => Stats?.RandomGamesGenerated ?? 0;
 }
