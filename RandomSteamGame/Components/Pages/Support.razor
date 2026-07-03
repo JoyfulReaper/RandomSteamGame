@@ -3,7 +3,7 @@
 <PageTitle>Support Random Steam Game Picker</PageTitle>
 
 <HeadContent>
-    <meta name="description" content="Support Random Steam Game Picker with a one-time contribution or sponsor a future roadmap feature." />
+    <meta name="description" content="Support Random Steam Game Picker with a one-time contribution, sponsor a roadmap feature, or discuss scoped custom development." />
     <link rel="canonical" href="https://randomsteam.kgivler.com/support" />
 </HeadContent>
 
@@ -15,7 +15,8 @@
 
         <p class="lead">
             Random Steam Game Picker is free to use. If it helped you escape backlog paralysis,
-            you can send a one-time support payment or help sponsor future development.
+            you can send a one-time support payment, help sponsor future development, or reach out
+            about scoped custom work.
         </p>
 
         <div class="support-actions">
@@ -32,12 +33,19 @@
                rel="noopener noreferrer">
                 Sponsor Development
             </a>
+
+            <a class="btn btn-outline-light btn-lg"
+               href="@CustomWorkUrl"
+               target="_blank"
+               rel="noopener noreferrer">
+                Discuss Custom Work
+            </a>
         </div>
 
         <p class="fine-print">
             Support is appreciation-based. Feature sponsorship helps prioritize development,
             but it does not buy control of the project or guarantee an exact delivery date.
-            Sponsorship inquiries currently go through GitHub.
+            Sponsorship and custom work inquiries currently go through GitHub.
         </p>
     </section>
 
@@ -70,6 +78,7 @@
         <p>
             Sponsorship helps fund my development time and decide what gets worked on next.
             These are not fixed-price feature purchases unless we explicitly agree on a custom scope.
+            Public roadmap sponsorship is a priority signal, not a delivery contract.
         </p>
 
         <div class="boost-grid">
@@ -87,15 +96,49 @@
             <h3>Premium access note</h3>
             <p>
                 Some sponsored features may later become premium features. If that happens,
-                sponsors of that feature will receive lifetime access to the sponsored feature
+                sponsors of that feature will receive lifetime access to the sponsored feature,
                 or equivalent lifetime premium access once account support exists.
+            </p>
+            <p>
+                For group-sponsored features, eligible members of the sponsoring group can receive
+                access to the sponsored premium feature as well. Group eligibility and member limits
+                should be agreed on as part of the sponsorship scope and may require account support
+                or membership verification.
             </p>
         </div>
 
         <p class="fine-print">
             Custom development, guaranteed delivery, integrations, private builds, or separate-license work
-            require a custom scope and may range from $1,000+ depending on complexity.
+            require a custom scope and generally start at $1,000+ depending on complexity.
         </p>
+    </section>
+
+    <section class="support-panel">
+        <h2>Custom Development</h2>
+
+        <p>
+            I am also open to scoped custom development outside of Random Steam Game Picker.
+            My strongest areas are backend .NET, ASP.NET Core APIs, caching, databases,
+            automation, developer tooling, integration work, and performance-focused debugging
+            or refactoring.
+        </p>
+
+        <p>
+            External work is handled separately from public roadmap sponsorship. Availability,
+            scope, timeline, ownership, licensing, and pricing must be agreed on before work begins.
+        </p>
+
+        <p class="fine-print">
+            Custom development generally starts at $1,000+ depending on complexity.
+            Smaller advisory, review, or debugging engagements may be considered when the scope is clear.
+        </p>
+
+        <a class="btn btn-outline-light"
+           href="@CustomWorkUrl"
+           target="_blank"
+           rel="noopener noreferrer">
+            Discuss Custom Work
+        </a>
     </section>
 
     <section class="support-panel">
@@ -119,7 +162,7 @@
         <h2>Roadmap</h2>
 
         <p>
-            Features marked account-required will need Steam sign-in before they can exist as saved
+            Features marked as account-required will need Steam sign-in before they can exist as saved
             or premium features.
         </p>
 
@@ -160,6 +203,9 @@
     private const string SponsorUrl =
         "https://github.com/JoyfulReaper/RandomSteamGame/issues/new?title=RSG%20Sponsorship%20Inquiry&body=I%20am%20interested%20in%20sponsoring%20Random%20Steam%20Game%20Picker.%0A%0AFeature%20or%20sponsorship%20idea%3A%0A%0ASponsor%20name%20or%20display%20name%3A%0A%0AOptional%20link%3A%0A";
 
+    private const string CustomWorkUrl =
+        "https://github.com/JoyfulReaper/RandomSteamGame/issues/new?title=Custom%20Development%20Inquiry&body=I%20am%20interested%20in%20discussing%20custom%20development.%0A%0AProject%20or%20problem%20summary%3A%0A%0ATechnology%20stack%3A%0A%0ATimeline%3A%0A%0ABudget%20range%3A%0A%0AContact%20info%3A%0A";
+
     private const string SupportNote = "RSG Supporter - Display Name: Your Name - Optional Link: https://example.com";
 
     private static readonly IReadOnlyList<SponsorTier> SponsorTiers =
@@ -187,7 +233,7 @@
         new(
             "$1,000+",
             "White-Glove Custom Implementation",
-            "For scoped custom development, integrations, guaranteed delivery, private builds, or custom licensing beyond the public MIT project.")
+            "For scoped custom development connected to Random Steam Game Picker or its underlying .NET/Steam API tooling, including integrations, guaranteed delivery, private builds, or custom licensing beyond the public MIT project.")
     ];
 
     private static readonly IReadOnlyList<RoadmapFeature> Roadmap =
@@ -245,7 +291,7 @@
             "Custom sponsored feature",
             "By request",
             true,
-            "White-glove custom development, guaranteed delivery, private builds, or separate-license implementations scoped before work begins.",
+            "Scoped custom development, integrations, guaranteed delivery, private builds, or separate-license implementations agreed on before work begins.",
             "Open GitHub issue")
     ];
 
