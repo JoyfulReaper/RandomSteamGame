@@ -13,8 +13,8 @@ using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
+using SteamApiClient;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.RegularExpressions;
 
 namespace RandomSteamGame.Controllers;
 
@@ -27,9 +27,6 @@ public class GameController : ApiController
 {
     private const long MinSteamId = 10_000_000_000_000_000L;
     private const long MaxSteamId = 99_999_999_999_999_999L;
-    private static readonly Regex VanityUrlPattern = new(
-        "^[A-Za-z0-9_-]{3,64}$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly GameProviderFactory _factory;
     private readonly IOwnedGamesCacheResetTracker _ownedGamesCacheResetTracker;
@@ -270,7 +267,7 @@ public class GameController : ApiController
 
     private static bool IsValidVanityUrl(string vanityUrl)
     {
-        return VanityUrlPattern.IsMatch(vanityUrl);
+        return SteamVanityUrlHelper.TryNormalize(vanityUrl, out _);
     }
 
     private static async Task<ErrorOr<long>> ResolveIdentifier(

@@ -216,6 +216,41 @@ public class SteamClientTests
         Assert.Equal(2, handler.CallCount);
     }
 
+    [Fact]
+    public async Task GetSteamIdFromVanityUrl_UsesNormalizedVanityInApiRequest()
+    {
+        var successPayload = JsonSerializer.Serialize(new
+        {
+            response = new
+            {
+                success = 1,
+                steamid = "76561197960287930"
+            }
+        });
+        var handler = new SequencedHttpMessageHandler((successPayload, HttpStatusCode.OK));
+        var client = CreateClient(handler);
+
+        await client.GetSteamIdFromVanityUrl(
+            "https:%2F%2Fsteamcommunity.com%2Fid%2FMister_God%2F",
+            TestContext.Current.CancellationToken);
+
+        var requestUri = Assert.Single(handler.RequestUris);
+        Assert.Contains("vanityurl=mister_god", requestUri.Query, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("ab")]
+    [InlineData("https://steamcommunity.com/profiles/76561197960287930/")]
+    [InlineData("https://example.com/id/Mister_God/")]
+    [InlineData("has space")]
+    public async Task GetSteamIdFromVanityUrl_InvalidNormalizedVanity_ThrowsArgumentException(string vanityInput)
+    {
+        var client = CreateClient("{}", HttpStatusCode.OK);
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => client.GetSteamIdFromVanityUrl(vanityInput, TestContext.Current.CancellationToken));
+    }
+
     #endregion
 
     private SteamClient CreateClient(string responseContent, HttpStatusCode statusCode)

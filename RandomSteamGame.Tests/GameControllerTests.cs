@@ -66,9 +66,9 @@ public class GameControllerTests
     [Theory]
     [InlineData("ab")]
     [InlineData("has space")]
-    [InlineData("has/slash")]
     [InlineData("has.dot")]
     [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("https://steamcommunity.com/profiles/76561197960287930/")]
     public async Task ResolveVanity_InvalidVanityUrl_ReturnsValidationProblem(string vanityUrl)
     {
         var controller = CreateController();
@@ -81,7 +81,7 @@ public class GameControllerTests
     [Theory]
     [InlineData("ab")]
     [InlineData("has space")]
-    [InlineData("has/slash")]
+    [InlineData("https://steamcommunity.com/profiles/76561197960287930/")]
     public async Task GetRandomGame_InvalidVanityUrl_ReturnsValidationProblem(string vanityUrl)
     {
         var controller = CreateController();
@@ -89,6 +89,23 @@ public class GameControllerTests
         var result = await controller.GetRandomGame("steam", userId: null, vanityUrl);
 
         AssertValidationProblem(result, "Steam.InvalidVanityUrl");
+    }
+
+    [Theory]
+    [InlineData("Mister_God")]
+    [InlineData("https://steamcommunity.com/id/Mister_God/")]
+    [InlineData("http://steamcommunity.com/id/Mister_God")]
+    [InlineData("steamcommunity.com/id/Mister_God")]
+    [InlineData("www.steamcommunity.com/id/Mister_God/")]
+    [InlineData("https:%2F%2Fsteamcommunity.com%2Fid%2FMister_God%2F")]
+    public async Task ResolveVanity_AcceptsNormalizedVanityVariants(string vanityUrl)
+    {
+        var controller = CreateController();
+
+        var result = await controller.ResolveVanity("steam", vanityUrl);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(76561197960287930L, Assert.IsType<long>(ok.Value));
     }
 
     [Fact]

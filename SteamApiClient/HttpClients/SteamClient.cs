@@ -107,9 +107,10 @@ public class SteamClient : ISteamClient
         string vanityUrl,
         CancellationToken ct = default)
     {
-        var successCacheKey = $"vanity_{vanityUrl}";
-        var notFoundCacheKey = $"vanity_not_found_{vanityUrl}";
-        var tags = new[] { $"vanity_{vanityUrl}", "vanity_urls" };
+        var normalizedVanity = SteamVanityUrlHelper.Normalize(vanityUrl);
+        var successCacheKey = SteamVanityUrlHelper.BuildCacheKey(normalizedVanity);
+        var notFoundCacheKey = SteamVanityUrlHelper.BuildNotFoundCacheKey(normalizedVanity);
+        var tags = new[] { SteamVanityUrlHelper.BuildCacheKey(normalizedVanity), "vanity_urls" };
 
         var cachedSuccess = await _cache.GetAsync<long?>(successCacheKey, ct);
         if (cachedSuccess.HasValue)
@@ -125,7 +126,7 @@ public class SteamClient : ISteamClient
 
         // _logger.LogDebug("Cache miss or expired. Resolving VanityUrl from Steam API: {VanityUrl}", vanityUrl);
 
-        var encoded = Uri.EscapeDataString(vanityUrl);
+        var encoded = Uri.EscapeDataString(normalizedVanity);
         var url =
             $"ISteamUser/ResolveVanityURL/v0001/" +
             $"?key={_steamOptions.ApiKey}" +
@@ -137,7 +138,7 @@ public class SteamClient : ISteamClient
         {
             _logger.LogWarning(
                 "Steam API failure (VanityUrl). VanityUrl={VanityUrl}, StatusCode={StatusCode}",
-                vanityUrl,
+                normalizedVanity,
                 response.StatusCode);
 
             throw new HttpRequestException(
@@ -152,7 +153,7 @@ public class SteamClient : ISteamClient
         {
             _logger.LogWarning(
                 "Steam API invalid response (VanityUrl). VanityUrl={VanityUrl}",
-                vanityUrl);
+                normalizedVanity);
 
             throw new InvalidOperationException("Steam API returned an invalid vanity response.");
         }
@@ -168,7 +169,7 @@ public class SteamClient : ISteamClient
         {
             _logger.LogWarning(
                 "Steam API failure status (VanityUrl). VanityUrl={VanityUrl}, Success={Success}",
-                vanityUrl,
+                normalizedVanity,
                 r.Success);
 
             throw new InvalidOperationException(

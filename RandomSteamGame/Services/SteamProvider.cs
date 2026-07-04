@@ -11,6 +11,7 @@ using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using RandomSteamGame.Shared.Services;
+using SteamApiClient;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
 
@@ -92,6 +93,10 @@ public class SteamProvider : IGameProvider
             }
 
             return steamId;
+        }
+        catch (ArgumentException)
+        {
+            return Errors.Steam.InvalidVanityUrl;
         }
         catch (Exception ex)
         {
