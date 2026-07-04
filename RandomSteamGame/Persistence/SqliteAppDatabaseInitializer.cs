@@ -5,7 +5,7 @@
  * Licensed under the MIT License.
  */
 
-using JoyfulReaperLib.Caching.Sqlite;
+using JoyfulReaperLib.Sqlite;
 using Microsoft.Data.Sqlite;
 
 namespace RandomSteamGame.Persistence;

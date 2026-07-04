@@ -13,16 +13,26 @@ namespace RandomSteamGame.Tests;
 public class SqliteAppDatabaseInitializerTests
 {
     [Fact]
-    public void Initialize_CreatesDatabaseUnderDataDirectoryAndAppliesSchema()
+    public void Initialize_CreatesAppStatsAndVisitorsTablesUnderDataDirectory()
     {
         var databaseFileName = $"kgivler_com.{Guid.NewGuid():N}.db";
         var expectedDirectory = Path.Combine(AppContext.BaseDirectory, "Data");
+        const string schemaSql = """
+            CREATE TABLE IF NOT EXISTS Visitors (
+                IpAddress TEXT PRIMARY KEY,
+                Hits INTEGER NOT NULL DEFAULT 1,
+                LastSeen TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS AppStats (
+                Id INTEGER PRIMARY KEY CHECK (Id = 1),
+                RandomGamesGenerated INTEGER NOT NULL DEFAULT 0
+            );
+            """;
 
         try
         {
-            var connectionString = SqliteAppDatabaseInitializer.Initialize(
-                databaseFileName,
-                "CREATE TABLE IF NOT EXISTS TestTable (Id INTEGER PRIMARY KEY);");
+            var connectionString = SqliteAppDatabaseInitializer.Initialize(databaseFileName, schemaSql);
             var builder = new SqliteConnectionStringBuilder(connectionString);
 
             Assert.StartsWith(expectedDirectory, builder.DataSource, StringComparison.OrdinalIgnoreCase);
@@ -31,11 +41,8 @@ public class SqliteAppDatabaseInitializerTests
             using var connection = new SqliteConnection(connectionString);
             connection.Open();
 
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'TestTable';";
-
-            var tableCount = Convert.ToInt64(command.ExecuteScalar());
-            Assert.Equal(1, tableCount);
+            Assert.Equal(1, GetTableCount(connection, "AppStats"));
+            Assert.Equal(1, GetTableCount(connection, "Visitors"));
         }
         finally
         {
@@ -45,6 +52,15 @@ public class SqliteAppDatabaseInitializerTests
             DeleteIfExists(databasePath + "-wal");
             DeleteIfExists(databasePath + "-shm");
         }
+    }
+
+    private static long GetTableCount(SqliteConnection connection, string tableName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = $tableName;";
+        command.Parameters.AddWithValue("$tableName", tableName);
+
+        return Convert.ToInt64(command.ExecuteScalar());
     }
 
     private static void DeleteIfExists(string path)
