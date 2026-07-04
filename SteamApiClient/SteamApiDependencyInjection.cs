@@ -1,14 +1,14 @@
-﻿/*
+/*
  * Steam Api Client
  * 
  * Copyright (c) 2026 Kyle Givler
  * Licensed under the MIT License.
  */
 
+using JoyfulReaperLib.Caching.Sqlite;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SteamApiClient.Caching;
 using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
@@ -21,19 +21,15 @@ public static class SteamApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        SqliteProviderInitializer.Initialize();
-
         // Cache Provider
         var steamOptions = configuration.GetSection("Steam").Get<SteamClientApiOptions>()
                            ?? throw new InvalidOperationException("Steam configuration is missing.");
 
-        services.AddOptions<SqliteDistributedCacheOptions>()
-            .Configure(options =>
-            {
-                options.ConnectionString = BuildSqliteConnectionString(steamOptions.ConnectionString);
-            });
-
-        services.AddSingleton<Microsoft.Extensions.Caching.Distributed.IDistributedCache, SqliteDistributedCache>();
+        services.AddJoyfulReaperSqliteDistributedCache(options =>
+        {
+            options.ConnectionString = steamOptions.ConnectionString;
+            options.BasePath = Path.Combine(AppContext.BaseDirectory, "Data");
+        });
 
         // Add hybrid cache (L1 In-Memory + L2 Distributed)
         services.AddHybridCache(options =>
@@ -79,23 +75,5 @@ public static class SteamApiDependencyInjection
         services.AddScoped<ICacheService, CacheService>();
 
         return services;
-    }
-
-    private static string BuildSqliteConnectionString(string configuredConnectionString)
-    {
-        var builder = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(configuredConnectionString);
-        if (string.IsNullOrWhiteSpace(builder.DataSource))
-        {
-            throw new InvalidOperationException("SQLite cache connection string must include a Data Source.");
-        }
-
-        if (!Path.IsPathRooted(builder.DataSource))
-        {
-            var dataFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
-            Directory.CreateDirectory(dataFolder);
-            builder.DataSource = Path.Combine(dataFolder, builder.DataSource);
-        }
-
-        return builder.ToString();
     }
 }
