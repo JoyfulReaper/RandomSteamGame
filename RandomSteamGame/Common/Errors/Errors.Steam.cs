@@ -30,8 +30,6 @@ public static partial class Errors
             code: "Steam.VanityResolutionFailed",
             description: "Failed to resolve vanity URL.");
 
-        public static Error VanityResolutonFailed => VanityResolutionFailed;
-
         public static Error EmptyLibrary => Error.NotFound(
             code: "Steam.EmptyLibrary",
             description: "Steam Library does not contain any games.");

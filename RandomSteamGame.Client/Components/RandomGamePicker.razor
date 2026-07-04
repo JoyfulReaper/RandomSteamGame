@@ -338,13 +338,12 @@
 
     private static int GetDisplayPlaytimeMinutes(GameDetails gameDetails)
     {
-        var platformTotal = gameDetails.PlaytimeWindowsForever +
-                            gameDetails.PlaytimeMacForever +
-                            gameDetails.PlaytimeLinuxForever;
-
-        return Math.Max(
+        return SteamPlaytimeHelper.GetDisplayPlaytimeMinutes(
             gameDetails.PlaytimeForever,
-            Math.Max(platformTotal, gameDetails.Playtime2Weeks));
+            gameDetails.PlaytimeWindowsForever,
+            gameDetails.PlaytimeMacForever,
+            gameDetails.PlaytimeLinuxForever,
+            gameDetails.Playtime2Weeks);
     }
 
     private async Task RetryAsync()
