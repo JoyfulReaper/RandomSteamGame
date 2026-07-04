@@ -124,6 +124,12 @@
 
     private string StateKey => $"random-game-details:{Provider}:{SteamId}:{UnplayedOnly}";
 
+    private sealed class InitialRenderState
+    {
+        public GameDetails? GameDetails { get; set; }
+        public string? ErrorMessage { get; set; }
+    }
+
     protected override void OnInitialized()
     {
         if (_hasRegisteredPersistingCallback)
@@ -141,9 +147,10 @@
         {
             _hasRestoredInitialState = true;
 
-            if (ApplicationState.TryTakeFromJson<GameDetails>(StateKey, out var restored))
+            if (ApplicationState.TryTakeFromJson<InitialRenderState>(StateKey, out var restored))
             {
-                _gameDetails = restored;
+                _gameDetails = restored?.GameDetails;
+                _errorMessage = restored?.ErrorMessage;
                 _background = _gameDetails?.HeaderImage ?? string.Empty;
                 _themeUpdatePending = true;
                 _lastLoadedProvider = Provider;
@@ -156,7 +163,7 @@
         if (_lastLoadedProvider == Provider &&
             _lastLoadedSteamId == SteamId &&
             _lastLoadedUnplayedOnly == UnplayedOnly &&
-            _gameDetails is not null)
+            HasLoadedCurrentRoute)
         {
             return;
         }
@@ -191,13 +198,20 @@
 
     private Task PersistState()
     {
-        if (_gameDetails is not null)
+        if (_gameDetails is not null || !string.IsNullOrWhiteSpace(_errorMessage))
         {
-            ApplicationState.PersistAsJson(StateKey, _gameDetails);
+            ApplicationState.PersistAsJson(StateKey, new InitialRenderState
+            {
+                GameDetails = _gameDetails,
+                ErrorMessage = _errorMessage
+            });
         }
 
         return Task.CompletedTask;
     }
+
+    private bool HasLoadedCurrentRoute =>
+        _gameDetails is not null || !string.IsNullOrWhiteSpace(_errorMessage);
 
     private async Task UpdateData()
     {
@@ -207,6 +221,9 @@
         _gameDetails = null;
         _background = string.Empty;
         _themeUpdatePending = true;
+        _lastLoadedProvider = Provider;
+        _lastLoadedSteamId = SteamId;
+        _lastLoadedUnplayedOnly = UnplayedOnly;
 
         try
         {
@@ -234,9 +251,6 @@
 
             _background = _gameDetails.HeaderImage ?? string.Empty;
             _themeUpdatePending = true;
-            _lastLoadedProvider = Provider;
-            _lastLoadedSteamId = SteamId;
-            _lastLoadedUnplayedOnly = UnplayedOnly;
         }
         catch (Exception ex)
         {
