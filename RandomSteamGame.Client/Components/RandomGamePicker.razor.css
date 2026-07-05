@@ -347,6 +347,31 @@
     }
 }
 
+/* Mobile: keep the border/glow, remove the full-panel purple wash. */
+@media (max-width: 767.98px) {
+    .game-page-wrapper > .container-fluid.rsg-led-breathe-purple {
+        border-color: rgba(168, 85, 247, 0.16);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.26), 0 0 0 rgba(168, 85, 247, 0);
+        animation: rsg-result-purple-led-breathe-mobile 5.6s ease-in-out infinite;
+    }
+
+        .game-page-wrapper > .container-fluid.rsg-led-breathe-purple::before {
+            display: none;
+        }
+}
+
+@keyframes rsg-result-purple-led-breathe-mobile {
+    0%, 100% {
+        border-color: rgba(168, 85, 247, 0.14);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.26), 0 0 0 rgba(168, 85, 247, 0);
+    }
+
+    50% {
+        border-color: rgba(192, 132, 252, 0.46);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.26), 0 0 10px rgba(168, 85, 247, 0.24), 0 0 24px rgba(168, 85, 247, 0.12);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .game-page-wrapper > .container-fluid.rsg-led-breathe-purple {
         animation: none;
@@ -357,5 +382,17 @@
         .game-page-wrapper > .container-fluid.rsg-led-breathe-purple::before {
             animation: none;
             opacity: 0.45;
+        }
+}
+
+@media (max-width: 767.98px) and (prefers-reduced-motion: reduce) {
+    .game-page-wrapper > .container-fluid.rsg-led-breathe-purple {
+        animation: none;
+        border-color: rgba(192, 132, 252, 0.36);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.26), 0 0 12px rgba(168, 85, 247, 0.18);
+    }
+
+        .game-page-wrapper > .container-fluid.rsg-led-breathe-purple::before {
+            display: none;
         }
 }
