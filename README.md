@@ -122,7 +122,21 @@ Current major areas of interest:
 
 ---
 
-## 9.0 License
+## 9.0 Data Protection Keys
+
+RandomSteamGame persists ASP.NET Core Data Protection keys outside the publish directory so antiforgery tokens survive app restarts and redeployments.
+
+By default, production keys are stored under:
+
+`%ProgramData%\JoyfulReaper\RandomSteamGame\DataProtectionKeys`
+
+The IIS app pool identity must have read/write/create permissions to that directory.
+
+Do not delete this folder during deployment unless you intentionally want to invalidate existing antiforgery/auth cookies.
+
+---
+
+## 10.0 License
 
 Copyright © 2026 Kyle Givler
 
