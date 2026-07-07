@@ -6,6 +6,7 @@
  */
 
 using JoyfulReaperLib.WebStats.Sqlite;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
@@ -54,6 +55,7 @@ public static class ServiceExtensions
             options.ConnectionString = connectionString;
         });
 
+        services.AddApplicationDataProtection(config, env);
         services.AddBlazorServices();
         services.AddApiServices();
         services.AddSteamIdentityServices();
@@ -71,6 +73,39 @@ public static class ServiceExtensions
         return services;
     }
 
+    private static IServiceCollection AddApplicationDataProtection(
+        this IServiceCollection services,
+        IConfiguration config,
+        IWebHostEnvironment env)
+    {
+        var dataProtectionSection = config.GetSection("DataProtection");
+        var applicationName = dataProtectionSection["ApplicationName"];
+        if (string.IsNullOrWhiteSpace(applicationName))
+        {
+            applicationName = "RandomSteamGame";
+        }
+
+        var configuredKeysPath = dataProtectionSection["KeysPath"];
+        var keysPath = string.IsNullOrWhiteSpace(configuredKeysPath)
+            ? GetDefaultDataProtectionKeysPath(env)
+            : configuredKeysPath;
+
+        Directory.CreateDirectory(keysPath);
+
+        var dataProtectionBuilder = services.AddDataProtection()
+            .SetApplicationName(applicationName)
+            .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+
+        if (OperatingSystem.IsWindows())
+        {
+            dataProtectionBuilder.ProtectKeysWithDpapi(protectToLocalMachine: true);
+        }
+
+        services.AddSingleton(new DataProtectionSettings(applicationName, keysPath));
+
+        return services;
+    }
+
     private static IServiceCollection AddBlazorServices(this IServiceCollection services)
     {
         services.AddRazorComponents()
@@ -78,6 +113,22 @@ public static class ServiceExtensions
             .AddInteractiveWebAssemblyComponents();
 
         return services;
+    }
+
+    private static string GetDefaultDataProtectionKeysPath(IWebHostEnvironment env)
+    {
+        if (env.IsDevelopment() || !OperatingSystem.IsWindows())
+        {
+            return Path.Combine(env.ContentRootPath, ".keys", "data-protection");
+        }
+
+        var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+        var keysPath = Path.Combine(programData, "JoyfulReaper", "RandomSteamGame", "DataProtectionKeys");
+
+        // Keep this directory outside the deploy folder so keys survive app pool recycles,
+        // deployments, and restarts. The IIS identity needs read/write/create access, and
+        // deleting the key ring invalidates existing antiforgery/auth cookies.
+        return keysPath;
     }
 
     private static IServiceCollection AddApiServices(this IServiceCollection services)
@@ -210,3 +261,5 @@ public static class ServiceExtensions
         }
     }
 }
+
+internal sealed record DataProtectionSettings(string ApplicationName, string KeysPath);

@@ -13,6 +13,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplicationServices(builder.Configuration, builder.Environment);
 var app = builder.Build();
 
+var dataProtectionSettings = app.Services.GetRequiredService<DataProtectionSettings>();
+app.Logger.LogInformation(
+    "Data Protection configured. ApplicationName={ApplicationName}, KeysPath={KeysPath}",
+    dataProtectionSettings.ApplicationName,
+    dataProtectionSettings.KeysPath);
+
 app.ConfigurePipeline(app.Environment);
 
 // ==========================================
