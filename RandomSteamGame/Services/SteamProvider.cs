@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Http;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
+using RandomSteamGame.Shared.Services;
+using SteamApiClient;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
 
@@ -91,6 +93,10 @@ public class SteamProvider : IGameProvider
             }
 
             return steamId;
+        }
+        catch (ArgumentException)
+        {
+            return Errors.Steam.InvalidVanityUrl;
         }
         catch (Exception ex)
         {
@@ -263,11 +269,12 @@ public class SteamProvider : IGameProvider
 
     internal static int GetDisplayPlaytimeMinutes(SteamApiClient.Contracts.SteamApi.Game game)
     {
-        var platformTotal = game.PlaytimeWindowsForever + game.PlaytimeMacForever + game.PlaytimeLinuxForever;
-
-        return Math.Max(
+        return SteamPlaytimeHelper.GetDisplayPlaytimeMinutes(
             game.PlaytimeForever,
-            Math.Max(platformTotal, game.Playtime2Weeks));
+            game.PlaytimeWindowsForever,
+            game.PlaytimeMacForever,
+            game.PlaytimeLinuxForever,
+            game.Playtime2Weeks);
     }
 
     private static OwnedGamesResponse MapToOwnedGamesResponse(long steamId, SteamApiClient.Contracts.SteamApi.OwnedGames sdkOwnedGames)

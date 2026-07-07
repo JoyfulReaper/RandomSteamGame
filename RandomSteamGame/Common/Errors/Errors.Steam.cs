@@ -24,13 +24,11 @@ public static partial class Errors
 
         public static Error InvalidVanityUrl => Error.Validation(
             code: "Steam.InvalidVanityUrl",
-            description: "Steam vanity URL must be 3-64 characters and contain only letters, numbers, underscores, or hyphens.");
+            description: "Steam vanity URL must decode to a valid Steam vanity name or Steam community profile URL.");
 
         public static Error VanityResolutionFailed => Error.NotFound(
             code: "Steam.VanityResolutionFailed",
             description: "Failed to resolve vanity URL.");
-
-        public static Error VanityResolutonFailed => VanityResolutionFailed;
 
         public static Error EmptyLibrary => Error.NotFound(
             code: "Steam.EmptyLibrary",

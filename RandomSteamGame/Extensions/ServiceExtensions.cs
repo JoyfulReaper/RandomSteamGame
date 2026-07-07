@@ -1,22 +1,22 @@
-﻿/*
+/*
  * Random Steam Game
  * 
  * Copyright (c) 2026 Kyle Givler
  * Licensed under the MIT License.
  */
 
-using JoyfulReaperLib.JRData;
+using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Common.Errors;
+using RandomSteamGame.Persistence;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
 using RandomSteamGame.Shared.Services;
 using SteamApiClient;
-using SteamApiClient.Caching;
 using SteamApiClient.Settings;
 using System.Threading.RateLimiting;
 
@@ -29,9 +29,13 @@ public static class ServiceExtensions
         IConfiguration config,
         IWebHostEnvironment env)
     {
-        SqliteProviderInitializer.Initialize();
-
         const string schemaSql = """
+            CREATE TABLE IF NOT EXISTS Visitors (
+                IpAddress TEXT PRIMARY KEY,
+                Hits INTEGER NOT NULL DEFAULT 1,
+                LastSeen TEXT
+            );
+
             CREATE TABLE IF NOT EXISTS AppStats (
                 Id INTEGER PRIMARY KEY CHECK (Id = 1),
                 RandomGamesGenerated INTEGER NOT NULL DEFAULT 0
@@ -42,8 +46,13 @@ public static class ServiceExtensions
             WHERE NOT EXISTS (SELECT 1 FROM AppStats WHERE Id = 1);
             """;
 
-        var connectionString = SqliteHelper.InitializeSqlite("kgivler_com.db", schemaSql);
+        var connectionString = SqliteAppDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
         var steamOptions = GetSteamOptions(config);
+
+        services.AddJoyfulReaperSqliteHitCounter(options =>
+        {
+            options.ConnectionString = connectionString;
+        });
 
         services.AddBlazorServices();
         services.AddApiServices();

@@ -175,12 +175,17 @@ public class SequencedHttpMessageHandler : HttpMessageHandler
     }
 
     public int CallCount { get; private set; }
+    public List<Uri> RequestUris { get; } = [];
 
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
         CallCount++;
+        if (request.RequestUri is not null)
+        {
+            RequestUris.Add(request.RequestUri);
+        }
 
         var responseData = _responses.Count > 0
             ? _responses.Dequeue()

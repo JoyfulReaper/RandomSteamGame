@@ -1,7 +1,10 @@
-﻿@page "/"
+@page "/"
 
 @inject NavigationManager NavManager
 @inject IBetaAvailabilityService BetaAvailabilityService
+@inject IAppStatsService AppStatsService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject ILogger<Home> Logger
 
 <HeadContent>
     <link rel="canonical" href="@CanonicalUrl" />
@@ -47,7 +50,7 @@
                 </div>
             }
 
-            <div class="home-card">
+            <div class="home-card rsg-led-breathe-purple">
                 <p class="home-eyebrow text-center mb-2">
                     Steam library roulette
                 </p>
@@ -76,7 +79,7 @@
                        rel="noopener noreferrer">profile is public</a>.
                 </p>
 
-                <HomeStats />
+                <HomeStats Stats="_appStats" />
 
                 <p>
                     Please Report Any <span class="text-danger">Bugs:</span>
@@ -95,6 +98,7 @@
     private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
     private bool _betaAvailable;
     private bool _isBetaSite;
+    private AppStatsResponse? _appStats;
 
     protected override async Task OnInitializedAsync()
     {
@@ -103,9 +107,27 @@
             "randombeta.kgivler.com",
             StringComparison.OrdinalIgnoreCase);
 
+        await LoadAppStatsAsync();
+
         if (!_isBetaSite)
         {
             _betaAvailable = await BetaAvailabilityService.IsBetaAvailableAsync();
+        }
+    }
+
+    private async Task LoadAppStatsAsync()
+    {
+        try
+        {
+            var ip = HttpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+            _appStats = string.IsNullOrWhiteSpace(ip)
+                ? await AppStatsService.GetStatsAsync()
+                : await AppStatsService.RecordHitAsync(ip);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load home page stats.");
+            _appStats = await AppStatsService.GetStatsAsync();
         }
     }
 }

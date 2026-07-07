@@ -1,4 +1,5 @@
 using RandomSteamGame.Services;
+using RandomSteamGame.Shared.Services;
 using SteamApiClient.Contracts.SteamApi;
 
 namespace RandomSteamGame.Tests;
@@ -52,14 +53,14 @@ public class SteamProviderTests
         int playtime2Weeks,
         int expectedMinutes)
     {
-        var game = CreateGame(
-            playtimeForever: playtimeForever,
-            playtimeWindowsForever: playtimeWindowsForever,
-            playtimeMacForever: playtimeMacForever,
-            playtimeLinuxForever: playtimeLinuxForever,
-            playtime2Weeks: playtime2Weeks);
-
-        Assert.Equal(expectedMinutes, SteamProvider.GetDisplayPlaytimeMinutes(game));
+        Assert.Equal(
+            expectedMinutes,
+            SteamPlaytimeHelper.GetDisplayPlaytimeMinutes(
+                playtimeForever,
+                playtimeWindowsForever,
+                playtimeMacForever,
+                playtimeLinuxForever,
+                playtime2Weeks));
     }
 
     private static Game CreateGame(

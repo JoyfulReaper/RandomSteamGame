@@ -5,7 +5,7 @@
  * Licensed under the MIT License.
  */
 
-using JoyfulReaperLib.JRData.Web;
+using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.Data.Sqlite;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
@@ -15,29 +15,26 @@ namespace RandomSteamGame.Services;
 public sealed class AppStatsService : IAppStatsService
 {
     private readonly SqliteConnection _dbConnection;
+    private readonly IHitCounter _hitCounter;
 
-    public AppStatsService(SqliteConnection dbConnection)
+    public AppStatsService(SqliteConnection dbConnection, IHitCounter hitCounter)
     {
         _dbConnection = dbConnection;
+        _hitCounter = hitCounter;
     }
 
     public async Task<AppStatsResponse> RecordHitAsync(string ip)
     {
-        var stats = await HitCountHelper.ProcessHitCounts(_dbConnection, ip);
+        var stats = await _hitCounter.RecordHitAsync(ip);
         var randomGamesGenerated = await GetRandomGamesGeneratedAsync();
-        return new AppStatsResponse(stats.totalHits, stats.uniqueVisitors, randomGamesGenerated);
+        return new AppStatsResponse(stats.TotalHits, stats.UniqueVisitors, randomGamesGenerated);
     }
 
     public async Task<AppStatsResponse> GetStatsAsync()
     {
-        if (_dbConnection.State != System.Data.ConnectionState.Open)
-        {
-            await _dbConnection.OpenAsync();
-        }
-
-        var stats = await HitCountHelper.GetHitCounts(_dbConnection);
+        var stats = await _hitCounter.GetHitCountsAsync();
         var randomGamesGenerated = await GetRandomGamesGeneratedAsync();
-        return new AppStatsResponse(stats.totalHits, stats.uniqueVisitors, randomGamesGenerated);
+        return new AppStatsResponse(stats.TotalHits, stats.UniqueVisitors, randomGamesGenerated);
     }
 
     public async Task IncrementRandomGamesGeneratedAsync()
