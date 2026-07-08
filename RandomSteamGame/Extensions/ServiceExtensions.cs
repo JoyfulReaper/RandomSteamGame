@@ -5,6 +5,7 @@
  * Licensed under the MIT License.
  */
 
+using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
@@ -12,7 +13,6 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Common.Errors;
-using RandomSteamGame.Persistence;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
@@ -47,7 +47,7 @@ public static class ServiceExtensions
             WHERE NOT EXISTS (SELECT 1 FROM AppStats WHERE Id = 1);
             """;
 
-        var connectionString = SqliteAppDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
+        var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
         var steamOptions = GetSteamOptions(config);
 
         services.AddJoyfulReaperSqliteHitCounter(options =>
