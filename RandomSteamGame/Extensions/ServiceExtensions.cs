@@ -68,6 +68,15 @@ public static class ServiceExtensions
         services.AddHttpClient<RandomSteamApiClient>();
         services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
 
+        services.AddAntiforgery(options =>
+        {
+            options.Cookie.Name = ".RandomSteamGame.Antiforgery.v2";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.Cookie.Path = "/";
+        });
+
         ValidateSteamApiKey(steamOptions);
 
         return services;
