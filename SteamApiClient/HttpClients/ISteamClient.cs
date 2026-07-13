@@ -18,6 +18,12 @@ public interface ISteamClient
         bool includePlayedFreeGames = true,
         CancellationToken ct = default);
 
+    Task<OwnedGamesResult> GetOwnedGamesWithCacheInfo(
+        long steamId,
+        bool includeAppInfo = true,
+        bool includePlayedFreeGames = true,
+        CancellationToken ct = default);
+
     Task<long> GetSteamIdFromVanityUrl(
         string vanityUrl,
         CancellationToken ct = default);

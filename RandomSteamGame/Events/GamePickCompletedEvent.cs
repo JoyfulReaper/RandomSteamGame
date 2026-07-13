@@ -5,5 +5,16 @@ public sealed record GamePickCompletedEvent(
     int? AppId,
     bool UnplayedOnly,
     long DurationMilliseconds,
+    string CacheStatus,
+    long? CacheAgeSeconds,
+    int? EligibleGameCount,
+    string? LibrarySizeBucket,
+    GamePickTimings Timings,
+    string? CommitSha,
     string Outcome,
     bool Succeeded);
+
+public sealed record GamePickTimings(
+    long IdentifierResolutionMilliseconds,
+    long LibraryLoadMilliseconds,
+    long SelectionMilliseconds);

@@ -10,10 +10,12 @@ using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Common.Errors;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
@@ -51,6 +53,9 @@ public static class ServiceExtensions
         var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
         var steamOptions = GetSteamOptions(config);
 
+        services.Configure<ApplicationOptions>(
+            config.GetSection(ApplicationOptions.SectionName));
+
         services.AddJoyfulReaperSqliteHitCounter(options =>
         {
             options.ConnectionString = connectionString;
@@ -65,6 +70,7 @@ public static class ServiceExtensions
         services.AddSteamServices(config);
         services.AddApplicationCors(config, env);
         services.AddSteamRateLimiting(steamOptions.RateLimiting);
+        services.AddApplicationHealthChecks();
         services.AddMemoryCache();
         services.AddHttpClient<RandomSteamApiClient>();
         services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
@@ -72,6 +78,7 @@ public static class ServiceExtensions
         services.AddMissionControlClient(
             config.GetSection(
                 MissionControlClientOptions.SectionName));
+        services.AddHostedService<ApplicationStartupTelemetryService>();
 
         services.AddAntiforgery(options =>
         {
@@ -85,6 +92,20 @@ public static class ServiceExtensions
         });
 
         ValidateSteamApiKey(steamOptions);
+
+        return services;
+    }
+
+    private static IServiceCollection AddApplicationHealthChecks(this IServiceCollection services)
+    {
+        services.AddHealthChecks()
+            .AddCheck(
+                "process",
+                () => HealthCheckResult.Healthy(),
+                tags: ["live"])
+            .AddCheck<LocalReadinessHealthCheck>(
+                "local-dependencies",
+                tags: ["ready"]);
 
         return services;
     }

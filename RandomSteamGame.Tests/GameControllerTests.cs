@@ -2,16 +2,20 @@ using ErrorOr;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Controllers;
 using RandomSteamGame.Events;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using JoyfulReaperLib.MissionControl;
+using SteamApiClient.Services;
 
 namespace RandomSteamGame.Tests;
 
@@ -225,7 +229,7 @@ public class GameControllerTests
         AssertGamePickEvent(
             missionControl,
             expectedProvider: "steam",
-            expectedOutcome: "selection-failed",
+            expectedOutcome: "library-load-failed",
             expectedSucceeded: false,
             expectedAppId: null,
             expectedUnplayedOnly: false);
@@ -262,6 +266,108 @@ public class GameControllerTests
             expectedSucceeded: true,
             expectedAppId: 42,
             expectedUnplayedOnly: true);
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_Success_PublishesCacheLibraryTimingAndCommitTelemetry()
+    {
+        var missionControl = new RecordingMissionControlClient();
+        var provider = new FakeGameProvider(
+            randomGameResult: new GameDetails
+            {
+                Id = 42,
+                Name = "Portal"
+            },
+            cacheInfo: new OwnedGamesCacheInfo(OwnedGamesCacheStatus.Hit, 1842),
+            eligibleGameCount: 3,
+            libraryGameCount: 500);
+        var controller = CreateController(
+            provider,
+            missionControlClient: missionControl,
+            applicationOptions: new ApplicationOptions
+            {
+                CommitSha = "1fc5721778e1",
+                DeploymentType = "docker"
+            });
+
+        var result = await controller.GetRandomGameDetails("steam", 76561197960287930L, vanityUrl: null);
+
+        Assert.IsType<OkObjectResult>(result);
+        var payload = missionControl.PublishedEvents.Single().Payload;
+        Assert.Equal("hit", payload.CacheStatus);
+        Assert.Equal(1842, payload.CacheAgeSeconds);
+        Assert.Equal(3, payload.EligibleGameCount);
+        Assert.Equal("500-999", payload.LibrarySizeBucket);
+        Assert.Equal("1fc5721778e1", payload.CommitSha);
+        Assert.True(payload.Timings.IdentifierResolutionMilliseconds >= 0);
+        Assert.True(payload.Timings.LibraryLoadMilliseconds >= 0);
+        Assert.True(payload.Timings.SelectionMilliseconds >= 0);
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_CacheMiss_PublishesMissStatus()
+    {
+        var missionControl = new RecordingMissionControlClient();
+        var provider = new FakeGameProvider(
+            randomGameResult: new GameDetails
+            {
+                Id = 42,
+                Name = "Portal"
+            },
+            cacheInfo: new OwnedGamesCacheInfo(OwnedGamesCacheStatus.Miss, 0));
+        var controller = CreateController(provider, missionControlClient: missionControl);
+
+        var result = await controller.GetRandomGameDetails("steam", 76561197960287930L, vanityUrl: null);
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Equal("miss", missionControl.PublishedEvents.Single().Payload.CacheStatus);
+    }
+
+    [Theory]
+    [InlineData(0, "0")]
+    [InlineData(1, "1-24")]
+    [InlineData(24, "1-24")]
+    [InlineData(25, "25-99")]
+    [InlineData(99, "25-99")]
+    [InlineData(100, "100-249")]
+    [InlineData(249, "100-249")]
+    [InlineData(250, "250-499")]
+    [InlineData(499, "250-499")]
+    [InlineData(500, "500-999")]
+    [InlineData(999, "500-999")]
+    [InlineData(1000, "1000+")]
+    public void LibrarySizeBuckets_ReturnExpectedBucket(int gameCount, string expectedBucket)
+    {
+        Assert.Equal(expectedBucket, LibrarySizeBuckets.FromCount(gameCount));
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_SerializedEvent_ExcludesSensitiveInputsAndGameName()
+    {
+        var missionControl = new RecordingMissionControlClient();
+        var provider = new FakeGameProvider(
+            randomGameResult: new GameDetails
+            {
+                Id = 42,
+                Name = "Portal"
+            });
+        var controller = CreateController(provider, missionControlClient: missionControl);
+
+        await controller.GetRandomGameDetails("steam", 76561197960287930L, vanityUrl: null);
+
+        var json = JsonSerializer.Serialize(
+            missionControl.PublishedEvents.Single().Payload,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.DoesNotContain("76561197960287930", json);
+        Assert.DoesNotContain("Portal", json);
+        Assert.DoesNotContain("steamId", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("vanityUrl", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("apiKey", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("cookie", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ownedGames", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("exception", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("stackTrace", json, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -331,7 +437,6 @@ public class GameControllerTests
         Assert.DoesNotContain(propertyNames, name => name.Contains("Cookie", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(propertyNames, name => name.Contains("Key", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(propertyNames, name => name.Contains("Owned", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(propertyNames, name => name.Contains("Library", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -384,7 +489,8 @@ public class GameControllerTests
     private static GameController CreateController(
         FakeGameProvider? provider = null,
         FakeAppStatsService? appStatsService = null,
-        RecordingMissionControlClient? missionControlClient = null)
+        RecordingMissionControlClient? missionControlClient = null,
+        ApplicationOptions? applicationOptions = null)
     {
         var controller = new GameController(
             new GameProviderFactory([provider ?? new FakeGameProvider()]),
@@ -392,6 +498,7 @@ public class GameControllerTests
             appStatsService ?? new FakeAppStatsService(),
             new SteamLibraryExportService(),
             missionControlClient ?? new RecordingMissionControlClient(),
+            Microsoft.Extensions.Options.Options.Create(applicationOptions ?? new ApplicationOptions()),
             NullLogger<GameController>.Instance);
 
         controller.ControllerContext = new ControllerContext
@@ -428,6 +535,9 @@ public class GameControllerTests
         Assert.Equal(expectedOutcome, publishedEvent.Payload.Outcome);
         Assert.Equal(expectedSucceeded, publishedEvent.Payload.Succeeded);
         Assert.True(publishedEvent.Payload.DurationMilliseconds >= 0);
+        Assert.True(publishedEvent.Payload.Timings.IdentifierResolutionMilliseconds >= 0);
+        Assert.True(publishedEvent.Payload.Timings.LibraryLoadMilliseconds >= 0);
+        Assert.True(publishedEvent.Payload.Timings.SelectionMilliseconds >= 0);
     }
 
     private sealed class FakeGameProvider : IGameProvider
@@ -435,6 +545,9 @@ public class GameControllerTests
         private readonly OwnedGamesResponse _library;
         private readonly ErrorOr<GameDetails> _randomGameResult;
         private readonly ErrorOr<long> _resolveIdentifierResult;
+        private readonly OwnedGamesCacheInfo _cacheInfo;
+        private readonly int _eligibleGameCount;
+        private readonly int _libraryGameCount;
 
         public int GetOwnedGamesCallCount { get; private set; }
         public int GetRandomGameDetailsCallCount { get; private set; }
@@ -451,11 +564,17 @@ public class GameControllerTests
         public FakeGameProvider(
             OwnedGamesResponse? library = null,
             ErrorOr<GameDetails>? randomGameResult = null,
-            ErrorOr<long>? resolveIdentifierResult = null)
+            ErrorOr<long>? resolveIdentifierResult = null,
+            OwnedGamesCacheInfo? cacheInfo = null,
+            int eligibleGameCount = 1,
+            int libraryGameCount = 1)
         {
             _library = library ?? new OwnedGamesResponse(76561197960287930L, 0, []);
             _randomGameResult = randomGameResult ?? new GameDetails { Id = 1, Name = "Test" };
             _resolveIdentifierResult = resolveIdentifierResult ?? 76561197960287930L;
+            _cacheInfo = cacheInfo ?? OwnedGamesCacheInfo.Unknown;
+            _eligibleGameCount = eligibleGameCount;
+            _libraryGameCount = libraryGameCount;
         }
 
         public string ProviderKey => "steam";
@@ -470,6 +589,22 @@ public class GameControllerTests
         {
             GetRandomGameDetailsCallCount++;
             return Task.FromResult(_randomGameResult);
+        }
+
+        public Task<ErrorOr<RandomGamePickResult>> GetRandomGamePickAsync(long userId, bool unplayedOnly = false)
+        {
+            GetRandomGameDetailsCallCount++;
+            if (_randomGameResult.IsError)
+            {
+                return Task.FromResult<ErrorOr<RandomGamePickResult>>(_randomGameResult.Errors);
+            }
+
+            return Task.FromResult<ErrorOr<RandomGamePickResult>>(new RandomGamePickResult(
+                _randomGameResult.Value,
+                _cacheInfo,
+                _eligibleGameCount,
+                _libraryGameCount,
+                new GamePickTimings(0, 1, 1)));
         }
 
         public Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)

@@ -116,6 +116,33 @@ The picker is built around the idea that a random game response should feel inst
 
 Mission Control is used for best-effort completion telemetry on random-game picks. Telemetry failures are logged but never block a successful response.
 
+Game-pick telemetry uses the existing `randomsteam.game-pick.completed` event type. The event remains schema version 1 because these changes are additive payload fields under the current Mission Control convention. The payload includes:
+
+- `provider`
+- `appId`
+- `unplayedOnly`
+- `durationMilliseconds`
+- `cacheStatus`
+- `cacheAgeSeconds`
+- `eligibleGameCount`
+- `librarySizeBucket`
+- `timings.identifierResolutionMilliseconds`
+- `timings.libraryLoadMilliseconds`
+- `timings.selectionMilliseconds`
+- `commitSha`
+- `outcome`
+- `succeeded`
+
+Cache status is reported as one of `hit`, `miss`, `refreshed`, `stale`, `bypassed`, or `unknown`. Library size buckets are `0`, `1-24`, `25-99`, `100-249`, `250-499`, `500-999`, and `1000+`.
+
+Telemetry intentionally excludes Steam IDs, vanity URLs, IP addresses, cookies, API keys, owned-library contents, raw Steam responses, exception messages, stack traces, full user-agent strings, and selected game names.
+
+An application startup event is published once per process start after the host is built:
+
+`randomsteam.application.started`
+
+The startup payload includes environment name, optional commit SHA, optional deployment type, and framework version. Mission Control publish failures are logged and do not crash startup.
+
 Current major areas of interest:
 
 - API hardening
@@ -140,7 +167,47 @@ Do not delete this folder during deployment unless you intentionally want to inv
 
 ---
 
-## 10.0 License
+## 10.0 Deployment Observability
+
+Deployment identity can be provided through configuration or environment variables:
+
+```text
+Application__CommitSha
+Application__DeploymentType
+```
+
+Recommended Compose environment entries:
+
+```yaml
+environment:
+  Application__CommitSha: ${RANDOMSTEAM_COMMIT_SHA}
+  Application__DeploymentType: docker
+```
+
+Health endpoints:
+
+- `/health/live` checks only that the process is running and can serve requests.
+- `/health/ready` checks local readiness dependencies such as configuration binding, SQLite access, and writable Data Protection keys.
+
+Readiness does not call Steam or Mission Control, so cached/local traffic can remain serviceable during upstream outages.
+
+Recommended Docker health check:
+
+```yaml
+healthcheck:
+  test:
+    [
+      "CMD",
+      "curl",
+      "--fail",
+      "--silent",
+      "http://127.0.0.1:5182/health/live"
+    ]
+```
+
+---
+
+## 11.0 License
 
 Copyright © 2026 Kyle Givler
 

@@ -10,12 +10,15 @@ using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Events;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using SteamApiClient;
+using SteamApiClient.Services;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
@@ -36,6 +39,7 @@ public class GameController : ApiController
     private readonly IAppStatsService _appStatsService;
     private readonly ISteamLibraryExportService _steamLibraryExportService;
     private readonly IMissionControlClient _missionControlClient;
+    private readonly ApplicationOptions _applicationOptions;
     private readonly ILogger<GameController> _logger;
 
     public GameController(
@@ -44,9 +48,11 @@ public class GameController : ApiController
         IAppStatsService appStatsService,
         ISteamLibraryExportService steamLibraryExportService,
         IMissionControlClient missionControlClient,
+        IOptions<ApplicationOptions> applicationOptions,
         ILogger<GameController> logger)
     {
         _missionControlClient = missionControlClient;
+        _applicationOptions = applicationOptions.Value;
         _factory = factory;
         _ownedGamesCacheResetTracker = ownedGamesCacheResetTracker;
         _appStatsService = appStatsService;
@@ -162,13 +168,14 @@ public class GameController : ApiController
         {
             await PublishGamePickEventAsync(
                 provider,
-                game: null,
+                telemetry: null,
                 unplayedOnly,
                 stopwatch,
                 outcome: "unsupported-provider",
                 succeeded: false,
                 occurredAt,
-                correlationId);
+                correlationId,
+                identifierResolutionMilliseconds: 0);
 
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);
         }
@@ -178,45 +185,50 @@ public class GameController : ApiController
         {
             await PublishGamePickEventAsync(
                 provider,
-                game: null,
+                telemetry: null,
                 unplayedOnly,
                 stopwatch,
                 outcome: "invalid-identifier",
                 succeeded: false,
                 occurredAt,
-                correlationId);
+                correlationId,
+                identifierResolutionMilliseconds: 0);
 
             return Problem([identifierValidation.Value]);
         }
 
+        var identifierStopwatch = Stopwatch.StartNew();
         var targetId = await ResolveIdentifier(service, userId, vanityUrl);
+        identifierStopwatch.Stop();
         if (targetId.IsError)
         {
             await PublishGamePickEventAsync(
                 provider,
-                game: null,
+                telemetry: null,
                 unplayedOnly,
                 stopwatch,
                 outcome: "identifier-resolution-failed",
                 succeeded: false,
                 occurredAt,
-                correlationId);
+                correlationId,
+                identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
 
             return Problem(targetId.Errors);
         }
 
-        var result = await service.GetRandomGameDetailsAsync(targetId.Value, unplayedOnly);
+        var result = await service.GetRandomGamePickAsync(targetId.Value, unplayedOnly);
         if (result.IsError)
         {
             await PublishGamePickEventAsync(
                 provider,
-                game: null,
+                telemetry: null,
                 unplayedOnly,
                 stopwatch,
-                outcome: "selection-failed",
+                outcome: GetOutcome(result.Errors),
                 succeeded: false,
                 occurredAt,
-                correlationId);
+                correlationId,
+                identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
 
             return Problem(result.Errors);
         }
@@ -228,23 +240,25 @@ public class GameController : ApiController
             result.Value,
             unplayedOnly,
             stopwatch,
-            outcome: "served",
+            outcome: GamePickOutcome.Served,
             succeeded: true,
             occurredAt,
-            correlationId);
+            correlationId,
+            identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
 
-        return Ok(result.Value);
+        return Ok(result.Value.Game);
     }
 
     private async Task PublishGamePickEventAsync(
         string provider,
-        GameDetails? game,
+        RandomGamePickResult? telemetry,
         bool unplayedOnly,
         Stopwatch stopwatch,
         string outcome,
         bool succeeded,
         DateTimeOffset occurredAt,
-        string correlationId)
+        string correlationId,
+        long identifierResolutionMilliseconds)
     {
         stopwatch.Stop();
 
@@ -255,10 +269,25 @@ public class GameController : ApiController
                     RandomSteamGameEventTypes.GamePickCompleted,
                 payload: new GamePickCompletedEvent(
                     Provider: provider,
-                    AppId: game?.Id,
+                    AppId: telemetry?.Game.Id,
                     UnplayedOnly: unplayedOnly,
                     DurationMilliseconds:
                         stopwatch.ElapsedMilliseconds,
+                    CacheStatus: telemetry?.Cache.StatusName ?? OwnedGamesCacheInfo.Unknown.StatusName,
+                    CacheAgeSeconds: telemetry?.Cache.AgeSeconds,
+                    EligibleGameCount: telemetry?.EligibleGameCount,
+                    LibrarySizeBucket: telemetry is null
+                        ? null
+                        : LibrarySizeBuckets.FromCount(telemetry.LibraryGameCount),
+                    Timings: telemetry is null
+                        ? new GamePickTimings(identifierResolutionMilliseconds, 0, 0)
+                        : telemetry.Timings with
+                        {
+                            IdentifierResolutionMilliseconds = identifierResolutionMilliseconds
+                        },
+                    CommitSha: string.IsNullOrWhiteSpace(_applicationOptions.CommitSha)
+                        ? null
+                        : _applicationOptions.CommitSha,
                     Outcome: outcome,
                     Succeeded: succeeded),
                 occurredAt: occurredAt,
@@ -359,6 +388,19 @@ public class GameController : ApiController
         }
 
         return Errors.Steam.IdentifierRequired;
+    }
+
+    private static string GetOutcome(List<Error> errors)
+    {
+        var first = errors.FirstOrDefault();
+        return first.Code switch
+        {
+            "Steam.EmptyLibrary" => GamePickOutcome.EmptyLibrary,
+            "Steam.NoSelectableGamesAfterExclusions" => GamePickOutcome.NoEligibleGames,
+            "Steam.ApiFailed" => GamePickOutcome.LibraryLoadFailed,
+            "Steam.VanityResolutionFailed" => GamePickOutcome.IdentifierResolutionFailed,
+            _ => GamePickOutcome.SelectionFailed
+        };
     }
 
     private async Task TrackRandomGameGeneratedAsync()

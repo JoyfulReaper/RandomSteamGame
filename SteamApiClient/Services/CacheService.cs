@@ -71,6 +71,34 @@ internal class CacheService : ICacheService
     public Task<T?> GetAsync<T>(string key, CancellationToken ct = default)
         => _cache.GetAsync<T>(key, ct);
 
+    public async Task<CacheLookupResult<T>> GetOrCreateWithMetadataAsync<T>(
+        string key,
+        Func<CancellationToken, Task<T>> factory,
+        CachePolicy policy,
+        IEnumerable<string>? tags = null,
+        CancellationToken ct = default)
+    {
+        var cached = await GetAsync<CachedValue<T>>(key, ct);
+        if (cached is not null)
+        {
+            var ageSeconds = Math.Max(
+                0,
+                (long)(DateTimeOffset.UtcNow - cached.CachedAt).TotalSeconds);
+
+            return new CacheLookupResult<T>(
+                cached.Value,
+                new OwnedGamesCacheInfo(OwnedGamesCacheStatus.Hit, ageSeconds));
+        }
+
+        var value = await factory(ct);
+        var envelope = new CachedValue<T>(value, DateTimeOffset.UtcNow);
+        await SetAsync(key, envelope, policy, tags, ct);
+
+        return new CacheLookupResult<T>(
+            value,
+            new OwnedGamesCacheInfo(OwnedGamesCacheStatus.Miss, 0));
+    }
+
     public async Task InvalidateByTagAsync(string tag, CancellationToken ct = default)
     {
         //_logger.LogDebug("Invalidating cache for tag: {Tag}", tag);
