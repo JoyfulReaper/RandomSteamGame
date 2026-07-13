@@ -236,6 +236,54 @@ public class GameControllerTests
     }
 
     [Fact]
+    public async Task GetRandomGameDetails_NoEligibleGames_PublishesLibraryMetadata()
+    {
+        var missionControl = new RecordingMissionControlClient();
+        var provider = new FakeGameProvider(
+            randomGameResult: Errors.Steam.NoSelectableGamesAfterExclusions,
+            cacheInfo: new OwnedGamesCacheInfo(OwnedGamesCacheStatus.Hit, 10),
+            eligibleGameCount: 0,
+            libraryGameCount: 25);
+        var controller = CreateController(provider, missionControlClient: missionControl);
+
+        var result = await controller.GetRandomGameDetails("steam", 76561197960287930L, vanityUrl: null);
+
+        var objectResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
+        var payload = missionControl.PublishedEvents.Single().Payload;
+        Assert.Equal("no-eligible-games", payload.Outcome);
+        Assert.Equal("hit", payload.CacheStatus);
+        Assert.Equal(10, payload.CacheAgeSeconds);
+        Assert.Equal(0, payload.EligibleGameCount);
+        Assert.Equal("25-99", payload.LibrarySizeBucket);
+        Assert.True(payload.Timings.LibraryLoadMilliseconds >= 0);
+        Assert.True(payload.Timings.SelectionMilliseconds >= 0);
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_EmptyLibrary_PublishesZeroLibraryMetadata()
+    {
+        var missionControl = new RecordingMissionControlClient();
+        var provider = new FakeGameProvider(
+            randomGameResult: Errors.Steam.EmptyLibrary,
+            cacheInfo: new OwnedGamesCacheInfo(OwnedGamesCacheStatus.Miss, 0),
+            eligibleGameCount: 0,
+            libraryGameCount: 0);
+        var controller = CreateController(provider, missionControlClient: missionControl);
+
+        var result = await controller.GetRandomGameDetails("steam", 76561197960287930L, vanityUrl: null);
+
+        var objectResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status404NotFound, objectResult.StatusCode);
+        var payload = missionControl.PublishedEvents.Single().Payload;
+        Assert.Equal("empty-library", payload.Outcome);
+        Assert.Equal("miss", payload.CacheStatus);
+        Assert.Equal(0, payload.EligibleGameCount);
+        Assert.Equal("0", payload.LibrarySizeBucket);
+        Assert.True(payload.Timings.LibraryLoadMilliseconds >= 0);
+    }
+
+    [Fact]
     public async Task GetRandomGameDetails_Success_ReturnsGameDetails_IncrementsStats_AndPublishesOneSuccessEvent()
     {
         var missionControl = new RecordingMissionControlClient();
@@ -591,15 +639,20 @@ public class GameControllerTests
             return Task.FromResult(_randomGameResult);
         }
 
-        public Task<ErrorOr<RandomGamePickResult>> GetRandomGamePickAsync(long userId, bool unplayedOnly = false)
+        public Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false)
         {
             GetRandomGameDetailsCallCount++;
             if (_randomGameResult.IsError)
             {
-                return Task.FromResult<ErrorOr<RandomGamePickResult>>(_randomGameResult.Errors);
+                return Task.FromResult(RandomGamePickAttempt.Failure(
+                    _randomGameResult.Errors,
+                    _cacheInfo,
+                    _eligibleGameCount,
+                    _libraryGameCount,
+                    new GamePickTimings(0, 1, 1)));
             }
 
-            return Task.FromResult<ErrorOr<RandomGamePickResult>>(new RandomGamePickResult(
+            return Task.FromResult(RandomGamePickAttempt.Success(
                 _randomGameResult.Value,
                 _cacheInfo,
                 _eligibleGameCount,

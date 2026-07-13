@@ -11,7 +11,7 @@ namespace RandomSteamGame.Tests;
 public class ApplicationStartupTelemetryServiceTests
 {
     [Fact]
-    public async Task StartAsync_PublishesExactlyOneStartupEvent_WithDeploymentMetadata()
+    public async Task StartedAsync_PublishesExactlyOneStartupEvent_WithDeploymentMetadata()
     {
         var missionControl = new RecordingMissionControlClient();
         var service = CreateService(
@@ -22,7 +22,8 @@ public class ApplicationStartupTelemetryServiceTests
                 DeploymentType = "docker"
             });
 
-        await service.StartAsync(CancellationToken.None);
+        await service.StartedAsync(CancellationToken.None);
+        await service.StartedAsync(CancellationToken.None);
 
         var published = Assert.Single(missionControl.PublishedEvents);
         Assert.Equal(RandomSteamGameEventTypes.ApplicationStarted, published.EventType);
@@ -34,12 +35,12 @@ public class ApplicationStartupTelemetryServiceTests
     }
 
     [Fact]
-    public async Task StartAsync_MissingDeploymentMetadata_DoesNotThrow()
+    public async Task StartedAsync_MissingDeploymentMetadata_DoesNotThrow()
     {
         var missionControl = new RecordingMissionControlClient();
         var service = CreateService(missionControl, new ApplicationOptions());
 
-        await service.StartAsync(CancellationToken.None);
+        await service.StartedAsync(CancellationToken.None);
 
         var payload = Assert.IsType<ApplicationStartedEvent>(
             Assert.Single(missionControl.PublishedEvents).Payload);
@@ -48,7 +49,7 @@ public class ApplicationStartupTelemetryServiceTests
     }
 
     [Fact]
-    public async Task StartAsync_MissionControlFailure_DoesNotThrow()
+    public async Task StartedAsync_MissionControlFailure_DoesNotThrow()
     {
         var missionControl = new RecordingMissionControlClient
         {
@@ -56,9 +57,20 @@ public class ApplicationStartupTelemetryServiceTests
         };
         var service = CreateService(missionControl, new ApplicationOptions());
 
-        await service.StartAsync(CancellationToken.None);
+        await service.StartedAsync(CancellationToken.None);
 
         Assert.Single(missionControl.PublishedEvents);
+    }
+
+    [Fact]
+    public async Task StartAsync_DoesNotPublishStartupEvent()
+    {
+        var missionControl = new RecordingMissionControlClient();
+        var service = CreateService(missionControl, new ApplicationOptions());
+
+        await service.StartAsync(CancellationToken.None);
+
+        Assert.Empty(missionControl.PublishedEvents);
     }
 
     private static ApplicationStartupTelemetryService CreateService(

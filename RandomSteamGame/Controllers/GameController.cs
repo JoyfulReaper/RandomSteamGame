@@ -217,11 +217,11 @@ public class GameController : ApiController
         }
 
         var result = await service.GetRandomGamePickAsync(targetId.Value, unplayedOnly);
-        if (result.IsError)
+        if (!result.Succeeded)
         {
             await PublishGamePickEventAsync(
                 provider,
-                telemetry: null,
+                telemetry: result,
                 unplayedOnly,
                 stopwatch,
                 outcome: GetOutcome(result.Errors),
@@ -230,14 +230,14 @@ public class GameController : ApiController
                 correlationId,
                 identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
 
-            return Problem(result.Errors);
+            return Problem(result.Errors.ToList());
         }
 
         await TrackRandomGameGeneratedAsync();
 
         await PublishGamePickEventAsync(
             provider,
-            result.Value,
+            result,
             unplayedOnly,
             stopwatch,
             outcome: GamePickOutcome.Served,
@@ -246,12 +246,12 @@ public class GameController : ApiController
             correlationId,
             identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
 
-        return Ok(result.Value.Game);
+        return Ok(result.Game);
     }
 
     private async Task PublishGamePickEventAsync(
         string provider,
-        RandomGamePickResult? telemetry,
+        RandomGamePickAttempt? telemetry,
         bool unplayedOnly,
         Stopwatch stopwatch,
         string outcome,
@@ -269,7 +269,7 @@ public class GameController : ApiController
                     RandomSteamGameEventTypes.GamePickCompleted,
                 payload: new GamePickCompletedEvent(
                     Provider: provider,
-                    AppId: telemetry?.Game.Id,
+                    AppId: telemetry?.Game?.Id,
                     UnplayedOnly: unplayedOnly,
                     DurationMilliseconds:
                         stopwatch.ElapsedMilliseconds,
@@ -278,7 +278,9 @@ public class GameController : ApiController
                     EligibleGameCount: telemetry?.EligibleGameCount,
                     LibrarySizeBucket: telemetry is null
                         ? null
-                        : LibrarySizeBuckets.FromCount(telemetry.LibraryGameCount),
+                        : telemetry.LibraryGameCount is null
+                            ? null
+                            : LibrarySizeBuckets.FromCount(telemetry.LibraryGameCount.Value),
                     Timings: telemetry is null
                         ? new GamePickTimings(identifierResolutionMilliseconds, 0, 0)
                         : telemetry.Timings with
@@ -390,7 +392,7 @@ public class GameController : ApiController
         return Errors.Steam.IdentifierRequired;
     }
 
-    private static string GetOutcome(List<Error> errors)
+    private static string GetOutcome(IReadOnlyList<Error> errors)
     {
         var first = errors.FirstOrDefault();
         return first.Code switch

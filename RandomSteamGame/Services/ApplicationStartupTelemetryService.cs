@@ -6,12 +6,13 @@ using System.Runtime.InteropServices;
 
 namespace RandomSteamGame.Services;
 
-public sealed class ApplicationStartupTelemetryService : IHostedService
+public sealed class ApplicationStartupTelemetryService : IHostedLifecycleService
 {
     private readonly IMissionControlClient _missionControlClient;
     private readonly IHostEnvironment _environment;
     private readonly ApplicationOptions _applicationOptions;
     private readonly ILogger<ApplicationStartupTelemetryService> _logger;
+    private int _published;
 
     public ApplicationStartupTelemetryService(
         IMissionControlClient missionControlClient,
@@ -25,8 +26,19 @@ public sealed class ApplicationStartupTelemetryService : IHostedService
         _logger = logger;
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public Task StartingAsync(CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
+    public Task StartAsync(CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
+    public async Task StartedAsync(CancellationToken cancellationToken)
     {
+        if (Interlocked.Exchange(ref _published, 1) == 1)
+        {
+            return;
+        }
+
         if (_environment.IsProduction() &&
             string.IsNullOrWhiteSpace(_applicationOptions.CommitSha))
         {
@@ -56,6 +68,12 @@ public sealed class ApplicationStartupTelemetryService : IHostedService
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
+    public Task StoppingAsync(CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
+    public Task StoppedAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
 
     private static string? NullIfWhiteSpace(string? value)

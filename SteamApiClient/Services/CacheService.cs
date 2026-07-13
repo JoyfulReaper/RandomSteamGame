@@ -78,25 +78,37 @@ internal class CacheService : ICacheService
         IEnumerable<string>? tags = null,
         CancellationToken ct = default)
     {
-        var cached = await GetAsync<CachedValue<T>>(key, ct);
-        if (cached is not null)
+        var factoryExecuted = false;
+        var options = new HybridCacheEntryOptions
         {
-            var ageSeconds = Math.Max(
-                0,
-                (long)(DateTimeOffset.UtcNow - cached.CachedAt).TotalSeconds);
+            Expiration = policy.Duration,
+            LocalCacheExpiration = TimeSpan.FromMinutes(5) // TODO: Make configurable through appsettings
+        };
 
-            return new CacheLookupResult<T>(
-                cached.Value,
-                new OwnedGamesCacheInfo(OwnedGamesCacheStatus.Hit, ageSeconds));
-        }
+        var cachedValue = await _cache.GetOrCreateAsync(
+            key,
+            async token =>
+            {
+                factoryExecuted = true;
 
-        var value = await factory(ct);
-        var envelope = new CachedValue<T>(value, DateTimeOffset.UtcNow);
-        await SetAsync(key, envelope, policy, tags, ct);
+                var value = await factory(token);
+                return new CachedValue<T>(value, DateTimeOffset.UtcNow);
+            },
+            options,
+            tags,
+            cancellationToken: ct);
+
+        var ageSeconds = Math.Max(
+            0,
+            (long)(DateTimeOffset.UtcNow - cachedValue.CachedAt).TotalSeconds);
 
         return new CacheLookupResult<T>(
-            value,
-            new OwnedGamesCacheInfo(OwnedGamesCacheStatus.Miss, 0));
+            cachedValue.Value,
+            new OwnedGamesCacheInfo(
+                factoryExecuted
+                    ? OwnedGamesCacheStatus.Miss
+                    : OwnedGamesCacheStatus.Hit,
+                ageSeconds));
     }
 
     public async Task InvalidateByTagAsync(string tag, CancellationToken ct = default)

@@ -48,10 +48,10 @@ public class SteamProvider : IGameProvider
     public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false)
     {
         var result = await FetchRandomGamePickAsync(userId, unplayedOnly);
-        return result.IsError ? result.Errors : result.Value.Game;
+        return result.Succeeded ? result.Game! : result.Errors.ToList();
     }
 
-    public async Task<ErrorOr<RandomGamePickResult>> GetRandomGamePickAsync(long userId, bool unplayedOnly = false)
+    public async Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false)
         => await FetchRandomGamePickAsync(userId, unplayedOnly);
 
     public async Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)
@@ -107,7 +107,7 @@ public class SteamProvider : IGameProvider
         }
     }
 
-    public async Task<ErrorOr<RandomGamePickResult>> FetchRandomGamePickAsync(long steamId, bool unplayedOnly = false)
+    public async Task<RandomGamePickAttempt> FetchRandomGamePickAsync(long steamId, bool unplayedOnly = false)
     {
         var libraryLoadStopwatch = Stopwatch.StartNew();
         OwnedGamesResult ownedGamesResult;
@@ -118,31 +118,61 @@ public class SteamProvider : IGameProvider
         }
         catch (Exception ex)
         {
+            libraryLoadStopwatch.Stop();
             _logger.LogError(ex, "Error loading owned games for random-game pick.");
-            return Errors.Steam.SteamApiFailed;
+            return RandomGamePickAttempt.Failure(
+                [Errors.Steam.SteamApiFailed],
+                timings: new Events.GamePickTimings(
+                    IdentifierResolutionMilliseconds: 0,
+                    LibraryLoadMilliseconds: libraryLoadStopwatch.ElapsedMilliseconds,
+                    SelectionMilliseconds: 0));
         }
 
         libraryLoadStopwatch.Stop();
         var ownedGames = ownedGamesResult.OwnedGames;
         if (ownedGames?.Games == null || ownedGames.Games.Count == 0)
         {
-            return Errors.Steam.EmptyLibrary;
+            return RandomGamePickAttempt.Failure(
+                [Errors.Steam.EmptyLibrary],
+                ownedGamesResult.Cache,
+                eligibleGameCount: 0,
+                libraryGameCount: 0,
+                timings: new Events.GamePickTimings(
+                    IdentifierResolutionMilliseconds: 0,
+                    LibraryLoadMilliseconds: libraryLoadStopwatch.ElapsedMilliseconds,
+                    SelectionMilliseconds: 0));
         }
 
         var selectionStopwatch = Stopwatch.StartNew();
-        var appDataResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly);
+        var selectionResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly);
         selectionStopwatch.Stop();
 
-        if (appDataResult.IsError)
+        if (!selectionResult.Succeeded)
         {
-            return appDataResult.Errors;
+            return RandomGamePickAttempt.Failure(
+                selectionResult.Errors,
+                ownedGamesResult.Cache,
+                selectionResult.EligibleGameCount,
+                ownedGames.Games.Count,
+                new Events.GamePickTimings(
+                    IdentifierResolutionMilliseconds: 0,
+                    LibraryLoadMilliseconds: libraryLoadStopwatch.ElapsedMilliseconds,
+                    SelectionMilliseconds: selectionStopwatch.ElapsedMilliseconds));
         }
 
-        var appData = appDataResult.Value.AppData;
+        var appData = selectionResult.AppData!;
         var matchingGame = ownedGames.Games.FirstOrDefault(g => g.AppId == appData.SteamAppId);
         if (matchingGame == null)
         {
-            return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
+            return RandomGamePickAttempt.Failure(
+                [Errors.Steam.SteamApiSuccessButCouldntGetAppData],
+                ownedGamesResult.Cache,
+                selectionResult.EligibleGameCount,
+                ownedGames.Games.Count,
+                new Events.GamePickTimings(
+                    IdentifierResolutionMilliseconds: 0,
+                    LibraryLoadMilliseconds: libraryLoadStopwatch.ElapsedMilliseconds,
+                    SelectionMilliseconds: selectionStopwatch.ElapsedMilliseconds));
         }
 
         var gameDetails = new GameDetails
@@ -159,10 +189,10 @@ public class SteamProvider : IGameProvider
             RTimeLastPlayed = matchingGame.RTimeLastPlayed
         };
 
-        return new RandomGamePickResult(
+        return RandomGamePickAttempt.Success(
             gameDetails,
             ownedGamesResult.Cache,
-            appDataResult.Value.EligibleGameCount,
+            selectionResult.EligibleGameCount,
             ownedGames.Games.Count,
             new Events.GamePickTimings(
                 IdentifierResolutionMilliseconds: 0,
@@ -170,7 +200,7 @@ public class SteamProvider : IGameProvider
                 SelectionMilliseconds: selectionStopwatch.ElapsedMilliseconds));
     }
 
-    private async Task<ErrorOr<SelectedAppData>> GetRandomGameDataAsync(
+    private async Task<SelectionAttempt> GetRandomGameDataAsync(
         SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames,
         bool unplayedOnly)
     {
@@ -184,7 +214,9 @@ public class SteamProvider : IGameProvider
         if (shuffledGameIds.Count == 0)
         {
             _logger.LogDebug("All owned games were excluded for the current request.");
-            return Errors.Steam.NoSelectableGamesAfterExclusions;
+            return SelectionAttempt.Failure(
+                [Errors.Steam.NoSelectableGamesAfterExclusions],
+                eligibleGameCount: 0);
         }
 
         int attempts = 0;
@@ -201,13 +233,15 @@ public class SteamProvider : IGameProvider
 
             if (appData != null)
             {
-                return new SelectedAppData(appData, shuffledGameIds.Count);
+                return SelectionAttempt.Success(appData, shuffledGameIds.Count);
             }
 
             _logger.LogDebug("Steam store confirmed AppId {AppId} is unavailable.", selectedAppId);
         }
 
-        return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
+        return SelectionAttempt.Failure(
+            [Errors.Steam.SteamApiSuccessButCouldntGetAppData],
+            shuffledGameIds.Count);
     }
 
     private HashSet<int> GetExcludedGameIds()
@@ -268,5 +302,17 @@ public class SteamProvider : IGameProvider
         return new OwnedGamesResponse(steamId, sdkOwnedGames.GameCount, gamesList);
     }
 
-    private sealed record SelectedAppData(AppData AppData, int EligibleGameCount);
+    private sealed record SelectionAttempt(
+        AppData? AppData,
+        IReadOnlyList<Error> Errors,
+        int EligibleGameCount)
+    {
+        public bool Succeeded => AppData is not null && Errors.Count == 0;
+
+        public static SelectionAttempt Success(AppData appData, int eligibleGameCount)
+            => new(appData, [], eligibleGameCount);
+
+        public static SelectionAttempt Failure(IReadOnlyList<Error> errors, int eligibleGameCount)
+            => new(null, errors, eligibleGameCount);
+    }
 }

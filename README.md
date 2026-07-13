@@ -133,7 +133,7 @@ Game-pick telemetry uses the existing `randomsteam.game-pick.completed` event ty
 - `outcome`
 - `succeeded`
 
-Cache status is reported as one of `hit`, `miss`, `refreshed`, `stale`, `bypassed`, or `unknown`. Library size buckets are `0`, `1-24`, `25-99`, `100-249`, `250-499`, `500-999`, and `1000+`.
+Cache status is reported as one of `hit`, `miss`, `refreshed`, `stale`, `bypassed`, or `unknown`. Owned-games telemetry uses versioned `owned_v2_` cache keys because the cached value now includes metadata; the first lookup for a user after deployment may therefore be a miss. Concurrent requests for the same missing key are coalesced by HybridCache so only one Steam API load runs. Callers waiting on an already-running load report `hit`, meaning the request was served by either cached data or a coalesced in-flight load. Library size buckets are `0`, `1-24`, `25-99`, `100-249`, `250-499`, `500-999`, and `1000+`.
 
 Telemetry intentionally excludes Steam IDs, vanity URLs, IP addresses, cookies, API keys, owned-library contents, raw Steam responses, exception messages, stack traces, full user-agent strings, and selected game names.
 
@@ -141,7 +141,7 @@ An application startup event is published once per process start after the host 
 
 `randomsteam.application.started`
 
-The startup payload includes environment name, optional commit SHA, optional deployment type, and framework version. Mission Control publish failures are logged and do not crash startup.
+The startup payload includes environment name, optional commit SHA, optional deployment type, and framework version. It is published from the post-start host lifecycle after the app has started listening. Mission Control publish failures are logged and do not crash startup.
 
 Current major areas of interest:
 
