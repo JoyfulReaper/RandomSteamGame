@@ -270,6 +270,8 @@ public class GameController : ApiController
                 payload: new GamePickCompletedEvent(
                     Provider: provider,
                     AppId: telemetry?.Game?.Id,
+                    // Display metadata only. Use AppId for stable joins, grouping, and identity.
+                    GameName: GamePickTelemetryName.Sanitize(telemetry?.Game?.Name),
                     UnplayedOnly: unplayedOnly,
                     DurationMilliseconds:
                         stopwatch.ElapsedMilliseconds,

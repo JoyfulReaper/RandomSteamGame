@@ -120,6 +120,7 @@ Game-pick telemetry uses the existing `randomsteam.game-pick.completed` event ty
 
 - `provider`
 - `appId`
+- `gameName`
 - `unplayedOnly`
 - `durationMilliseconds`
 - `cacheStatus`
@@ -135,7 +136,22 @@ Game-pick telemetry uses the existing `randomsteam.game-pick.completed` event ty
 
 Cache status is reported as one of `hit`, `miss`, `refreshed`, `stale`, `bypassed`, or `unknown`. Owned-games telemetry uses versioned `owned_v2_` cache keys because the cached value now includes metadata; the first lookup for a user after deployment may therefore be a miss. Concurrent requests for the same missing key are coalesced by HybridCache so only one Steam API load runs. Callers waiting on an already-running load report `hit`, meaning the request was served by either cached data or a coalesced in-flight load. Library size buckets are `0`, `1-24`, `25-99`, `100-249`, `250-499`, `500-999`, and `1000+`.
 
-Telemetry intentionally excludes Steam IDs, vanity URLs, IP addresses, cookies, API keys, owned-library contents, raw Steam responses, exception messages, stack traces, full user-agent strings, and selected game names.
+`appId` remains the canonical selected-game identity. `gameName` is the sanitized display name of the selected game and is `null` when no game was selected. It is convenient for dashboards and event inspection, but game names can change over time and have high cardinality, so do not use `gameName` as a metrics label, partition key, routing key, queue name, bounded enum, or database key.
+
+Example successful game-pick payload excerpt:
+
+```json
+{
+  "provider": "steam",
+  "appId": 294100,
+  "gameName": "RimWorld",
+  "unplayedOnly": false,
+  "outcome": "served",
+  "succeeded": true
+}
+```
+
+Telemetry intentionally excludes Steam IDs, vanity URLs, profile names, IP addresses, cookies, API keys, owned-library contents, raw Steam responses, exception messages, stack traces, full user-agent strings, game descriptions, and header image URLs. No Steam user identifier is included in game-pick telemetry.
 
 An application startup event is published once per process start after the host is built:
 

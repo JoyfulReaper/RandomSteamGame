@@ -313,7 +313,8 @@ public class GameControllerTests
             expectedOutcome: "served",
             expectedSucceeded: true,
             expectedAppId: 42,
-            expectedUnplayedOnly: true);
+            expectedUnplayedOnly: true,
+            expectedGameName: "Portal");
     }
 
     [Fact]
@@ -343,6 +344,7 @@ public class GameControllerTests
         Assert.IsType<OkObjectResult>(result);
         var payload = missionControl.PublishedEvents.Single().Payload;
         Assert.Equal("hit", payload.CacheStatus);
+        Assert.Equal("Portal", payload.GameName);
         Assert.Equal(1842, payload.CacheAgeSeconds);
         Assert.Equal(3, payload.EligibleGameCount);
         Assert.Equal("500-999", payload.LibrarySizeBucket);
@@ -390,7 +392,7 @@ public class GameControllerTests
     }
 
     [Fact]
-    public async Task GetRandomGameDetails_SerializedEvent_ExcludesSensitiveInputsAndGameName()
+    public async Task GetRandomGameDetails_SerializedEvent_ExcludesSensitiveInputs()
     {
         var missionControl = new RecordingMissionControlClient();
         var provider = new FakeGameProvider(
@@ -408,7 +410,7 @@ public class GameControllerTests
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
         Assert.DoesNotContain("76561197960287930", json);
-        Assert.DoesNotContain("Portal", json);
+        Assert.Contains("Portal", json);
         Assert.DoesNotContain("steamId", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("vanityUrl", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("apiKey", json, StringComparison.OrdinalIgnoreCase);
@@ -416,6 +418,52 @@ public class GameControllerTests
         Assert.DoesNotContain("ownedGames", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("exception", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("stackTrace", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    [InlineData("RimWorld", "RimWorld")]
+    [InlineData("  RimWorld  ", "RimWorld")]
+    [InlineData("Game\r\nName", "Game Name")]
+    [InlineData("Game\tName", "Game Name")]
+    [InlineData("Game   Name", "Game Name")]
+    [InlineData("Game\u0001Name", "GameName")]
+    [InlineData("Game\u001b[31mName", "GameName")]
+    [InlineData("Game\u200EName", "GameName")]
+    [InlineData("日本語ゲーム", "日本語ゲーム")]
+    public void GamePickTelemetryName_Sanitize_ReturnsExpectedValue(
+        string? value,
+        string? expected)
+    {
+        Assert.Equal(expected, GamePickTelemetryName.Sanitize(value));
+    }
+
+    [Fact]
+    public void GamePickTelemetryName_Sanitize_TruncatesToMaximumLength()
+    {
+        var sanitized = GamePickTelemetryName.Sanitize(new string('A', 300));
+
+        Assert.NotNull(sanitized);
+        Assert.True(sanitized.Length <= 256);
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_PublishesSanitizedGameName()
+    {
+        var missionControl = new RecordingMissionControlClient();
+        var provider = new FakeGameProvider(
+            randomGameResult: new GameDetails
+            {
+                Id = 42,
+                Name = "  Game\r\n\u001b[31mName\t "
+            });
+        var controller = CreateController(provider, missionControlClient: missionControl);
+
+        await controller.GetRandomGameDetails("steam", 76561197960287930L, vanityUrl: null);
+
+        Assert.Equal("Game Name", missionControl.PublishedEvents.Single().Payload.GameName);
     }
 
     [Fact]
@@ -470,7 +518,8 @@ public class GameControllerTests
             expectedOutcome: "served",
             expectedSucceeded: true,
             expectedAppId: 42,
-            expectedUnplayedOnly: false);
+            expectedUnplayedOnly: false,
+            expectedGameName: "Portal");
     }
 
     [Fact]
@@ -571,7 +620,8 @@ public class GameControllerTests
         string expectedOutcome,
         bool expectedSucceeded,
         int? expectedAppId,
-        bool expectedUnplayedOnly)
+        bool expectedUnplayedOnly,
+        string? expectedGameName = null)
     {
         Assert.Single(missionControl.PublishedEvents);
 
@@ -579,6 +629,7 @@ public class GameControllerTests
         Assert.Equal(RandomSteamGameEventTypes.GamePickCompleted, publishedEvent.EventType);
         Assert.Equal(expectedProvider, publishedEvent.Payload.Provider);
         Assert.Equal(expectedAppId, publishedEvent.Payload.AppId);
+        Assert.Equal(expectedGameName, publishedEvent.Payload.GameName);
         Assert.Equal(expectedUnplayedOnly, publishedEvent.Payload.UnplayedOnly);
         Assert.Equal(expectedOutcome, publishedEvent.Payload.Outcome);
         Assert.Equal(expectedSucceeded, publishedEvent.Payload.Succeeded);
