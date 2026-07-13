@@ -71,6 +71,46 @@ internal class CacheService : ICacheService
     public Task<T?> GetAsync<T>(string key, CancellationToken ct = default)
         => _cache.GetAsync<T>(key, ct);
 
+    public async Task<CacheLookupResult<T>> GetOrCreateWithMetadataAsync<T>(
+        string key,
+        Func<CancellationToken, Task<T>> factory,
+        CachePolicy policy,
+        IEnumerable<string>? tags = null,
+        CancellationToken ct = default)
+    {
+        var factoryExecuted = false;
+        var options = new HybridCacheEntryOptions
+        {
+            Expiration = policy.Duration,
+            LocalCacheExpiration = TimeSpan.FromMinutes(5) // TODO: Make configurable through appsettings
+        };
+
+        var cachedValue = await _cache.GetOrCreateAsync(
+            key,
+            async token =>
+            {
+                factoryExecuted = true;
+
+                var value = await factory(token);
+                return new CachedValue<T>(value, DateTimeOffset.UtcNow);
+            },
+            options,
+            tags,
+            cancellationToken: ct);
+
+        var ageSeconds = Math.Max(
+            0,
+            (long)(DateTimeOffset.UtcNow - cachedValue.CachedAt).TotalSeconds);
+
+        return new CacheLookupResult<T>(
+            cachedValue.Value,
+            new OwnedGamesCacheInfo(
+                factoryExecuted
+                    ? OwnedGamesCacheStatus.Miss
+                    : OwnedGamesCacheStatus.Hit,
+                ageSeconds));
+    }
+
     public async Task InvalidateByTagAsync(string tag, CancellationToken ct = default)
     {
         //_logger.LogDebug("Invalidating cache for tag: {Tag}", tag);

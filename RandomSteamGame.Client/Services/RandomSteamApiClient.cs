@@ -51,21 +51,6 @@ public sealed class RandomSteamApiClient
                 cancellationToken),
             cancellationToken);
 
-    public Task<ApiResult<RandomGameResponse>> GetRandomGameAsync(
-        string provider,
-        long? steamId = null,
-        string? vanityUrl = null,
-        bool unplayedOnly = false,
-        CancellationToken cancellationToken = default) =>
-        GetFromJsonAsync<RandomGameResponse>(
-            BuildIdentifierUri(
-                provider,
-                "random-game",
-                steamId,
-                vanityUrl,
-                unplayedOnly),
-            cancellationToken);
-
     public Task<ApiResult<GameDetails>> GetRandomGameDetailsAsync(
         string provider,
         long? steamId = null,

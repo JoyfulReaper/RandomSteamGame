@@ -5,14 +5,17 @@
  * Licensed under the MIT License.
  */
 
+using JoyfulReaperLib.MissionControl;
+using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Common.Errors;
-using RandomSteamGame.Persistence;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
@@ -47,8 +50,11 @@ public static class ServiceExtensions
             WHERE NOT EXISTS (SELECT 1 FROM AppStats WHERE Id = 1);
             """;
 
-        var connectionString = SqliteAppDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
+        var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
         var steamOptions = GetSteamOptions(config);
+
+        services.Configure<ApplicationOptions>(
+            config.GetSection(ApplicationOptions.SectionName));
 
         services.AddJoyfulReaperSqliteHitCounter(options =>
         {
@@ -64,11 +70,42 @@ public static class ServiceExtensions
         services.AddSteamServices(config);
         services.AddApplicationCors(config, env);
         services.AddSteamRateLimiting(steamOptions.RateLimiting);
+        services.AddApplicationHealthChecks();
         services.AddMemoryCache();
         services.AddHttpClient<RandomSteamApiClient>();
         services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
 
+        services.AddMissionControlClient(
+            config.GetSection(
+                MissionControlClientOptions.SectionName));
+        services.AddHostedService<ApplicationStartupTelemetryService>();
+
+        services.AddAntiforgery(options =>
+        {
+            options.Cookie.Name = ".RandomSteamGame.Antiforgery.v2";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = env.IsDevelopment()
+                ? CookieSecurePolicy.SameAsRequest
+                : CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.Cookie.Path = "/";
+        });
+
         ValidateSteamApiKey(steamOptions);
+
+        return services;
+    }
+
+    private static IServiceCollection AddApplicationHealthChecks(this IServiceCollection services)
+    {
+        services.AddHealthChecks()
+            .AddCheck(
+                "process",
+                () => HealthCheckResult.Healthy(),
+                tags: ["live"])
+            .AddCheck<LocalReadinessHealthCheck>(
+                "local-dependencies",
+                tags: ["ready"]);
 
         return services;
     }

@@ -5,12 +5,12 @@
  * Licensed under the MIT License.
  */
 
+using JoyfulReaperLib.Sqlite;
 using Microsoft.Data.Sqlite;
-using RandomSteamGame.Persistence;
 
 namespace RandomSteamGame.Tests;
 
-public class SqliteAppDatabaseInitializerTests
+public class SqliteDatabaseInitializerTests
 {
     [Fact]
     public void Initialize_CreatesAppStatsAndVisitorsTablesUnderDataDirectory()
@@ -32,7 +32,7 @@ public class SqliteAppDatabaseInitializerTests
 
         try
         {
-            var connectionString = SqliteAppDatabaseInitializer.Initialize(databaseFileName, schemaSql);
+            var connectionString = SqliteDatabaseInitializer.Initialize(databaseFileName, schemaSql);
             var builder = new SqliteConnectionStringBuilder(connectionString);
 
             Assert.StartsWith(expectedDirectory, builder.DataSource, StringComparison.OrdinalIgnoreCase);

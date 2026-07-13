@@ -6,14 +6,20 @@
  */
 
 using ErrorOr;
+using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using RandomSteamGame.Common.Errors;
+using RandomSteamGame.Events;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using SteamApiClient;
+using SteamApiClient.Services;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RandomSteamGame.Controllers;
@@ -32,6 +38,8 @@ public class GameController : ApiController
     private readonly IOwnedGamesCacheResetTracker _ownedGamesCacheResetTracker;
     private readonly IAppStatsService _appStatsService;
     private readonly ISteamLibraryExportService _steamLibraryExportService;
+    private readonly IMissionControlClient _missionControlClient;
+    private readonly ApplicationOptions _applicationOptions;
     private readonly ILogger<GameController> _logger;
 
     public GameController(
@@ -39,8 +47,12 @@ public class GameController : ApiController
         IOwnedGamesCacheResetTracker ownedGamesCacheResetTracker,
         IAppStatsService appStatsService,
         ISteamLibraryExportService steamLibraryExportService,
+        IMissionControlClient missionControlClient,
+        IOptions<ApplicationOptions> applicationOptions,
         ILogger<GameController> logger)
     {
+        _missionControlClient = missionControlClient;
+        _applicationOptions = applicationOptions.Value;
         _factory = factory;
         _ownedGamesCacheResetTracker = ownedGamesCacheResetTracker;
         _appStatsService = appStatsService;
@@ -137,47 +149,8 @@ public class GameController : ApiController
     }
 
     /// <summary>
-    /// Gets a random game and full details for a user.
-    /// GET /api/steam/random-game?steamId=... OR ?vanityUrl=...
-    /// </summary>
-    [HttpGet("random-game")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(RandomGameResponse))]
-    public async Task<IActionResult> GetRandomGame(
-        string provider,
-        [FromQuery] long? userId,
-        [FromQuery] string? vanityUrl,
-        [FromQuery] bool unplayedOnly = false)
-    {
-        if (!TryGetProvider(provider, out var service))
-        {
-            return Problem([Errors.Steam.UnsupportedProvider(provider)]);
-        }
-
-        var identifierValidation = ValidateIdentifier(userId, vanityUrl);
-        if (identifierValidation is not null)
-        {
-            return Problem([identifierValidation.Value]);
-        }
-
-        var targetId = await ResolveIdentifier(service, userId, vanityUrl);
-        if (targetId.IsError)
-        {
-            return Problem(targetId.Errors);
-        }
-
-        var result = await service.GetRandomGameAsync(targetId.Value, unplayedOnly);
-        if (result.IsError)
-        {
-            return Problem(result.Errors);
-        }
-
-        await TrackRandomGameGeneratedAsync();
-        return Ok(result.Value);
-    }
-
-    /// <summary>
     /// Gets simplified game details for a random game.
-    /// GET /api/steam/random-game/details?steamId=... OR ?vanityUrl=...
+    /// GET /api/steam/random-game/details?userId=... OR ?vanityUrl=...
     /// </summary>
     [HttpGet("random-game/details")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GameDetails))]
@@ -187,31 +160,151 @@ public class GameController : ApiController
         [FromQuery] string? vanityUrl,
         [FromQuery] bool unplayedOnly = false)
     {
+        var occurredAt = DateTimeOffset.UtcNow;
+        var correlationId = Guid.NewGuid().ToString("N");
+        var stopwatch = Stopwatch.StartNew();
+
         if (!TryGetProvider(provider, out var service))
         {
+            await PublishGamePickEventAsync(
+                provider,
+                telemetry: null,
+                unplayedOnly,
+                stopwatch,
+                outcome: "unsupported-provider",
+                succeeded: false,
+                occurredAt,
+                correlationId,
+                identifierResolutionMilliseconds: 0);
+
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);
         }
 
         var identifierValidation = ValidateIdentifier(userId, vanityUrl);
         if (identifierValidation is not null)
         {
+            await PublishGamePickEventAsync(
+                provider,
+                telemetry: null,
+                unplayedOnly,
+                stopwatch,
+                outcome: "invalid-identifier",
+                succeeded: false,
+                occurredAt,
+                correlationId,
+                identifierResolutionMilliseconds: 0);
+
             return Problem([identifierValidation.Value]);
         }
 
+        var identifierStopwatch = Stopwatch.StartNew();
         var targetId = await ResolveIdentifier(service, userId, vanityUrl);
+        identifierStopwatch.Stop();
         if (targetId.IsError)
         {
+            await PublishGamePickEventAsync(
+                provider,
+                telemetry: null,
+                unplayedOnly,
+                stopwatch,
+                outcome: "identifier-resolution-failed",
+                succeeded: false,
+                occurredAt,
+                correlationId,
+                identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
+
             return Problem(targetId.Errors);
         }
 
-        var result = await service.GetRandomGameDetailsAsync(targetId.Value, unplayedOnly);
-        if (result.IsError)
+        var result = await service.GetRandomGamePickAsync(targetId.Value, unplayedOnly);
+        if (!result.Succeeded)
         {
-            return Problem(result.Errors);
+            await PublishGamePickEventAsync(
+                provider,
+                telemetry: result,
+                unplayedOnly,
+                stopwatch,
+                outcome: GetOutcome(result.Errors),
+                succeeded: false,
+                occurredAt,
+                correlationId,
+                identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
+
+            return Problem(result.Errors.ToList());
         }
 
         await TrackRandomGameGeneratedAsync();
-        return Ok(result.Value);
+
+        await PublishGamePickEventAsync(
+            provider,
+            result,
+            unplayedOnly,
+            stopwatch,
+            outcome: GamePickOutcome.Served,
+            succeeded: true,
+            occurredAt,
+            correlationId,
+            identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
+
+        return Ok(result.Game);
+    }
+
+    private async Task PublishGamePickEventAsync(
+        string provider,
+        RandomGamePickAttempt? telemetry,
+        bool unplayedOnly,
+        Stopwatch stopwatch,
+        string outcome,
+        bool succeeded,
+        DateTimeOffset occurredAt,
+        string correlationId,
+        long identifierResolutionMilliseconds)
+    {
+        stopwatch.Stop();
+
+        try
+        {
+            await _missionControlClient.TryPublishAsync(
+                eventType:
+                    RandomSteamGameEventTypes.GamePickCompleted,
+                payload: new GamePickCompletedEvent(
+                    Provider: provider,
+                    AppId: telemetry?.Game?.Id,
+                    // Display metadata only. Use AppId for stable joins, grouping, and identity.
+                    GameName: GamePickTelemetryName.Sanitize(telemetry?.Game?.Name),
+                    UnplayedOnly: unplayedOnly,
+                    DurationMilliseconds:
+                        stopwatch.ElapsedMilliseconds,
+                    CacheStatus: telemetry?.Cache.StatusName ?? OwnedGamesCacheInfo.Unknown.StatusName,
+                    CacheAgeSeconds: telemetry?.Cache.AgeSeconds,
+                    EligibleGameCount: telemetry?.EligibleGameCount,
+                    LibrarySizeBucket: telemetry is null
+                        ? null
+                        : telemetry.LibraryGameCount is null
+                            ? null
+                            : LibrarySizeBuckets.FromCount(telemetry.LibraryGameCount.Value),
+                    Timings: telemetry is null
+                        ? new GamePickTimings(identifierResolutionMilliseconds, 0, 0)
+                        : telemetry.Timings with
+                        {
+                            IdentifierResolutionMilliseconds = identifierResolutionMilliseconds
+                        },
+                    CommitSha: string.IsNullOrWhiteSpace(_applicationOptions.CommitSha)
+                        ? null
+                        : _applicationOptions.CommitSha,
+                    Outcome: outcome,
+                    Succeeded: succeeded),
+                occurredAt: occurredAt,
+                correlationId: correlationId,
+                cancellationToken: CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to publish game-pick event {CorrelationId}.",
+                correlationId);
+        }
     }
 
     /// <summary>
@@ -247,12 +340,25 @@ public class GameController : ApiController
 
     private static Error? ValidateIdentifier(long? userId, string? vanityUrl)
     {
-        if (userId.HasValue && !IsValidSteamId(userId.Value))
+        var hasUserId = userId.HasValue;
+        var hasVanityUrl = !string.IsNullOrWhiteSpace(vanityUrl);
+
+        if (!hasUserId && !hasVanityUrl)
+        {
+            return Errors.Steam.IdentifierRequired;
+        }
+
+        if (hasUserId && hasVanityUrl)
+        {
+            return Errors.Steam.AmbiguousIdentifier;
+        }
+
+        if (hasUserId && !IsValidSteamId(userId!.Value))
         {
             return Errors.Steam.InvalidSteamId;
         }
 
-        if (!string.IsNullOrWhiteSpace(vanityUrl) && !IsValidVanityUrl(vanityUrl))
+        if (hasVanityUrl && !IsValidVanityUrl(vanityUrl!))
         {
             return Errors.Steam.InvalidVanityUrl;
         }
@@ -275,22 +381,30 @@ public class GameController : ApiController
         long? userId,
         string? vanityUrl)
     {
-        if (userId.HasValue && !string.IsNullOrWhiteSpace(vanityUrl))
-        {
-            return Errors.Steam.AmbiguousIdentifier;
-        }
-
         if (!string.IsNullOrWhiteSpace(vanityUrl))
         {
             return await service.ResolveIdentifierAsync(vanityUrl);
         }
 
-        if (userId is null)
+        if (userId.HasValue)
         {
-            return Errors.Steam.IdentifierRequired;
+            return userId.Value;
         }
 
-        return userId.Value;
+        return Errors.Steam.IdentifierRequired;
+    }
+
+    private static string GetOutcome(IReadOnlyList<Error> errors)
+    {
+        var first = errors.FirstOrDefault();
+        return first.Code switch
+        {
+            "Steam.EmptyLibrary" => GamePickOutcome.EmptyLibrary,
+            "Steam.NoSelectableGamesAfterExclusions" => GamePickOutcome.NoEligibleGames,
+            "Steam.ApiFailed" => GamePickOutcome.LibraryLoadFailed,
+            "Steam.VanityResolutionFailed" => GamePickOutcome.IdentifierResolutionFailed,
+            _ => GamePickOutcome.SelectionFailed
+        };
     }
 
     private async Task TrackRandomGameGeneratedAsync()

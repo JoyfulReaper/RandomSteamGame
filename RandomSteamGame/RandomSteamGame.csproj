@@ -14,12 +14,11 @@
     <ProjectReference Include="..\SteamApiClient\SteamApiClient.csproj" />
     <PackageReference Include="ErrorOr" Version="2.1.1" />
     <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
-    <PackageReference Include="JoyfulReaperLib.Caching.Sqlite" Version="0.0.8" />
-    <PackageReference Include="JoyfulReaperLib.Sqlite" Version="0.0.8" />
-    <PackageReference Include="JoyfulReaperLib.WebStats.Sqlite" Version="0.0.8" />
+    <PackageReference Include="JoyfulReaperLib.MissionControl" Version="0.0.1" />
+    <PackageReference Include="JoyfulReaperLib.Sqlite" Version="0.0.9" />
+    <PackageReference Include="JoyfulReaperLib.WebStats.Sqlite" Version="0.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
     <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
   </ItemGroup>
 
 </Project>

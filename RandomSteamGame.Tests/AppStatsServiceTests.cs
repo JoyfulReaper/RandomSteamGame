@@ -40,7 +40,7 @@ public class AppStatsServiceTests : IDisposable
         InitializeSchema();
 
         _connection = new SqliteConnection(_connectionString);
-        var hitCounter = new SqliteHitCounter(Options.Create(new SqliteHitCounterOptions
+        var hitCounter = new SqliteHitCounter(Microsoft.Extensions.Options.Options.Create(new SqliteHitCounterOptions
         {
             ConnectionString = _connectionString
         }));
