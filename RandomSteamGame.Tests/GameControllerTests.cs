@@ -51,17 +51,6 @@ public class GameControllerTests
         AssertValidationProblem(result, "Steam.InvalidSteamId");
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(123456789)]
-    public async Task GetRandomGame_InvalidSteamId_ReturnsValidationProblem(long steamId)
-    {
-        var controller = CreateController();
-
-        var result = await controller.GetRandomGame("steam", steamId, vanityUrl: null);
-
-        AssertValidationProblem(result, "Steam.InvalidSteamId");
-    }
 
     [Theory]
     [InlineData("ab")]
@@ -74,19 +63,6 @@ public class GameControllerTests
         var controller = CreateController();
 
         var result = await controller.ResolveVanity("steam", vanityUrl);
-
-        AssertValidationProblem(result, "Steam.InvalidVanityUrl");
-    }
-
-    [Theory]
-    [InlineData("ab")]
-    [InlineData("has space")]
-    [InlineData("https://steamcommunity.com/profiles/76561197960287930/")]
-    public async Task GetRandomGame_InvalidVanityUrl_ReturnsValidationProblem(string vanityUrl)
-    {
-        var controller = CreateController();
-
-        var result = await controller.GetRandomGame("steam", userId: null, vanityUrl);
 
         AssertValidationProblem(result, "Steam.InvalidVanityUrl");
     }
@@ -162,6 +138,7 @@ public class GameControllerTests
             new FakeOwnedGamesCacheResetTracker(),
             new FakeAppStatsService(),
             new SteamLibraryExportService(),
+            missionControlClient: null!,
             NullLogger<GameController>.Instance);
 
         controller.ControllerContext = new ControllerContext
@@ -199,9 +176,6 @@ public class GameControllerTests
         public Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)
             => Task.FromResult<ErrorOr<OwnedGamesResponse>>(_library with { SteamId = userId });
 
-        public Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId, bool unplayedOnly = false)
-            => Task.FromResult<ErrorOr<RandomGameResponse>>(CreateRandomGameResponse(userId));
-
         public Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false)
             => Task.FromResult<ErrorOr<GameDetails>>(new GameDetails { Id = 1, Name = "Test" });
 
@@ -210,15 +184,6 @@ public class GameControllerTests
 
         public Task InvalidateOwnedGamesCacheAsync(long userId)
             => Task.CompletedTask;
-
-        private static RandomGameResponse CreateRandomGameResponse(long userId)
-            => new(
-                userId,
-                1,
-                new SteamAppInformation("Test", 1, false, "", "", "", "", ""),
-                0,
-                0,
-                0);
     }
 
     private sealed class FakeOwnedGamesCacheResetTracker : IOwnedGamesCacheResetTracker

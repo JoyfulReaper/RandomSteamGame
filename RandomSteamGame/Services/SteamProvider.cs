@@ -6,12 +6,10 @@
  */
 
 using ErrorOr;
-using Microsoft.AspNetCore.Http;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using RandomSteamGame.Shared.Services;
-using SteamApiClient;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
 
@@ -45,9 +43,6 @@ public class SteamProvider : IGameProvider
 
     public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)
         => await FetchOwnedGamesAsync(userId);
-
-    public async Task<ErrorOr<RandomGameResponse>> GetRandomGameAsync(long userId, bool unplayedOnly = false)
-        => await FetchRandomGameAsync(userId, unplayedOnly);
 
     public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false)
         => await FetchRandomGameDetailsAsync(userId, unplayedOnly);
@@ -145,57 +140,6 @@ public class SteamProvider : IGameProvider
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting random game details for SteamID: {SteamId}", steamId);
-            return Errors.Steam.SteamApiFailed;
-        }
-    }
-
-    public async Task<ErrorOr<RandomGameResponse>> FetchRandomGameAsync(long steamId, bool unplayedOnly = false)
-    {
-        try
-        {
-            var ownedGames = await _steamClient.GetOwnedGames(steamId);
-            if (ownedGames?.Games == null || ownedGames.Games.Count == 0)
-            {
-                return Errors.Steam.EmptyLibrary;
-            }
-
-            var appDataResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly);
-            if (appDataResult.IsError)
-            {
-                return appDataResult.Errors;
-            }
-
-            var appData = appDataResult.Value;
-
-            var matchingGame = ownedGames.Games.FirstOrDefault(g => g.AppId == appData.SteamAppId);
-            if (matchingGame == null)
-            {
-                return Errors.Steam.SteamApiSuccessButCouldntGetAppData;
-            }
-
-            var appInfo = new SteamAppInformation(
-                appData.Name,
-                appData.SteamAppId,
-                appData.IsFree,
-                _htmlSanitizer.Sanitize(appData.AboutTheGame),
-                _htmlSanitizer.Sanitize(appData.DetailedDescription),
-                appData.ShortDescription,
-                appData.Background ?? string.Empty,
-                appData.BackgroundRaw
-            );
-
-            return new RandomGameResponse(
-                steamId,
-                appData.SteamAppId,
-                appInfo,
-                matchingGame.PlaytimeForever,
-                matchingGame.RTimeLastPlayed,
-                matchingGame.Playtime2Weeks
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating full random Steam game selection for SteamID: {SteamId}", steamId);
             return Errors.Steam.SteamApiFailed;
         }
     }

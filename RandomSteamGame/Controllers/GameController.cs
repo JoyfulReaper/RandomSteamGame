@@ -6,14 +6,17 @@
  */
 
 using ErrorOr;
+using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using RandomSteamGame.Common.Errors;
+using RandomSteamGame.Events;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using SteamApiClient;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RandomSteamGame.Controllers;
@@ -32,6 +35,7 @@ public class GameController : ApiController
     private readonly IOwnedGamesCacheResetTracker _ownedGamesCacheResetTracker;
     private readonly IAppStatsService _appStatsService;
     private readonly ISteamLibraryExportService _steamLibraryExportService;
+    private readonly IMissionControlClient _missionControlClient;
     private readonly ILogger<GameController> _logger;
 
     public GameController(
@@ -39,8 +43,10 @@ public class GameController : ApiController
         IOwnedGamesCacheResetTracker ownedGamesCacheResetTracker,
         IAppStatsService appStatsService,
         ISteamLibraryExportService steamLibraryExportService,
+        IMissionControlClient missionControlClient,
         ILogger<GameController> logger)
     {
+        _missionControlClient = missionControlClient;
         _factory = factory;
         _ownedGamesCacheResetTracker = ownedGamesCacheResetTracker;
         _appStatsService = appStatsService;
@@ -137,45 +143,6 @@ public class GameController : ApiController
     }
 
     /// <summary>
-    /// Gets a random game and full details for a user.
-    /// GET /api/steam/random-game?steamId=... OR ?vanityUrl=...
-    /// </summary>
-    [HttpGet("random-game")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(RandomGameResponse))]
-    public async Task<IActionResult> GetRandomGame(
-        string provider,
-        [FromQuery] long? userId,
-        [FromQuery] string? vanityUrl,
-        [FromQuery] bool unplayedOnly = false)
-    {
-        if (!TryGetProvider(provider, out var service))
-        {
-            return Problem([Errors.Steam.UnsupportedProvider(provider)]);
-        }
-
-        var identifierValidation = ValidateIdentifier(userId, vanityUrl);
-        if (identifierValidation is not null)
-        {
-            return Problem([identifierValidation.Value]);
-        }
-
-        var targetId = await ResolveIdentifier(service, userId, vanityUrl);
-        if (targetId.IsError)
-        {
-            return Problem(targetId.Errors);
-        }
-
-        var result = await service.GetRandomGameAsync(targetId.Value, unplayedOnly);
-        if (result.IsError)
-        {
-            return Problem(result.Errors);
-        }
-
-        await TrackRandomGameGeneratedAsync();
-        return Ok(result.Value);
-    }
-
-    /// <summary>
     /// Gets simplified game details for a random game.
     /// GET /api/steam/random-game/details?steamId=... OR ?vanityUrl=...
     /// </summary>
@@ -187,14 +154,38 @@ public class GameController : ApiController
         [FromQuery] string? vanityUrl,
         [FromQuery] bool unplayedOnly = false)
     {
+        var occurredAt = DateTimeOffset.UtcNow;
+        var correlationId = Guid.NewGuid().ToString("N");
+        var stopwatch = Stopwatch.StartNew();
+
         if (!TryGetProvider(provider, out var service))
         {
+            await PublishGamePickEventAsync(
+                provider,
+                game: null,
+                unplayedOnly,
+                stopwatch,
+                outcome: "unsupported-provider",
+                succeeded: false,
+                occurredAt,
+                correlationId);
+
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);
         }
 
         var identifierValidation = ValidateIdentifier(userId, vanityUrl);
         if (identifierValidation is not null)
         {
+            await PublishGamePickEventAsync(
+                provider,
+                game: null,
+                unplayedOnly,
+                stopwatch,
+                outcome: "invalid-identifier",
+                succeeded: false,
+                occurredAt,
+                correlationId);
+
             return Problem([identifierValidation.Value]);
         }
 
@@ -207,11 +198,71 @@ public class GameController : ApiController
         var result = await service.GetRandomGameDetailsAsync(targetId.Value, unplayedOnly);
         if (result.IsError)
         {
+            await PublishGamePickEventAsync(
+                provider,
+                game: null,
+                unplayedOnly,
+                stopwatch,
+                outcome: "selection-failed",
+                succeeded: false,
+                occurredAt,
+                correlationId);
+
             return Problem(result.Errors);
         }
 
         await TrackRandomGameGeneratedAsync();
+
+        await PublishGamePickEventAsync(
+            provider,
+            result.Value,
+            unplayedOnly,
+            stopwatch,
+            outcome: "served",
+            succeeded: true,
+            occurredAt,
+            correlationId);
+
         return Ok(result.Value);
+    }
+
+    private async Task PublishGamePickEventAsync(
+        string provider,
+        GameDetails? game,
+        bool unplayedOnly,
+        Stopwatch stopwatch,
+        string outcome,
+        bool succeeded,
+        DateTimeOffset occurredAt,
+        string correlationId)
+    {
+        stopwatch.Stop();
+
+        try
+        {
+            await _missionControlClient.TryPublishAsync(
+                eventType:
+                    RandomSteamGameEventTypes.GamePickCompleted,
+                payload: new GamePickCompletedEvent(
+                    Provider: provider,
+                    AppId: game?.Id,
+                    GameName: game?.Name,
+                    UnplayedOnly: unplayedOnly,
+                    DurationMilliseconds:
+                        stopwatch.ElapsedMilliseconds,
+                    Outcome: outcome,
+                    Succeeded: succeeded),
+                occurredAt: occurredAt,
+                correlationId: correlationId,
+                cancellationToken: CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to publish game-pick event {CorrelationId}.",
+                correlationId);
+        }
     }
 
     /// <summary>

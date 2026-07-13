@@ -5,6 +5,7 @@
  * Licensed under the MIT License.
  */
 
+using JoyfulReaperLib.MissionControl;
 using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.AspNetCore.DataProtection;
@@ -67,6 +68,10 @@ public static class ServiceExtensions
         services.AddMemoryCache();
         services.AddHttpClient<RandomSteamApiClient>();
         services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
+
+        services.AddMissionControlClient(
+            config.GetSection(
+                MissionControlClientOptions.SectionName));
 
         services.AddAntiforgery(options =>
         {
