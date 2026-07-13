@@ -10,7 +10,7 @@ using Microsoft.Data.Sqlite;
 
 namespace RandomSteamGame.Tests;
 
-public class SqliteAppDatabaseInitializerTests
+public class SqliteDatabaseInitializerTests
 {
     [Fact]
     public void Initialize_CreatesAppStatsAndVisitorsTablesUnderDataDirectory()

@@ -30,6 +30,7 @@ Enter a SteamID or Vanity URL, let the system query your library, and receive on
 - Optionally block games from future picks in the browser
 - Reset blocked games
 - View basic game details and playtime
+- Export a Steam library to CSV
 - Launch directly with `steam://run/{appId}` on supported desktop systems
 
 ---
@@ -44,6 +45,7 @@ The system is built around a small .NET stack:
 | API | Game selection, validation, Steam access | ASP.NET Core |
 | Steam Integration | Library and app data retrieval | Steam Web API / Store API |
 | Cache | Reduce Steam API calls and improve response time | SQLite-backed distributed cache |
+| Observability | Best-effort completion telemetry | Mission Control |
 | Browser State | Remember local picker preferences | Cookies |
 
 The application favors speed over spectacle. The goal is to get a usable answer quickly, not simulate a casino wheel for eight seconds.
@@ -58,6 +60,7 @@ The application favors speed over spectacle. The goal is to get a usable answer 
 4. A random eligible game is selected.
 5. Game details are returned to the UI.
 6. The user either plays the game, chooses again, or blocks it from future local picks.
+7. Library refreshes stay on a 12-hour cooldown so cache invalidation stays intentional.
 
 ---
 
@@ -86,7 +89,6 @@ Planned or considered modules:
 - Favorites
 - Game filters
 - Picker history
-- Export library to CSV
 - Saved game lists
 - Shared game lists
 - Games from other services
@@ -111,6 +113,8 @@ Some features may eventually become supporter or premium features.
 This project is intentionally practical and cache-heavy.
 
 The picker is built around the idea that a random game response should feel instant whenever possible. Steam API calls are cached server-side, and browser identity/preferences are kept lightweight.
+
+Mission Control is used for best-effort completion telemetry on random-game picks. Telemetry failures are logged but never block a successful response.
 
 Current major areas of interest:
 

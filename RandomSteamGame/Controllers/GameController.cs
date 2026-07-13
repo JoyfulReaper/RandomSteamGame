@@ -192,6 +192,16 @@ public class GameController : ApiController
         var targetId = await ResolveIdentifier(service, userId, vanityUrl);
         if (targetId.IsError)
         {
+            await PublishGamePickEventAsync(
+                provider,
+                game: null,
+                unplayedOnly,
+                stopwatch,
+                outcome: "identifier-resolution-failed",
+                succeeded: false,
+                occurredAt,
+                correlationId);
+
             return Problem(targetId.Errors);
         }
 
@@ -246,7 +256,6 @@ public class GameController : ApiController
                 payload: new GamePickCompletedEvent(
                     Provider: provider,
                     AppId: game?.Id,
-                    GameName: game?.Name,
                     UnplayedOnly: unplayedOnly,
                     DurationMilliseconds:
                         stopwatch.ElapsedMilliseconds,
