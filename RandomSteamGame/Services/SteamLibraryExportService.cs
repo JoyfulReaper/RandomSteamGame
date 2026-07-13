@@ -7,12 +7,14 @@ namespace RandomSteamGame.Services;
 
 public sealed class SteamLibraryExportService : ISteamLibraryExportService
 {
+    private const string CsvNewLine = "\r\n";
     private const string UnknownSteamDeckStatus = "unknown";
 
     public byte[] Export(OwnedGamesResponse library)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("game,id,hours,last_played,steam_deck");
+        builder.Append("game,id,hours,last_played,steam_deck");
+        builder.Append(CsvNewLine);
 
         foreach (var game in library.Games)
         {
@@ -25,7 +27,7 @@ public sealed class SteamLibraryExportService : ISteamLibraryExportService
             builder.Append(FormatLastPlayed(game.RTimeLastPlayed));
             builder.Append(',');
             builder.Append(UnknownSteamDeckStatus);
-            builder.AppendLine();
+            builder.Append(CsvNewLine);
         }
 
         return Encoding.UTF8.GetBytes(builder.ToString());
