@@ -144,7 +144,7 @@ public class GameController : ApiController
 
     /// <summary>
     /// Gets simplified game details for a random game.
-    /// GET /api/steam/random-game/details?steamId=... OR ?vanityUrl=...
+    /// GET /api/steam/random-game/details?userId=... OR ?vanityUrl=...
     /// </summary>
     [HttpGet("random-game/details")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(GameDetails))]
@@ -307,12 +307,25 @@ public class GameController : ApiController
 
     private static Error? ValidateIdentifier(long? userId, string? vanityUrl)
     {
-        if (userId.HasValue && !IsValidSteamId(userId.Value))
+        var hasUserId = userId.HasValue;
+        var hasVanityUrl = !string.IsNullOrWhiteSpace(vanityUrl);
+
+        if (!hasUserId && !hasVanityUrl)
+        {
+            return Errors.Steam.IdentifierRequired;
+        }
+
+        if (hasUserId && hasVanityUrl)
+        {
+            return Errors.Steam.AmbiguousIdentifier;
+        }
+
+        if (hasUserId && !IsValidSteamId(userId!.Value))
         {
             return Errors.Steam.InvalidSteamId;
         }
 
-        if (!string.IsNullOrWhiteSpace(vanityUrl) && !IsValidVanityUrl(vanityUrl))
+        if (hasVanityUrl && !IsValidVanityUrl(vanityUrl!))
         {
             return Errors.Steam.InvalidVanityUrl;
         }
@@ -335,22 +348,17 @@ public class GameController : ApiController
         long? userId,
         string? vanityUrl)
     {
-        if (userId.HasValue && !string.IsNullOrWhiteSpace(vanityUrl))
-        {
-            return Errors.Steam.AmbiguousIdentifier;
-        }
-
         if (!string.IsNullOrWhiteSpace(vanityUrl))
         {
             return await service.ResolveIdentifierAsync(vanityUrl);
         }
 
-        if (userId is null)
+        if (userId.HasValue)
         {
-            return Errors.Steam.IdentifierRequired;
+            return userId.Value;
         }
 
-        return userId.Value;
+        return Errors.Steam.IdentifierRequired;
     }
 
     private async Task TrackRandomGameGeneratedAsync()

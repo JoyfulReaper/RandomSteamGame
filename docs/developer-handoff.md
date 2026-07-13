@@ -157,6 +157,25 @@ Practical rules:
 - `GameController` emits a best-effort `randomsteam.game-pick.completed` event after successful picks and on meaningful failures.
 - Telemetry failures are isolated from business responses and logged rather than propagated.
 
+## Server Deployment
+
+Mission Control is registered only in the server project. The Blazor WebAssembly client must not receive these settings or any of the related secrets.
+
+Set these IIS or host environment variables for production:
+
+```text
+MissionControl__Enabled
+MissionControl__BaseUrl
+MissionControl__ApiKey
+MissionControl__CloudflareAccessClientId
+MissionControl__CloudflareAccessClientSecret
+MissionControl__TimeoutMilliseconds
+```
+
+Production values belong in IIS app-pool environment variables, deployment secrets, or user secrets. The tracked `appsettings` values are disabled templates only, and telemetry failures must not fail game-selection responses.
+
+The legacy SQLite filename `kgivler_com.db` is intentionally retained for production compatibility. Renaming it requires a separate migration that safely detects the legacy file and moves or copies it before switching filenames.
+
 ## Known Production Risks
 
 - No authentication or entitlement enforcement exists yet, so any premium feature added at the controller level will be publicly callable until auth and checks are introduced.

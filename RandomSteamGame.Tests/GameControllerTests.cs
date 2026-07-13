@@ -141,6 +141,57 @@ public class GameControllerTests
     }
 
     [Fact]
+    public async Task GetRandomGameDetails_MissingIdentifier_PublishesInvalidIdentifierEvent()
+    {
+        var missionControl = new RecordingMissionControlClient();
+        var appStats = new FakeAppStatsService();
+        var provider = new FakeGameProvider();
+        var controller = CreateController(provider, appStats, missionControl);
+
+        var result = await controller.GetRandomGameDetails("steam", userId: null, vanityUrl: null);
+
+        AssertValidationProblem(result, "Steam.IdentifierRequired");
+        Assert.Single(missionControl.PublishedEvents);
+        AssertGamePickEvent(
+            missionControl,
+            expectedProvider: "steam",
+            expectedOutcome: "invalid-identifier",
+            expectedSucceeded: false,
+            expectedAppId: null,
+            expectedUnplayedOnly: false);
+        Assert.Equal(0, provider.ResolveIdentifierCallCount);
+        Assert.Equal(0, provider.GetRandomGameDetailsCallCount);
+        Assert.Equal(0, appStats.IncrementCallCount);
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_AmbiguousIdentifier_PublishesInvalidIdentifierEvent()
+    {
+        var missionControl = new RecordingMissionControlClient();
+        var appStats = new FakeAppStatsService();
+        var provider = new FakeGameProvider();
+        var controller = CreateController(provider, appStats, missionControl);
+
+        var result = await controller.GetRandomGameDetails(
+            "steam",
+            76561197960287930L,
+            vanityUrl: "Mister_God");
+
+        AssertValidationProblem(result, "Steam.AmbiguousIdentifier");
+        Assert.Single(missionControl.PublishedEvents);
+        AssertGamePickEvent(
+            missionControl,
+            expectedProvider: "steam",
+            expectedOutcome: "invalid-identifier",
+            expectedSucceeded: false,
+            expectedAppId: null,
+            expectedUnplayedOnly: false);
+        Assert.Equal(0, provider.ResolveIdentifierCallCount);
+        Assert.Equal(0, provider.GetRandomGameDetailsCallCount);
+        Assert.Equal(0, appStats.IncrementCallCount);
+    }
+
+    [Fact]
     public async Task GetRandomGameDetails_VanityResolutionFailure_PublishesIdentifierResolutionFailedEvent()
     {
         var missionControl = new RecordingMissionControlClient();
@@ -385,6 +436,10 @@ public class GameControllerTests
         private readonly ErrorOr<GameDetails> _randomGameResult;
         private readonly ErrorOr<long> _resolveIdentifierResult;
 
+        public int GetOwnedGamesCallCount { get; private set; }
+        public int GetRandomGameDetailsCallCount { get; private set; }
+        public int ResolveIdentifierCallCount { get; private set; }
+
         public FakeGameProvider()
             : this(
                 new OwnedGamesResponse(76561197960287930L, 0, []),
@@ -406,13 +461,22 @@ public class GameControllerTests
         public string ProviderKey => "steam";
 
         public Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)
-            => Task.FromResult<ErrorOr<OwnedGamesResponse>>(_library with { SteamId = userId });
+        {
+            GetOwnedGamesCallCount++;
+            return Task.FromResult<ErrorOr<OwnedGamesResponse>>(_library with { SteamId = userId });
+        }
 
         public Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false)
-            => Task.FromResult(_randomGameResult);
+        {
+            GetRandomGameDetailsCallCount++;
+            return Task.FromResult(_randomGameResult);
+        }
 
         public Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)
-            => Task.FromResult(_resolveIdentifierResult);
+        {
+            ResolveIdentifierCallCount++;
+            return Task.FromResult(_resolveIdentifierResult);
+        }
 
         public Task InvalidateOwnedGamesCacheAsync(long userId)
             => Task.CompletedTask;
