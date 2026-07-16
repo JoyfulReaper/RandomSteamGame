@@ -74,12 +74,6 @@ public sealed class RandomSteamApiClient
             $"api/{Uri.EscapeDataString(provider)}/resolve/{Uri.EscapeDataString(vanityUrl)}",
             cancellationToken);
 
-    public Task<ApiResult<AppStatsResponse>> RecordHitAsync(CancellationToken cancellationToken = default) =>
-        SendForJsonAsync<AppStatsResponse>(
-            requestUri: "api/stats/hit",
-            sendAsync: () => _httpClient.PostAsync("api/stats/hit", content: null, cancellationToken),
-            cancellationToken);
-
     public Task<ApiResult<AppStatsResponse>> GetStatsAsync(CancellationToken cancellationToken = default) =>
         GetFromJsonAsync<AppStatsResponse>("api/stats", cancellationToken);
 

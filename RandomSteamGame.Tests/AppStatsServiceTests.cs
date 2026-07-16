@@ -5,10 +5,13 @@
  * Licensed under the MIT License.
  */
 
+using JoyfulReaperLib.MissionControl;
 using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using RandomSteamGame.Events;
 using RandomSteamGame.Services;
 
 namespace RandomSteamGame.Tests;
@@ -20,6 +23,7 @@ public class AppStatsServiceTests : IDisposable
     private readonly string _connectionString;
     private readonly AppStatsService _service;
     private readonly SqliteConnection _connection;
+    private readonly RecordingMissionControlClient _missionControl;
 
     public AppStatsServiceTests()
     {
@@ -44,7 +48,12 @@ public class AppStatsServiceTests : IDisposable
         {
             ConnectionString = _connectionString
         }));
-        _service = new AppStatsService(_connection, hitCounter);
+        _missionControl = new RecordingMissionControlClient();
+        _service = new AppStatsService(
+            _connection,
+            hitCounter,
+            _missionControl,
+            NullLogger<AppStatsService>.Instance);
     }
 
     [Fact]
@@ -64,6 +73,9 @@ public class AppStatsServiceTests : IDisposable
 
         Assert.Equal(1, stats.TotalHits);
         Assert.Equal(1, stats.UniqueVisitors);
+        Assert.Equal(
+            RandomSteamGameEventTypes.SiteVisitRecorded,
+            Assert.Single(_missionControl.PublishedEvents).EventType);
     }
 
     [Fact]
@@ -95,6 +107,27 @@ public class AppStatsServiceTests : IDisposable
         var stats = await _service.GetStatsAsync();
 
         Assert.Equal(2, stats.RandomGamesGenerated);
+    }
+
+    [Fact]
+    public async Task RecordHitAsync_MissionControlFailure_DoesNotThrow()
+    {
+        var service = new AppStatsService(
+            _connection,
+            new SqliteHitCounter(Microsoft.Extensions.Options.Options.Create(new SqliteHitCounterOptions
+            {
+                ConnectionString = _connectionString
+            })),
+            new RecordingMissionControlClient
+            {
+                ExceptionToThrow = new InvalidOperationException("Mission Control unavailable.")
+            },
+            NullLogger<AppStatsService>.Instance);
+
+        var stats = await service.RecordHitAsync("visitor-a");
+
+        Assert.Equal(1, stats.TotalHits);
+        Assert.Equal(1, stats.UniqueVisitors);
     }
 
     public void Dispose()
@@ -144,4 +177,37 @@ public class AppStatsServiceTests : IDisposable
             File.Delete(path);
         }
     }
+
+    private sealed class RecordingMissionControlClient : IMissionControlClient
+    {
+        public List<PublishedEventRecord> PublishedEvents { get; } = [];
+        public Exception? ExceptionToThrow { get; init; }
+
+        public Task<bool> TryPublishAsync<TPayload>(
+            string eventType,
+            TPayload payload,
+            DateTimeOffset occurredAt,
+            string? correlationId = null,
+            CancellationToken cancellationToken = default)
+        {
+            PublishedEvents.Add(new PublishedEventRecord(
+                eventType,
+                payload!,
+                occurredAt,
+                correlationId));
+
+            if (ExceptionToThrow is not null)
+            {
+                throw ExceptionToThrow;
+            }
+
+            return Task.FromResult(true);
+        }
+    }
+
+    private sealed record PublishedEventRecord(
+        string EventType,
+        object Payload,
+        DateTimeOffset OccurredAt,
+        string? CorrelationId);
 }
