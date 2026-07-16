@@ -7,4 +7,7 @@ public static class RandomSteamGameEventTypes
 
     public const string ApplicationStarted =
         "randomsteam.application.started";
+
+    public const string SiteVisitRecorded =
+        "randomsteam.site-visit.recorded";
 }
