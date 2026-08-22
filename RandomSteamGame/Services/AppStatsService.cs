@@ -46,10 +46,10 @@ public sealed class AppStatsService : IAppStatsService
         var randomGamesGenerated = await GetRandomGamesGeneratedAsync();
         var response = new AppStatsResponse(stats.TotalHits, stats.UniqueVisitors, randomGamesGenerated);
 
-        var visitorId = _visitorIdProvider.GetVisitorId(ip);
-
         try
         {
+            var visitorId = _visitorIdProvider.GetVisitorId(ip);
+
             await _missionControlClient.TryPublishAsync(
                 eventType: RandomSteamGameEventTypes.SiteVisitRecorded,
                 payload: new SiteVisitRecordedEvent(

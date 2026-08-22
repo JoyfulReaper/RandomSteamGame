@@ -76,15 +76,15 @@ public sealed class VisitorIdProviderTests
     }
 
     [Fact]
-    public void Constructor_MissingKey_Throws()
+    public void GetVisitorId_MissingKey_ReturnsNull()
     {
-        var options = Microsoft.Extensions.Options.Options.Create(
-            new TelemetryOptions());
+        var provider = new VisitorIdProvider(
+            Microsoft.Extensions.Options.Options.Create(
+                new TelemetryOptions()));
 
-        Assert.Throws<InvalidOperationException>(() =>
-        {
-            _ = new VisitorIdProvider(options);
-        });
+        var visitorId = provider.GetVisitorId("192.0.2.42");
+
+        Assert.Null(visitorId);
     }
 
     [Fact]

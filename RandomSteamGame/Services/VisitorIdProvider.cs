@@ -9,22 +9,24 @@ namespace RandomSteamGame.Services;
 
 public sealed class VisitorIdProvider : IVisitorIdProvider
 {
-    private readonly byte[] _key;
+    private readonly byte[]? _key;
 
     public VisitorIdProvider(IOptions<TelemetryOptions> options)
     {
         var key = options.Value.VisitorHashKey;
 
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new InvalidOperationException($"{TelemetryOptions.SectionName}:{nameof(TelemetryOptions.VisitorHashKey)} is required.");
-        }
-
-        _key = Encoding.UTF8.GetBytes(key);
+        _key = string.IsNullOrWhiteSpace(key)
+            ? null
+            : Encoding.UTF8.GetBytes(key);
     }
 
-    public string GetVisitorId(string ipAddress)
+    public string? GetVisitorId(string ipAddress)
     {
+        if (_key is null)
+        {
+            return null;
+        }
+
         if (!IPAddress.TryParse(ipAddress, out var address))
         {
             throw new ArgumentException(

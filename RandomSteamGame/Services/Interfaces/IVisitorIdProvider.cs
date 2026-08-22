@@ -2,5 +2,5 @@
 
 public interface IVisitorIdProvider
 {
-    string GetVisitorId(string ipAddress);
+    string? GetVisitorId(string ipAddress);
 }
