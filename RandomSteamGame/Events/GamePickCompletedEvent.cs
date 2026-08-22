@@ -1,6 +1,7 @@
 ﻿namespace RandomSteamGame.Events;
 
 public sealed record GamePickCompletedEvent(
+    string? VisitorId,
     string Provider,
     int? AppId,
     string? GameName,

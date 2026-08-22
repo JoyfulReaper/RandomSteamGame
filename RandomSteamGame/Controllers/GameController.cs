@@ -41,6 +41,7 @@ public class GameController : ApiController
     private readonly IMissionControlClient _missionControlClient;
     private readonly ApplicationOptions _applicationOptions;
     private readonly ILogger<GameController> _logger;
+    private readonly IVisitorIdProvider _visitorIdProvider;
 
     public GameController(
         GameProviderFactory factory,
@@ -48,10 +49,12 @@ public class GameController : ApiController
         IAppStatsService appStatsService,
         ISteamLibraryExportService steamLibraryExportService,
         IMissionControlClient missionControlClient,
+        IVisitorIdProvider visitorIdProvider,
         IOptions<ApplicationOptions> applicationOptions,
         ILogger<GameController> logger)
     {
         _missionControlClient = missionControlClient;
+        _visitorIdProvider = visitorIdProvider;
         _applicationOptions = applicationOptions.Value;
         _factory = factory;
         _ownedGamesCacheResetTracker = ownedGamesCacheResetTracker;
@@ -268,6 +271,7 @@ public class GameController : ApiController
                 eventType:
                     RandomSteamGameEventTypes.GamePickCompleted,
                 payload: new GamePickCompletedEvent(
+                    VisitorId: GetVisitorIdForTelemetry(),
                     Provider: provider,
                     AppId: telemetry?.Game?.Id,
                     // Display metadata only. Use AppId for stable joins, grouping, and identity.
@@ -420,4 +424,23 @@ public class GameController : ApiController
         }
     }
 
+    private string? GetVisitorIdForTelemetry()
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+            return string.IsNullOrWhiteSpace(ip)
+                ? null
+                : _visitorIdProvider.GetVisitorId(ip);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to generate visitor ID for game-pick telemetry.");
+
+            return null;
+        }
+    }
 }

@@ -12,6 +12,7 @@ using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using SteamApiClient.Services;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -587,7 +588,8 @@ public class GameControllerTests
         FakeGameProvider? provider = null,
         FakeAppStatsService? appStatsService = null,
         RecordingMissionControlClient? missionControlClient = null,
-        ApplicationOptions? applicationOptions = null)
+        ApplicationOptions? applicationOptions = null,
+        string? remoteIpAddress = null)
     {
         var controller = new GameController(
             new GameProviderFactory([provider ?? new FakeGameProvider()]),
@@ -595,13 +597,21 @@ public class GameControllerTests
             appStatsService ?? new FakeAppStatsService(),
             new SteamLibraryExportService(),
             missionControlClient ?? new RecordingMissionControlClient(),
-            Microsoft.Extensions.Options.Options.Create(applicationOptions ?? new ApplicationOptions()),
+            new StubVisitorIdProvider(),
+            Microsoft.Extensions.Options.Options.Create(
+                applicationOptions ?? new ApplicationOptions()),
             NullLogger<GameController>.Instance);
 
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
         };
+
+        if (remoteIpAddress is not null)
+        {
+            controller.HttpContext.Connection.RemoteIpAddress =
+                IPAddress.Parse(remoteIpAddress);
+        }
 
         return controller;
     }
@@ -637,6 +647,29 @@ public class GameControllerTests
         Assert.True(publishedEvent.Payload.Timings.IdentifierResolutionMilliseconds >= 0);
         Assert.True(publishedEvent.Payload.Timings.LibraryLoadMilliseconds >= 0);
         Assert.True(publishedEvent.Payload.Timings.SelectionMilliseconds >= 0);
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_IncludesHashedVisitorIdInTelemetry()
+    {
+        var missionControl = new RecordingMissionControlClient();
+
+        var controller = CreateController(
+            missionControlClient: missionControl,
+            remoteIpAddress: "192.0.2.42");
+
+        var result = await controller.GetRandomGameDetails(
+            "steam",
+            76561197960287930L,
+            vanityUrl: null);
+
+        Assert.IsType<OkObjectResult>(result);
+
+        var published = Assert.Single(missionControl.PublishedEvents);
+
+        Assert.Equal(
+            "hashed-192.0.2.42",
+            published.Payload.VisitorId);
     }
 
     private sealed class FakeGameProvider : IGameProvider
@@ -782,6 +815,12 @@ public class GameControllerTests
 
             return Task.FromResult(true);
         }
+    }
+
+    private sealed class StubVisitorIdProvider : IVisitorIdProvider
+    {
+        public string GetVisitorId(string ipAddress)
+            => $"hashed-{ipAddress}";
     }
 
     private sealed record PublishedEventRecord(
