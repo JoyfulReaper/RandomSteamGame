@@ -21,6 +21,7 @@ using SteamApiClient;
 using SteamApiClient.Services;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using SteamDeckCompatibilityCategory = SteamApiClient.Contracts.SteamApi.SteamDeckCompatibilityCategory;
 
 namespace RandomSteamGame.Controllers;
 
@@ -110,7 +111,18 @@ public class GameController : ApiController
             return Problem(result.Errors);
         }
 
-        var csvBytes = _steamLibraryExportService.Export(result.Value);
+        IReadOnlyDictionary<int, SteamDeckCompatibilityCategory> deckCompatibility =
+            new Dictionary<int, SteamDeckCompatibilityCategory>();
+
+        if (service is ISteamDeckCompatibilityProvider deckProvider)
+        {
+            deckCompatibility =
+                await deckProvider.GetSteamDeckCompatibilityAsync(
+                    result.Value.Games.Select(game => game.AppId),
+                    HttpContext.RequestAborted);
+        }
+
+        var csvBytes = _steamLibraryExportService.Export(result.Value, deckCompatibility);
         return File(csvBytes, "text/csv; charset=utf-8", $"steam-library-{steamId}.csv");
     }
 
