@@ -12,6 +12,7 @@ using SteamApiClient.Services;
 using SteamApiClient.Settings;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SteamApiClient.HttpClients;
 
@@ -27,6 +28,7 @@ public class SteamClient : ISteamClient
 
     private const int STEAM_VANITY_SUCCESS = 1;
     private const int STEAM_VANITY_NO_MATCH = 42;
+    private const int STORE_BROWSE_BATCH_SIZE = 100;
 
     public SteamClient(
         HttpClient httpClient,
@@ -197,4 +199,175 @@ public class SteamClient : ISteamClient
     {
         await _cache.InvalidateByTagAsync($"steam_user_{userId}");
     }
+
+    public async Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>> GetSteamDeckCompatibilityAsync(
+        IEnumerable<int> appIds,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(appIds);
+
+        var ids = appIds
+            .Where(appId => appId > 0)
+            .Distinct()
+            .ToArray();
+
+        var result = new Dictionary<int, SteamDeckCompatibilityCategory>();
+        var uncached = new List<int>();
+
+        foreach (var appId in ids)
+        {
+            var cached = await _cache.GetAsync<CachedSteamDeckCompatibility>($"steam_deck_compat:{appId}", ct);
+
+            if (cached is not null)
+            {
+                result[appId] = cached.Category;
+            }
+            else
+            {
+                uncached.Add(appId);
+            }
+        }
+
+        foreach (var batch in uncached.Chunk(STORE_BROWSE_BATCH_SIZE))
+        {
+            var fetched = await FetchSteamDeckCompatibilityBatchAsync(batch, ct);
+
+            if (fetched is null)
+            {
+                foreach (var appId in batch)
+                {
+                    result[appId] = SteamDeckCompatibilityCategory.Unknown;
+                }
+
+                continue;
+            }
+
+            foreach (var appId in batch)
+            {
+                var category = fetched.GetValueOrDefault(appId, SteamDeckCompatibilityCategory.Unknown);
+
+                result[appId] = category;
+
+                await _cache.SetAsync(
+                    $"steam_deck_compat:{appId}",
+                    new CachedSteamDeckCompatibility(category),
+                    _steamOptions.Cache.SteamDeckCompatibility,
+                    [
+                        "steam_deck_compatibility",
+                        $"app_{appId}"
+                    ],
+                    ct);
+            }
+        }
+
+        return result;
+    }
+
+    private async Task<Dictionary<int, SteamDeckCompatibilityCategory>?> FetchSteamDeckCompatibilityBatchAsync(
+        IReadOnlyCollection<int> appIds,
+        CancellationToken ct)
+    {
+        var request = new StoreBrowseRequest(
+            appIds
+                .Select(appId => new StoreBrowseItemId(appId))
+                .ToArray(),
+            new StoreBrowseContext(
+                Language: "english",
+                CountryCode: "US",
+                SteamRealm: 1),
+            new StoreBrowseDataRequest(
+                IncludePlatforms: true));
+
+        var inputJson = JsonSerializer.Serialize(request, _jsonOptions);
+
+        var url =
+            "IStoreBrowseService/GetItems/v1/" +
+            $"?key={Uri.EscapeDataString(_steamOptions.ApiKey)}" +
+            $"&input_json={Uri.EscapeDataString(inputJson)}";
+
+        try
+        {
+            using var response = await _httpClient.GetAsync(url, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Steam API failure (Deck compatibility). " +
+                    "StatusCode={StatusCode}",
+                    response.StatusCode);
+
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync(ct);
+            var parsed = JsonSerializer.Deserialize<StoreBrowseItemsResponse>(
+                json,
+                _jsonOptions);
+
+            if (parsed?.Response?.StoreItems is null)
+            {
+                _logger.LogWarning(
+                    "Steam API returned an invalid Deck " +
+                    "compatibility response.");
+
+                return null;
+            }
+
+            var result = new Dictionary<int, SteamDeckCompatibilityCategory>();
+
+            foreach (var item in parsed.Response.StoreItems)
+            {
+                var category =
+                    item.Platforms?.SteamDeckCompatCategory switch
+                    {
+                        1 => SteamDeckCompatibilityCategory.Unsupported,
+                        2 => SteamDeckCompatibilityCategory.Playable,
+                        3 => SteamDeckCompatibilityCategory.Verified,
+                        _ => SteamDeckCompatibilityCategory.Unknown
+                    };
+
+                result[item.AppId] = category;
+            }
+
+            return result;
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Steam Deck compatibility request failed.");
+
+            return null;
+        }
+        catch (JsonException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Steam Deck compatibility response could not be parsed.");
+
+            return null;
+        }
+    }
+
+    private sealed record StoreBrowseRequest(
+        StoreBrowseItemId[] Ids,
+        StoreBrowseContext Context,
+
+        [property: JsonPropertyName("data_request")]
+        StoreBrowseDataRequest DataRequest);
+
+    private sealed record StoreBrowseItemId([property: JsonPropertyName("appid")] int AppId);
+
+    private sealed record StoreBrowseContext(string Language,
+
+    [property: JsonPropertyName("country_code")]
+    string CountryCode,
+
+    [property: JsonPropertyName("steam_realm")]
+    int SteamRealm);
+
+    private sealed record StoreBrowseDataRequest([property: JsonPropertyName("include_platforms")]
+    bool IncludePlatforms);
+
+    private sealed record CachedSteamDeckCompatibility(SteamDeckCompatibilityCategory Category);
 }

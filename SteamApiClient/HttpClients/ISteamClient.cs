@@ -28,5 +28,9 @@ public interface ISteamClient
         string vanityUrl,
         CancellationToken ct = default);
 
+    Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>> GetSteamDeckCompatibilityAsync(
+        IEnumerable<int> appIds,
+        CancellationToken ct = default);
+
     Task InvalidateOwnedGamesCacheAsync(long steamId);
 }
