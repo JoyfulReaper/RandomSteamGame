@@ -218,6 +218,40 @@ public class SteamClientTests
         Assert.Equal(2, handler.CallCount);
     }
 
+    [Fact]
+    public async Task GetSteamDeckCompatibilityAsync_RequestsPlatformData()
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            response = new
+            {
+                store_items = Array.Empty<object>()
+            }
+        });
+
+        var handler = new SequencedHttpMessageHandler(
+            (json, HttpStatusCode.OK));
+
+        var client = CreateClient(handler);
+
+        await client.GetSteamDeckCompatibilityAsync(
+            [620],
+            TestContext.Current.CancellationToken);
+
+        var requestUri = Assert.Single(handler.RequestUris);
+        var decodedQuery = Uri.UnescapeDataString(requestUri.Query);
+
+        Assert.Contains(
+            "\"ids\":[{\"appid\":620}]",
+            decodedQuery,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "\"data_request\":{\"include_platforms\":true}",
+            decodedQuery,
+            StringComparison.Ordinal);
+    }
+
     #region GetOwnedGames Tests
 
     [Fact]

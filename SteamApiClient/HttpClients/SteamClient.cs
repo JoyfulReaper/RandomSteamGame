@@ -244,7 +244,11 @@ public class SteamClient : ISteamClient
 
             foreach (var appId in batch)
             {
-                var category = fetched.GetValueOrDefault(appId, SteamDeckCompatibilityCategory.Unknown);
+                if (!fetched.TryGetValue(appId, out var category))
+                {
+                    result[appId] = SteamDeckCompatibilityCategory.Unknown;
+                    continue;
+                }
 
                 result[appId] = category;
 
