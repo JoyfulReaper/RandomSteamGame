@@ -12,6 +12,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using RandomSteamGame.Events;
 using RandomSteamGame.Services;
+using RandomSteamGame.Services.Interfaces;
 using System.Text.Json.Serialization.Metadata;
 
 namespace RandomSteamGame.Tests;
@@ -53,6 +54,7 @@ public class AppStatsServiceTests : IDisposable
             _connection,
             hitCounter,
             _missionControl,
+            new StubVisitorIdProvider(),
             NullLogger<AppStatsService>.Instance);
     }
 
@@ -73,9 +75,19 @@ public class AppStatsServiceTests : IDisposable
 
         Assert.Equal(1, stats.TotalHits);
         Assert.Equal(1, stats.UniqueVisitors);
+
+        var published = Assert.Single(_missionControl.PublishedEvents);
+
         Assert.Equal(
             RandomSteamGameEventTypes.SiteVisitRecorded,
-            Assert.Single(_missionControl.PublishedEvents).EventType);
+            published.EventType);
+
+        var payload = Assert.IsType<SiteVisitRecordedEvent>(
+            published.Payload);
+
+        Assert.Equal("hashed-visitor-a", payload.VisitorId);
+        Assert.Equal(1, payload.TotalHits);
+        Assert.Equal(1, payload.UniqueVisitors);
     }
 
     [Fact]
@@ -114,14 +126,19 @@ public class AppStatsServiceTests : IDisposable
     {
         var service = new AppStatsService(
             _connection,
-            new SqliteHitCounter(Microsoft.Extensions.Options.Options.Create(new SqliteHitCounterOptions
-            {
-                ConnectionString = _connectionString
-            })),
+            new SqliteHitCounter(
+                Microsoft.Extensions.Options.Options.Create(
+                    new SqliteHitCounterOptions
+                    {
+                        ConnectionString = _connectionString
+                    })),
             new RecordingMissionControlClient
             {
-                ExceptionToThrow = new InvalidOperationException("Mission Control unavailable.")
+                ExceptionToThrow =
+                    new InvalidOperationException(
+                        "Mission Control unavailable.")
             },
+            new StubVisitorIdProvider(),
             NullLogger<AppStatsService>.Instance);
 
         var stats = await service.RecordHitAsync("visitor-a");
@@ -175,6 +192,14 @@ public class AppStatsServiceTests : IDisposable
         if (File.Exists(path))
         {
             File.Delete(path);
+        }
+    }
+
+    private sealed class StubVisitorIdProvider : IVisitorIdProvider
+    {
+        public string GetVisitorId(string ipAddress)
+        {
+            return $"hashed-{ipAddress}";
         }
     }
 
