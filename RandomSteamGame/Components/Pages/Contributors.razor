@@ -1,10 +1,12 @@
 ﻿@page "/contributors"
 
+@inject CanonicalUrlService CanonicalUrls
+
 <PageTitle>Contributors - Random Steam Game Picker</PageTitle>
 
 <HeadContent>
     <meta name="description" content="Supporters, sponsors, and contributors for Random Steam Game Picker." />
-    <link rel="canonical" href="https://randomsteam.kgivler.com/contributors" />
+    <link rel="canonical" href="@(CanonicalUrls.GetCanonicalUrl("/contributors"))" />
 </HeadContent>
 
 <div class="contributors-page">

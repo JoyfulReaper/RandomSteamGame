@@ -1,21 +1,27 @@
 ﻿@page "/random-game/{Provider}/{SteamId:long}"
 
 @inject NavigationManager NavManager
+@inject CanonicalUrlService CanonicalUrls
+@inject GameProviderFactory GameProviderFactory
+@inject IHttpContextAccessor HttpContextAccessor
 
-<HeadContent>
-    <link rel="canonical" href="@CanonicalUrl" />
-    <meta name="robots" content="noindex,follow" />
-    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
-    <meta name="description" content="Discover your next Steam game with our blazing fast random Steam game picker with caching that works with Steam IDs or vanity URLs." />
-    <meta name="author" content="Kyle Givler" />
-</HeadContent>
+@if (_providerSupported)
+{
+    <HeadContent>
+        <link rel="canonical" href="@CanonicalUrl" />
+        <meta name="robots" content="noindex,follow" />
+        <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve" />
+        <meta name="description" content="Discover your next Steam game with our blazing fast random Steam game picker with caching that works with Steam IDs or vanity URLs." />
+        <meta name="author" content="Kyle Givler" />
+    </HeadContent>
 
-<PageTitle>Random Steam Game Picker - Random Result</PageTitle>
+    <PageTitle>Random Steam Game Picker - Random Result</PageTitle>
 
-<RandomGamePicker Provider="@Provider"
-                  SteamId="@SteamId"
-                  UnplayedOnly="@UnplayedOnly"
-                  @rendermode="InteractiveAuto" />
+    <RandomGamePicker Provider="@Provider"
+                      SteamId="@SteamId"
+                      UnplayedOnly="@UnplayedOnly"
+                      @rendermode="InteractiveAuto" />
+}
 
 @code {
     [Parameter]
@@ -27,6 +33,23 @@
     [SupplyParameterFromQuery]
     public bool UnplayedOnly { get; set; }
 
+    private bool _providerSupported;
+
+    protected override void OnParametersSet()
+    {
+        _providerSupported = GameProviderFactory.TryGetProvider(Provider, out _);
+        if (!_providerSupported)
+        {
+            var response = HttpContextAccessor.HttpContext?.Response;
+            if (response is not null)
+            {
+                response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+            }
+
+            NavManager.NotFound();
+        }
+    }
+
     private string CanonicalUrl =>
-        $"{NavManager.BaseUri.TrimEnd('/')}/random-game/{Provider}/{SteamId}";
+        CanonicalUrls.GetCanonicalUrl($"/random-game/{Provider}/{SteamId}");
 }

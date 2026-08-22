@@ -6,6 +6,7 @@
  */
 
 using Microsoft.AspNetCore.HttpOverrides;
+using RandomSteamGame.Services;
 
 namespace RandomSteamGame.Extensions;
 
@@ -54,6 +55,23 @@ public static class MiddlewareExtensions
         });
 
         app.UseForwardedHeaders(forwardedOptions);
+
+        var canonicalUrls = app.ApplicationServices.GetRequiredService<CanonicalUrlService>();
+        app.Use(async (context, next) =>
+        {
+            if (canonicalUrls.IsBetaHost(context.Request.Host.Host))
+            {
+                context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+            }
+            else if (context.Request.Path.StartsWithSegments(
+                         "/random-game",
+                         StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.Headers["X-Robots-Tag"] = "noindex, follow";
+            }
+
+            await next();
+        });
 
         app.UseCors("DefaultCors");
         app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);

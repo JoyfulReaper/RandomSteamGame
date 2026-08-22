@@ -74,6 +74,7 @@ public static class ServiceExtensions
         services.AddMemoryCache();
         services.AddHttpClient<RandomSteamApiClient>();
         services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
+        services.AddSingleton<CanonicalUrlService>();
 
         services.AddMissionControlClient(
             config.GetSection(

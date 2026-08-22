@@ -1,10 +1,10 @@
 @page "/"
 
-@inject NavigationManager NavManager
 @inject IBetaAvailabilityService BetaAvailabilityService
 @inject IAppStatsService AppStatsService
 @inject IHttpContextAccessor HttpContextAccessor
 @inject ILogger<Home> Logger
+@inject CanonicalUrlService CanonicalUrls
 
 <HeadContent>
     <link rel="canonical" href="@CanonicalUrl" />
@@ -95,17 +95,15 @@
 </main>
 
 @code {
-    private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
+    private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl();
     private bool _betaAvailable;
     private bool _isBetaSite;
     private AppStatsResponse? _appStats;
 
     protected override async Task OnInitializedAsync()
     {
-        _isBetaSite = string.Equals(
-            NavManager.ToAbsoluteUri(NavManager.Uri).Host,
-            "randombeta.kgivler.com",
-            StringComparison.OrdinalIgnoreCase);
+        _isBetaSite = CanonicalUrls.IsBetaHost(
+            HttpContextAccessor.HttpContext?.Request.Host.Host);
 
         await LoadAppStatsAsync();
 

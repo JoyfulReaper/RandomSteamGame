@@ -1,10 +1,12 @@
 ﻿@page "/support"
 
+@inject CanonicalUrlService CanonicalUrls
+
 <PageTitle>Support Random Steam Game Picker</PageTitle>
 
 <HeadContent>
     <meta name="description" content="Support Random Steam Game Picker with a one-time contribution, sponsor a roadmap feature, or discuss scoped custom development." />
-    <link rel="canonical" href="https://randomsteam.kgivler.com/support" />
+    <link rel="canonical" href="@(CanonicalUrls.GetCanonicalUrl("/support"))" />
 </HeadContent>
 
 <div class="support-page">
