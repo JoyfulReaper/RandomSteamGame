@@ -2,11 +2,12 @@
 
 @inject CanonicalUrlService CanonicalUrls
 
-<PageTitle>Support Random Steam Game Picker</PageTitle>
+<PageTitle>@Title</PageTitle>
 
 <HeadContent>
-    <meta name="description" content="Support Random Steam Game Picker with a one-time contribution, sponsor a roadmap feature, or discuss scoped custom development." />
-    <link rel="canonical" href="@(CanonicalUrls.GetCanonicalUrl("/support"))" />
+    <meta name="description" content="@Description" />
+    <link rel="canonical" href="@CanonicalUrl" />
+    <SocialMetadata Title="@Title" Description="@Description" CanonicalUrl="@CanonicalUrl" />
 </HeadContent>
 
 <div class="support-page">
@@ -200,6 +201,11 @@
 </div>
 
 @code {
+    private const string Title = "Support Random Steam Game Picker";
+    private const string Description = "Support Random Steam Game Picker with a one-time contribution, sponsor a roadmap feature, or discuss scoped custom development.";
+
+    private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl("/support");
+
     private const string SupportUrl = "https://www.paypal.com/paypalme/KyleGivler/5USD";
 
     private const string SponsorUrl =

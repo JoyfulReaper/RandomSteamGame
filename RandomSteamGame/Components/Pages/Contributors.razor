@@ -2,11 +2,12 @@
 
 @inject CanonicalUrlService CanonicalUrls
 
-<PageTitle>Contributors - Random Steam Game Picker</PageTitle>
+<PageTitle>@Title</PageTitle>
 
 <HeadContent>
-    <meta name="description" content="Supporters, sponsors, and contributors for Random Steam Game Picker." />
-    <link rel="canonical" href="@(CanonicalUrls.GetCanonicalUrl("/contributors"))" />
+    <meta name="description" content="@Description" />
+    <link rel="canonical" href="@CanonicalUrl" />
+    <SocialMetadata Title="@Title" Description="@Description" CanonicalUrl="@CanonicalUrl" />
 </HeadContent>
 
 <div class="contributors-page">
@@ -212,6 +213,11 @@
 </div>
 
 @code {
+    private const string Title = "Contributors - Random Steam Game Picker";
+    private const string Description = "Supporters, sponsors, and contributors for Random Steam Game Picker.";
+
+    private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl("/contributors");
+
     private static readonly IReadOnlyList<FeaturedSponsor> FeaturedSponsors =
     [
         // Example:

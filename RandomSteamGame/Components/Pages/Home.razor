@@ -8,11 +8,13 @@
 
 <HeadContent>
     <link rel="canonical" href="@CanonicalUrl" />
-    <meta name="description" content="Paste your Steam ID or vanity URL to pick a random game from your public Steam library, filter to unplayed games, and choose again in seconds." />
+    <meta name="description" content="@Description" />
     <meta name="author" content="Kyle Givler" />
+    <SocialMetadata Title="@Title" Description="@Description" CanonicalUrl="@CanonicalUrl" />
+    @((MarkupString)StructuredDataScript)
 </HeadContent>
 
-<PageTitle>Random Steam Game Picker – Pick From Your Library</PageTitle>
+<PageTitle>@Title</PageTitle>
 
 <div class="container mt-5 home-shell">
     <div class="row justify-content-center">
@@ -164,7 +166,25 @@
 </div>
 
 @code {
+    private const string Title = "Random Steam Game Picker – Pick From Your Library";
+    private const string Description = "Paste your Steam ID or vanity URL to pick a random game from your public Steam library, filter to unplayed games, and choose again in seconds.";
+
     private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl();
+    private string StructuredDataJson => System.Text.Json.JsonSerializer.Serialize(
+        new Dictionary<string, object>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "WebApplication",
+            ["name"] = "Random Steam Game Picker",
+            ["url"] = CanonicalUrl,
+            ["description"] = Description,
+            ["applicationCategory"] = "UtilitiesApplication",
+            ["operatingSystem"] = "Any device with a web browser",
+            ["isAccessibleForFree"] = true
+        });
+    private string StructuredDataScript =>
+        $"<script type=\"application/ld+json\">{StructuredDataJson}</script>";
+
     private bool _betaAvailable;
     private bool _isBetaSite;
     private AppStatsResponse? _appStats;
