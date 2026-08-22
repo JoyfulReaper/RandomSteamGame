@@ -40,13 +40,14 @@ public sealed class CanonicalUrlService
             return _canonicalOrigin;
         }
 
-        if (Uri.TryCreate(path, UriKind.Absolute, out _))
+        var relativePath = path.TrimStart('/');
+        if (!Uri.TryCreate(relativePath, UriKind.Relative, out var relativeUri))
         {
             throw new ArgumentException("Canonical paths must be relative to the configured origin.", nameof(path));
         }
 
         var origin = new Uri($"{_canonicalOrigin}/", UriKind.Absolute);
-        return new Uri(origin, path.TrimStart('/')).AbsoluteUri;
+        return new Uri(origin, relativeUri).AbsoluteUri;
     }
 
     public bool IsBetaHost(string? host)

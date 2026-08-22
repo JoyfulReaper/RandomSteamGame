@@ -9,6 +9,8 @@ public sealed class CanonicalUrlServiceTests
     [Theory]
     [InlineData("/", "https://randomsteam.kgivler.com")]
     [InlineData("/support", "https://randomsteam.kgivler.com/support")]
+    [InlineData("support", "https://randomsteam.kgivler.com/support")]
+    [InlineData("/contributors", "https://randomsteam.kgivler.com/contributors")]
     [InlineData("contributors", "https://randomsteam.kgivler.com/contributors")]
     public void GetCanonicalUrl_UsesConfiguredOrigin(string path, string expected)
     {
@@ -17,6 +19,16 @@ public sealed class CanonicalUrlServiceTests
         var result = service.GetCanonicalUrl(path);
 
         Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("https://evil.example/test")]
+    [InlineData("http://evil.example/test")]
+    public void GetCanonicalUrl_RejectsAbsoluteUrl(string path)
+    {
+        var service = CreateService();
+
+        Assert.Throws<ArgumentException>(() => service.GetCanonicalUrl(path));
     }
 
     [Theory]
