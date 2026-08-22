@@ -13,12 +13,12 @@
     <ProjectReference Include="..\RandomSteamGame.Shared\RandomSteamGame.Shared.csproj" />
     <ProjectReference Include="..\SteamApiClient\SteamApiClient.csproj" />
     <PackageReference Include="ErrorOr" Version="2.1.1" />
-    <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
+    <PackageReference Include="HtmlSanitizer" Version="9.2.995" />
     <PackageReference Include="JoyfulReaperLib.MissionControl" Version="0.0.1" />
     <PackageReference Include="JoyfulReaperLib.Sqlite" Version="0.0.9" />
     <PackageReference Include="JoyfulReaperLib.WebStats.Sqlite" Version="0.0.9" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.11" />
   </ItemGroup>
 
 </Project>
