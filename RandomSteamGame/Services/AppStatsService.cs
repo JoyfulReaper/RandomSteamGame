@@ -51,6 +51,7 @@ public sealed class AppStatsService : IAppStatsService
                     TotalHits: response.TotalHits,
                     UniqueVisitors: response.UniqueVisitors,
                     DurationMilliseconds: stopwatch.ElapsedMilliseconds),
+                payloadTypeInfo: RandomSteamGameJsonContext.Default.SiteVisitRecordedEvent,
                 occurredAt: occurredAt,
                 correlationId: correlationId,
                 cancellationToken: CancellationToken.None);

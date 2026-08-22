@@ -273,8 +273,7 @@ public class GameController : ApiController
                     // Display metadata only. Use AppId for stable joins, grouping, and identity.
                     GameName: GamePickTelemetryName.Sanitize(telemetry?.Game?.Name),
                     UnplayedOnly: unplayedOnly,
-                    DurationMilliseconds:
-                        stopwatch.ElapsedMilliseconds,
+                    DurationMilliseconds: stopwatch.ElapsedMilliseconds,
                     CacheStatus: telemetry?.Cache.StatusName ?? OwnedGamesCacheInfo.Unknown.StatusName,
                     CacheAgeSeconds: telemetry?.Cache.AgeSeconds,
                     EligibleGameCount: telemetry?.EligibleGameCount,
@@ -295,6 +294,7 @@ public class GameController : ApiController
                     Outcome: outcome,
                     Succeeded: succeeded),
                 occurredAt: occurredAt,
+                payloadTypeInfo: RandomSteamGameJsonContext.Default.GamePickCompletedEvent,
                 correlationId: correlationId,
                 cancellationToken: CancellationToken.None);
         }

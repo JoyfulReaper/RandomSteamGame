@@ -1,8 +1,8 @@
 using ErrorOr;
+using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Controllers;
@@ -11,11 +11,11 @@ using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
+using SteamApiClient.Services;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using JoyfulReaperLib.MissionControl;
-using SteamApiClient.Services;
+using System.Text.Json.Serialization.Metadata;
 
 namespace RandomSteamGame.Tests;
 
@@ -762,6 +762,7 @@ public class GameControllerTests
         public Task<bool> TryPublishAsync<TPayload>(
             string eventType,
             TPayload payload,
+            JsonTypeInfo<TPayload> payloadTypeInfo,
             DateTimeOffset occurredAt,
             string? correlationId = null,
             CancellationToken cancellationToken = default)

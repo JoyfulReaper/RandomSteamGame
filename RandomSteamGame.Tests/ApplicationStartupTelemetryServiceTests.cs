@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using RandomSteamGame.Events;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services;
+using System.Text.Json.Serialization.Metadata;
 
 namespace RandomSteamGame.Tests;
 
@@ -98,6 +99,7 @@ public class ApplicationStartupTelemetryServiceTests
         public Task<bool> TryPublishAsync<TPayload>(
             string eventType,
             TPayload payload,
+            JsonTypeInfo<TPayload> payloadTypeInfo,
             DateTimeOffset occurredAt,
             string? correlationId = null,
             CancellationToken cancellationToken = default)

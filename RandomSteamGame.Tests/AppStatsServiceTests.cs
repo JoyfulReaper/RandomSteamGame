@@ -10,9 +10,9 @@ using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using RandomSteamGame.Events;
 using RandomSteamGame.Services;
+using System.Text.Json.Serialization.Metadata;
 
 namespace RandomSteamGame.Tests;
 
@@ -186,6 +186,7 @@ public class AppStatsServiceTests : IDisposable
         public Task<bool> TryPublishAsync<TPayload>(
             string eventType,
             TPayload payload,
+            JsonTypeInfo<TPayload> payloadTypeInfo,
             DateTimeOffset occurredAt,
             string? correlationId = null,
             CancellationToken cancellationToken = default)

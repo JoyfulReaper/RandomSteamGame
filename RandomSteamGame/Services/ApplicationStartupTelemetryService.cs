@@ -48,13 +48,14 @@ public sealed class ApplicationStartupTelemetryService : IHostedLifecycleService
         try
         {
             await _missionControlClient.TryPublishAsync(
-                RandomSteamGameEventTypes.ApplicationStarted,
-                new ApplicationStartedEvent(
+                eventType: RandomSteamGameEventTypes.ApplicationStarted,
+                payload: new ApplicationStartedEvent(
                     _environment.EnvironmentName,
                     NullIfWhiteSpace(_applicationOptions.CommitSha),
                     NullIfWhiteSpace(_applicationOptions.DeploymentType),
                     RuntimeInformation.FrameworkDescription),
-                DateTimeOffset.UtcNow,
+                payloadTypeInfo: RandomSteamGameJsonContext.Default.ApplicationStartedEvent,
+                occurredAt: DateTimeOffset.UtcNow,
                 cancellationToken: cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
