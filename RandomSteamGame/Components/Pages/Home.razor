@@ -65,6 +65,21 @@
                 <SteamPickerForm @rendermode="InteractiveAuto" />
             </div>
 
+            <div class="home-info-card mt-3 text-center">
+                <h2 class="h5 mb-2">Need your whole Steam library?</h2>
+
+                <p class="small mb-3">
+                    Export your public Steam library to CSV with game names,
+                    App IDs, playtime, last-played dates, and Steam Deck
+                    compatibility.
+                </p>
+
+                <a href="/library-export"
+                   class="btn btn-outline-info btn-sm">
+                    Export Steam Library to CSV
+                </a>
+            </div>
+
             <footer class="home-footer text-center mt-4 text-muted small">
                 <p>
                     Need help finding your Steam ID?
@@ -110,13 +125,15 @@
 
             <div class="col-12 col-lg-6">
                 <div class="home-info-card h-100">
-                    <h2>Useful picker features</h2>
+                    <h2>Useful Steam library features</h2>
                     <ul class="home-feature-list mb-0">
                         <li><strong>Unplayed-only picks:</strong> focus on games with no Steam playtime recorded.</li>
                         <li><strong>Quick rerolls:</strong> choose another owned game without returning to the form.</li>
                         <li><strong>Browser-based exclusions:</strong> block an unwanted game from future picks in this browser, then reset the list whenever you want.</li>
                         <li><strong>Fresh library data:</strong> refresh the cached Steam game list after buying new games if your picks look out of date.</li>
                         <li><strong>Launch through Steam:</strong> open the selected game directly in the Steam client.</li>
+                        <li><strong>Steam library CSV export:</strong>download your public library with game names, App IDs, playtime, last-played dates, and Steam Deck compatibility.
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -129,35 +146,62 @@
                 <div class="col-12 col-md-6">
                     <div class="home-faq-item h-100">
                         <h3>Does my Steam profile need to be public?</h3>
-                        <p>Yes. Steam must allow access to your profile and game details so the picker can read your owned games.</p>
+                        <p>
+                            Yes. Steam must allow access to your profile and game details
+                            so the picker can read your owned games.
+                        </p>
                     </div>
                 </div>
 
                 <div class="col-12 col-md-6">
                     <div class="home-faq-item h-100">
                         <h3>Where do I find my Steam ID?</h3>
-                        <p>You can use your 17-digit Steam ID, or paste the custom name or URL from your Steam Community profile.</p>
+                        <p>
+                            You can use your 17-digit Steam ID, or paste the custom name
+                            or URL from your Steam Community profile.
+                        </p>
                     </div>
                 </div>
 
                 <div class="col-12 col-md-6">
                     <div class="home-faq-item h-100">
                         <h3>Can it pick only games I have never played?</h3>
-                        <p>Yes. Select “Only pick unplayed games” to use games for which Steam reports no recorded playtime.</p>
+                        <p>
+                            Yes. Select “Only pick unplayed games” to use games for which
+                            Steam reports no recorded playtime.
+                        </p>
                     </div>
                 </div>
 
                 <div class="col-12 col-md-6">
                     <div class="home-faq-item h-100">
                         <h3>Can I choose again or exclude a game?</h3>
-                        <p>Yes. You can choose again instantly, or block the current game from future picks in this browser.</p>
+                        <p>
+                            Yes. You can choose again instantly, or block the current game
+                            from future picks in this browser.
+                        </p>
                     </div>
                 </div>
 
-                <div class="col-12">
-                    <div class="home-faq-item">
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Can I export my Steam library?</h3>
+                        <p>
+                            Yes. You can export your public Steam library as CSV with game
+                            names, App IDs, playtime, last-played dates, and Steam Deck
+                            compatibility. Exports are limited to one per IP address every
+                            72 hours.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
                         <h3>Does Random Steam Game change anything in my library?</h3>
-                        <p>No. It reads your public game list to make a pick; it does not add, remove, or organize games in your Steam library.</p>
+                        <p>
+                            No. It reads your public game list to make a pick or export your
+                            library; it does not add, remove, or organize games in Steam.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -180,7 +224,15 @@
             ["description"] = Description,
             ["applicationCategory"] = "UtilitiesApplication",
             ["operatingSystem"] = "Any device with a web browser",
-            ["isAccessibleForFree"] = true
+            ["isAccessibleForFree"] = true,
+            ["featureList"] = new[]
+            {
+            "Random game selection from a public Steam library",
+            "Unplayed-only game filtering",
+            "Browser-based game exclusions",
+            "Steam library CSV export",
+            "Steam Deck compatibility included in library exports"
+            }
         });
     private string StructuredDataScript =>
         $"<script type=\"application/ld+json\">{StructuredDataJson}</script>";

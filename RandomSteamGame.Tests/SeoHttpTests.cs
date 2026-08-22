@@ -107,6 +107,7 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         {
             $"{CanonicalOrigin}/",
             $"{CanonicalOrigin}/contributors",
+            $"{CanonicalOrigin}/library-export",
             $"{CanonicalOrigin}/support"
         }.Order(StringComparer.Ordinal).ToArray();
 
@@ -174,6 +175,45 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+    }
+
+    [Fact]
+    public async Task LibraryExport_ReturnsSeoMetadata()
+    {
+        var cancellationToken =
+            TestContext.Current.CancellationToken;
+
+        using var response =
+            await _client.GetAsync(
+                "/library-export",
+                cancellationToken);
+
+        var document =
+            await ParseHtmlAsync(
+                response,
+                cancellationToken);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode);
+
+        Assert.Equal(
+            "Export Steam Library to CSV – Random Steam Game",
+            document.Title);
+
+        Assert.Equal(
+            $"{CanonicalOrigin}/library-export",
+            GetAttribute(
+                document,
+                "link[rel='canonical']",
+                "href"));
+
+        Assert.False(
+            string.IsNullOrWhiteSpace(
+                GetAttribute(
+                    document,
+                    "meta[name='description']",
+                    "content")));
     }
 
     private static async Task<IDocument> ParseHtmlAsync(
