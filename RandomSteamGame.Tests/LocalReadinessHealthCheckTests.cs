@@ -1,3 +1,4 @@
+using JoyfulReaperLib.Sqlite;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -13,6 +14,8 @@ public class LocalReadinessHealthCheckTests : IDisposable
 
     public LocalReadinessHealthCheckTests()
     {
+        SqliteProviderInitializer.Initialize();
+
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDirectory);
     }
