@@ -53,8 +53,9 @@ public static class ServiceExtensions
         var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
         var steamOptions = GetSteamOptions(config);
 
-        services.Configure<ApplicationOptions>(
-            config.GetSection(ApplicationOptions.SectionName));
+        services.Configure<ApplicationOptions>(config.GetSection(ApplicationOptions.SectionName));
+        services.Configure<TelemetryOptions>(config.GetSection(TelemetryOptions.SectionName));
+        services.AddSingleton<IVisitorIdProvider, VisitorIdProvider>();
 
         services.AddJoyfulReaperSqliteHitCounter(options =>
         {
@@ -77,8 +78,7 @@ public static class ServiceExtensions
         services.AddSingleton<CanonicalUrlService>();
 
         services.AddMissionControlClient(
-            config.GetSection(
-                MissionControlClientOptions.SectionName));
+            config.GetSection(MissionControlClientOptions.SectionName));
         services.AddHostedService<ApplicationStartupTelemetryService>();
 
         services.AddAntiforgery(options =>
