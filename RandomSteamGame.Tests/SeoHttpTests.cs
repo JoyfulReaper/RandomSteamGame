@@ -72,6 +72,20 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Equal("UtilitiesApplication", root.GetProperty("applicationCategory").GetString());
         Assert.Equal("Any device with a web browser", root.GetProperty("operatingSystem").GetString());
         Assert.True(root.GetProperty("isAccessibleForFree").GetBoolean());
+
+        var featureList = root
+            .GetProperty("featureList")
+            .EnumerateArray()
+            .Select(item => item.GetString())
+            .ToArray();
+
+        Assert.Contains(
+            "Steam library CSV export",
+            featureList);
+
+        Assert.Contains(
+            "Steam Deck compatibility included in library exports",
+            featureList);
     }
 
     [Fact]

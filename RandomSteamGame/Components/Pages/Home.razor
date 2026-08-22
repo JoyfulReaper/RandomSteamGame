@@ -132,7 +132,7 @@
                         <li><strong>Browser-based exclusions:</strong> block an unwanted game from future picks in this browser, then reset the list whenever you want.</li>
                         <li><strong>Fresh library data:</strong> refresh the cached Steam game list after buying new games if your picks look out of date.</li>
                         <li><strong>Launch through Steam:</strong> open the selected game directly in the Steam client.</li>
-                        <li><strong>Steam library CSV export:</strong>download your public library with game names, App IDs, playtime, last-played dates, and Steam Deck compatibility.
+                        <li><strong>Steam library CSV export:</strong> download your public library with game names, App IDs, playtime, last-played dates, and Steam Deck compatibility.
                         </li>
                     </ul>
                 </div>
@@ -226,13 +226,13 @@
             ["operatingSystem"] = "Any device with a web browser",
             ["isAccessibleForFree"] = true,
             ["featureList"] = new[]
-            {
-            "Random game selection from a public Steam library",
-            "Unplayed-only game filtering",
-            "Browser-based game exclusions",
-            "Steam library CSV export",
-            "Steam Deck compatibility included in library exports"
-            }
+                {
+                    "Random game selection from a public Steam library",
+                    "Unplayed-only game filtering",
+                    "Browser-based game exclusions",
+                    "Steam library CSV export",
+                    "Steam Deck compatibility included in library exports"
+                }
         });
     private string StructuredDataScript =>
         $"<script type=\"application/ld+json\">{StructuredDataJson}</script>";

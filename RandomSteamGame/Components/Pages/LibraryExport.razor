@@ -61,12 +61,8 @@
 </div>
 
 @code {
-    private const string Title =
-        "Export Steam Library to CSV – Random Steam Game";
-
-    private const string Description =
-        "Export your public Steam library to CSV with game names, App IDs, playtime, last-played dates, and Steam Deck compatibility.";
-
+    private const string Title = "Export Steam Library to CSV – Random Steam Game";
+    private const string Description = "Export your public Steam library to CSV with game names, App IDs, playtime, last-played dates, and Steam Deck compatibility.";
     private string CanonicalUrl =>
-        CanonicalUrls.GetCanonicalUrl();
+        CanonicalUrls.GetCanonicalUrl("/library-export");
 }
