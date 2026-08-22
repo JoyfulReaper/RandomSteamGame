@@ -549,14 +549,21 @@ public class GameControllerTests
     }
 
     [Fact]
-    public void GameController_UsesRateLimitingPolicy_ForLibraryExportEndpoint()
+    public void GameController_UsesDedicatedRateLimitingPolicy_ForLibraryExportEndpoint()
     {
-        var controllerAttribute = typeof(GameController).GetCustomAttribute<EnableRateLimitingAttribute>();
-        var action = typeof(GameController).GetMethod(nameof(GameController.ExportLibrary));
+        var action =
+            typeof(GameController)
+                .GetMethod(nameof(GameController.ExportLibrary));
 
         Assert.NotNull(action);
-        Assert.NotNull(controllerAttribute);
-        Assert.Equal("steam_api_limiter", controllerAttribute.PolicyName);
+
+        var attribute = action.GetCustomAttribute<EnableRateLimitingAttribute>();
+
+        Assert.NotNull(attribute);
+
+        Assert.Equal(
+            "library_export_limiter",
+            attribute.PolicyName);
     }
 
     [Fact]

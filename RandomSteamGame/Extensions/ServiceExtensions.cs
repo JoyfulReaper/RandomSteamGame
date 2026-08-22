@@ -273,10 +273,52 @@ public static class ServiceExtensions
                 limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             });
 
+            options.AddPolicy("library_export_limiter", httpContext =>
+            {
+                var ipAddress =
+                    httpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? "unknown";
+
+                return RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: ipAddress,
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 1,
+                        Window = TimeSpan.FromHours(72),
+                        SegmentsPerWindow = 72,
+                        AutoReplenishment = true,
+                        QueueLimit = 0,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                    });
+            });
+
             options.OnRejected = async (context, token) =>
             {
                 context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                await context.HttpContext.Response.WriteAsync("Too many requests. Please slow down and try again in a few seconds.", token);
+                context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
+
+                var policyName = context.HttpContext
+                    .GetEndpoint()?
+                    .Metadata
+                    .GetMetadata<EnableRateLimitingAttribute>()?
+                    .PolicyName;
+
+                if (string.Equals(
+                        policyName,
+                        "library_export_limiter",
+                        StringComparison.Ordinal))
+                {
+                    await context.HttpContext.Response.WriteAsync(
+                        "Steam library CSV exports are limited to one per IP address every 72 hours. " +
+                        "Need more frequent exports? Contact me.",
+                        token);
+
+                    return;
+                }
+
+                await context.HttpContext.Response.WriteAsync(
+                    "Too many requests. Please slow down and try again in a few seconds.",
+                    token);
             };
         });
 

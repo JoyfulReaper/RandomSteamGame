@@ -91,9 +91,12 @@ public class GameController : ApiController
     /// GET /api/steam/{steamId}/library/export.csv
     /// </summary>
     [HttpGet("{steamId:long}/library/export.csv")]
+    [EnableRateLimiting("library_export_limiter")]
     [Produces("text/csv")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ExportLibrary(string provider, long steamId)
+    public async Task<IActionResult> ExportLibrary(
+        string provider,
+        long steamId)
     {
         if (!TryGetProvider(provider, out var service))
         {
