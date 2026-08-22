@@ -1,232 +1,150 @@
-# RSG-UTILITY: Random Steam Game Picker
+# Random Steam Game Picker
 
-**Protocol ID:** RSG-RANDOMIZER-01  
-**Codename:** Random Steam Game Picker  
-**Status:** Operational  
-**Maintainer:** Kyle Givler  
+Random Steam Game Picker chooses a game from your own public Steam library. Enter a 17-digit Steam ID or Steam vanity URL, optionally limit the pool to unplayed games, and let the picker answer the important question: **What should I play?**
 
-> A fast random game picker for Steam libraries.  
-> Built to answer the ancient question: **“What should I play?”**
+**Live application:** [https://randomsteam.kgivler.com](https://randomsteam.kgivler.com)
 
-**Live instance:** [https://randomsteam.kgivler.com](https://randomsteam.kgivler.com)
+It is made for anyone with a large backlog, limited decision-making energy, and a suspicious tendency to press **Choose Again**.
 
----
+## Screenshots
 
-## 1.0 System Overview
+### Library picker
 
-Random Steam Game Picker is a small web utility that selects a random game from a public Steam library.
+![Random Steam Game Picker home page](docs/images/RandomSteam_Main.png)
 
-It is designed for people with too many games, too little decision-making energy, and a dangerous relationship with the "Choose Again" button.
+### Selected game
 
-Enter a SteamID or Vanity URL, let the system query your library, and receive one game from the backlog.
+![Random Steam Game Picker result page](docs/images/RandomSteam_Game.png)
 
----
+## Features
 
-## 2.0 Core Features
+- Accepts a 17-digit Steam ID, vanity name, or Steam Community vanity URL
+- Selects a random game the user owns from their public Steam library
+- Filters the pool to games with no Steam playtime recorded when unplayed-only mode is enabled
+- Supports repeated picks without returning to the home page
+- Caches Steam library and Store API data to reduce upstream requests
+- Blocks unwanted games from future picks in the current browser and can reset the blocked list
+- Refreshes cached library data after the user's Steam library changes
+- Displays the selected game's description and recorded playtime
+- Opens the selected game through the Steam desktop client
+- Exposes a CSV library export endpoint through the server API
 
-- Pick a random game from a Steam library
-- Supports SteamID and Vanity URL lookup
-- Fast responses using server-side caching
-- Optionally block games from future picks in the browser
-- Reset blocked games
-- View basic game details and playtime
-- Export a Steam library to CSV
-- Launch directly with `steam://run/{appId}` on supported desktop systems
+Steam must be able to access the profile's game details. Picker preferences and blocked games are stored in browser cookies, so they do not synchronize across browsers or devices.
 
----
+## How It Works
 
-## 3.0 Architecture
+1. Enter a Steam ID or vanity URL.
+2. The application loads the user's public Steam library.
+3. It removes games that do not match the selected options or that were blocked in the current browser.
+4. It randomly selects one eligible game and loads its details.
+5. Play it, choose again, or block it and roll once more.
 
-The system is built around a small .NET stack:
+## Tech Stack
 
-| Layer | Purpose | Implementation |
+- .NET 10 and ASP.NET Core
+- Blazor Web App with Interactive Auto components
+- Steam Web API and Steam Store API
+- ASP.NET Core HybridCache with memory and SQLite-backed caching
+- SQLite for lightweight application data
+- Optional Mission Control telemetry
+
+## Repository Overview
+
+| Project | Responsibility |
+| --- | --- |
+| `RandomSteamGame` | ASP.NET Core host, routed pages, controllers, middleware, persistence, and server services |
+| `RandomSteamGame.Client` | Interactive picker components, browser state, and the browser-facing API client |
+| `RandomSteamGame.Shared` | Contracts and abstractions shared by the host and client |
+| `SteamApiClient` | Steam Web API and Store API clients plus caching |
+| `RandomSteamGame.Tests` | Host, controller, provider, persistence, and component-supporting tests |
+| `SteamApiClient.Tests` | Tests for the Steam integration library |
+
+The central picker flow is `GameController` → `GameProviderFactory` → `SteamProvider` → `SteamApiClient`.
+
+## Running Locally
+
+### Prerequisites
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- A [Steam Web API key](https://steamcommunity.com/dev/apikey)
+
+### Setup
+
+Clone the repository:
+
+```powershell
+git clone https://github.com/JoyfulReaper/RandomSteamGame.git
+cd RandomSteamGame
+```
+
+Store the Steam API key with .NET user secrets. Do not put a real key in a tracked configuration file:
+
+```powershell
+dotnet user-secrets set "Steam:ApiKey" "YOUR_STEAM_WEB_API_KEY" --project RandomSteamGame/RandomSteamGame.csproj
+```
+
+Restore, build, and run the application:
+
+```powershell
+dotnet restore RandomSteamGame.slnx
+dotnet build RandomSteamGame.slnx --no-restore
+dotnet run --project RandomSteamGame/RandomSteamGame.csproj --no-build
+```
+
+The development profile listens at [http://localhost:5182](http://localhost:5182).
+
+SQLite data and development Data Protection keys are created automatically. Mission Control is disabled by default and is not required for local development.
+
+## Configuration
+
+The only secret required for normal local use is the Steam Web API key:
+
+| Configuration key | Environment variable | Purpose |
 | --- | --- | --- |
-| Interface | User input and result display | Blazor Interactive Auto |
-| API | Game selection, validation, Steam access | ASP.NET Core |
-| Steam Integration | Library and app data retrieval | Steam Web API / Store API |
-| Cache | Reduce Steam API calls and improve response time | SQLite-backed distributed cache |
-| Observability | Best-effort completion telemetry | Mission Control |
-| Browser State | Remember local picker preferences | Cookies |
+| `Steam:ApiKey` | `Steam__ApiKey` | Reads public library data from the Steam Web API |
 
-The application favors speed over spectacle. The goal is to get a usable answer quickly, not simulate a casino wheel for eight seconds.
+The tracked [`RandomSteamGame/appsettings.json`](RandomSteamGame/appsettings.json) also contains non-secret settings for caching, rate limiting, allowed origins, canonical hosts, Data Protection, and optional Mission Control telemetry.
 
----
+## Tests
 
-## 4.0 Runtime Flow
+Run all solution tests from the repository root:
 
-1. User enters a SteamID or Steam Vanity URL.
-2. The server validates the request.
-3. Steam library data is loaded from cache or retrieved from Steam.
-4. A random eligible game is selected.
-5. Game details are returned to the UI.
-6. The user either plays the game, chooses again, or blocks it from future local picks.
-7. Library refreshes stay on a 12-hour cooldown so cache invalidation stays intentional.
-
----
-
-## 5.0 Screenshots
-
-### Main Interface
-
-![Home Page](docs/images/RandomSteam_Main.png)
-
-The main screen accepts a SteamID or Vanity URL and starts the selection process.
-
-### Selection Output
-
-![Results](docs/images/RandomSteam_Game.png)
-
-The result screen displays the selected game, playtime, description, and available actions.
-
----
-
-## 6.0 Roadmap
-
-Planned or considered modules:
-
-- Sign in with Steam
-- Permanent blocked games
-- Favorites
-- Game filters
-- Picker history
-- Saved game lists
-- Shared game lists
-- Games from other services
-- Manual game entries
-- Admin dashboard
-
-Some features may eventually become supporter or premium features.
-
----
-
-## 7.0 Known Limitations
-
-- Steam library visibility depends on the user's Steam privacy settings.
-- Browser-based blocked games are stored locally and may be lost if cookies are cleared.
-- `steam://run/{appId}` is mainly useful on desktop systems with Steam installed.
-- Steam API availability and response time can affect uncached requests.
-
----
-
-## 8.0 Development Notes
-
-This project is intentionally practical and cache-heavy.
-
-The picker is built around the idea that a random game response should feel instant whenever possible. Steam API calls are cached server-side, and browser identity/preferences are kept lightweight.
-
-Mission Control is used for best-effort completion telemetry on random-game picks. Telemetry failures are logged but never block a successful response.
-
-Game-pick telemetry uses the existing `randomsteam.game-pick.completed` event type. The event remains schema version 1 because these changes are additive payload fields under the current Mission Control convention. The payload includes:
-
-- `provider`
-- `appId`
-- `gameName`
-- `unplayedOnly`
-- `durationMilliseconds`
-- `cacheStatus`
-- `cacheAgeSeconds`
-- `eligibleGameCount`
-- `librarySizeBucket`
-- `timings.identifierResolutionMilliseconds`
-- `timings.libraryLoadMilliseconds`
-- `timings.selectionMilliseconds`
-- `commitSha`
-- `outcome`
-- `succeeded`
-
-Cache status is reported as one of `hit`, `miss`, `refreshed`, `stale`, `bypassed`, or `unknown`. Owned-games telemetry uses versioned `owned_v2_` cache keys because the cached value now includes metadata; the first lookup for a user after deployment may therefore be a miss. Concurrent requests for the same missing key are coalesced by HybridCache so only one Steam API load runs. Callers waiting on an already-running load report `hit`, meaning the request was served by either cached data or a coalesced in-flight load. Library size buckets are `0`, `1-24`, `25-99`, `100-249`, `250-499`, `500-999`, and `1000+`.
-
-`appId` remains the canonical selected-game identity. `gameName` is the sanitized display name of the selected game and is `null` when no game was selected. It is convenient for dashboards and event inspection, but game names can change over time and have high cardinality, so do not use `gameName` as a metrics label, partition key, routing key, queue name, bounded enum, or database key.
-
-Example successful game-pick payload excerpt:
-
-```json
-{
-  "provider": "steam",
-  "appId": 294100,
-  "gameName": "RimWorld",
-  "unplayedOnly": false,
-  "outcome": "served",
-  "succeeded": true
-}
+```powershell
+dotnet test RandomSteamGame.slnx
 ```
 
-Telemetry intentionally excludes Steam IDs, vanity URLs, profile names, IP addresses, cookies, API keys, owned-library contents, raw Steam responses, exception messages, stack traces, full user-agent strings, game descriptions, and header image URLs. No Steam user identifier is included in game-pick telemetry.
+To run an individual test project:
 
-An application startup event is published once per process start after the host is built:
-
-`randomsteam.application.started`
-
-The startup payload includes environment name, optional commit SHA, optional deployment type, and framework version. It is published from the post-start host lifecycle after the app has started listening. Mission Control publish failures are logged and do not crash startup.
-
-Current major areas of interest:
-
-- API hardening
-- cache behavior
-- Blazor render mode boundaries
-- user features
-- future authentication/persistence
-
----
-
-## 9.0 Data Protection Keys
-
-RandomSteamGame persists ASP.NET Core Data Protection keys outside the publish directory so antiforgery tokens survive app restarts and redeployments.
-
-By default, production keys are stored under:
-
-`%ProgramData%\JoyfulReaper\RandomSteamGame\DataProtectionKeys`
-
-The IIS app pool identity must have read/write/create permissions to that directory.
-
-Do not delete this folder during deployment unless you intentionally want to invalidate existing antiforgery/auth cookies.
-
----
-
-## 10.0 Deployment Observability
-
-Deployment identity can be provided through configuration or environment variables:
-
-```text
-Application__CommitSha
-Application__DeploymentType
+```powershell
+dotnet test RandomSteamGame.Tests/RandomSteamGame.Tests.csproj
+dotnet test SteamApiClient.Tests/SteamApiClient.Tests.csproj
 ```
 
-Recommended Compose environment entries:
+## Contributing
 
-```yaml
-environment:
-  Application__CommitSha: ${RANDOMSTEAM_COMMIT_SHA}
-  Application__DeploymentType: docker
-```
+Focused issues and pull requests are welcome. Describe the user-visible behavior, keep unrelated changes separate, and add or update tests when the behavior is testable.
 
-Health endpoints:
+Use [GitHub Issues](https://github.com/JoyfulReaper/RandomSteamGame/issues) for bug reports and feature proposals.
 
-- `/health/live` checks only that the process is running and can serve requests.
-- `/health/ready` checks local readiness dependencies such as configuration binding, SQLite access, and writable Data Protection keys.
+## Roadmap
 
-Readiness does not call Steam or Mission Control, so cached/local traffic can remain serviceable during upstream outages.
+Planned or considered improvements include:
 
-Recommended Docker health check:
+- Steam sign-in and account-linked preferences
+- Permanent blocked games that follow the user across devices
+- Favorites and picker history
+- More game filters
+- Saved and shareable game lists
 
-```yaml
-healthcheck:
-  test:
-    [
-      "CMD",
-      "curl",
-      "--fail",
-      "--silent",
-      "http://127.0.0.1:5182/health/live"
-    ]
-```
+These are future ideas, not currently implemented features.
 
----
+## Additional Documentation
 
-## 11.0 License
+- [Developer handoff](docs/developer-handoff.md) — deeper architecture, request flow, caching, deployment, and debugging notes
+- [Premium feature issues](docs/premium-feature-issues.md) — account-related roadmap and likely implementation areas
 
-Copyright © 2026 Kyle Givler
+## License
 
-This project is licensed under the MIT License.
+Random Steam Game Picker is licensed under the [MIT License](LICENSE.md).
 
-The author assumes no responsibility for lost time, increased backlog guilt, or the system selecting exactly the game you were secretly avoiding.
+The license does not protect you from backlog guilt or from the picker selecting exactly the game you were secretly avoiding.
