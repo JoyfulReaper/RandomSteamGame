@@ -44,7 +44,7 @@ public sealed class SteamLibraryExportService : ISteamLibraryExportService
 
     private static string FormatLastPlayed(long rTimeLastPlayed)
     {
-        if (rTimeLastPlayed <= 0)
+        if (rTimeLastPlayed <= 86_400) // 86_400 is exactly Jan 2, 1970 UTC
         {
             return string.Empty;
         }

@@ -104,4 +104,38 @@ public class SteamLibraryExportServiceTests
             "Missing Game,5,0,,unknown\r\n",
             csv);
     }
+
+    [Fact]
+    public void Export_OmitsSteamEpochSentinelLastPlayedDate()
+    {
+        var service = new SteamLibraryExportService();
+
+        var library = new OwnedGamesResponse(
+            76561197960287930L,
+            1,
+            [
+                new Game(
+                1,
+                "Old Game",
+                60,
+                null,
+                0,
+                0,
+                0,
+                86_400,
+                0)
+            ]);
+
+        var csv = Encoding.UTF8.GetString(
+            service.Export(
+                library,
+                new Dictionary<
+                    int,
+                    SteamDeckCompatibilityCategory>()));
+
+        Assert.Equal(
+            "game,id,hours,last_played,steam_deck\r\n" +
+            "Old Game,1,1,,unknown\r\n",
+            csv);
+    }
 }
