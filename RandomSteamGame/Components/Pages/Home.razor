@@ -8,14 +8,13 @@
 
 <HeadContent>
     <link rel="canonical" href="@CanonicalUrl" />
-    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve, Game, Video Game, videogame" />
-    <meta name="description" content="Discover your next Steam game with our blazing fast random Steam game picker with caching that works with Steam IDs or vanity URLs." />
+    <meta name="description" content="Paste your Steam ID or vanity URL to pick a random game from your public Steam library, filter to unplayed games, and choose again in seconds." />
     <meta name="author" content="Kyle Givler" />
 </HeadContent>
 
-<PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
+<PageTitle>Random Steam Game Picker – Pick From Your Library</PageTitle>
 
-<main class="container mt-5 home-shell">
+<div class="container mt-5 home-shell">
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
             @if (_isBetaSite)
@@ -55,7 +54,7 @@
                     Steam library roulette
                 </p>
 
-                <h1 class="home-title text-center mb-3">Random Steam Picker</h1>
+                <h1 class="home-title text-center mb-3">Random Steam Game Picker</h1>
 
                 <p class="home-lead text-center small mb-4">
                     Paste a Steam ID or vanity URL to pick a random game from your library.
@@ -89,10 +88,80 @@
                        rel="noopener noreferrer">GitHub Issues</a>
                 </p>
             </footer>
-
         </div>
     </div>
-</main>
+
+    <section class="home-guide mt-5" aria-labelledby="how-it-works-heading">
+        <div class="row g-4">
+            <div class="col-12 col-lg-6">
+                <div class="home-info-card h-100">
+                    <h2 id="how-it-works-heading">How it works</h2>
+                    <ol class="home-steps mb-0">
+                        <li>Enter your 17-digit Steam ID or Steam vanity URL.</li>
+                        <li>The picker reads the games in your public Steam library.</li>
+                        <li>It randomly chooses a game you actually own.</li>
+                        <li>Choose again immediately whenever the first pick does not fit.</li>
+                        <li>Turn on unplayed-only mode to limit picks to games with no recorded playtime.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <div class="home-info-card h-100">
+                    <h2>Useful picker features</h2>
+                    <ul class="home-feature-list mb-0">
+                        <li><strong>Unplayed-only picks:</strong> focus on games with no Steam playtime recorded.</li>
+                        <li><strong>Quick rerolls:</strong> choose another owned game without returning to the form.</li>
+                        <li><strong>Browser-based exclusions:</strong> block an unwanted game from future picks in this browser, then reset the list whenever you want.</li>
+                        <li><strong>Fresh library data:</strong> refresh the cached Steam game list after buying new games if your picks look out of date.</li>
+                        <li><strong>Launch through Steam:</strong> open the selected game directly in the Steam client.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="home-faq mt-4" aria-labelledby="faq-heading">
+            <h2 id="faq-heading">Frequently asked questions</h2>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Does my Steam profile need to be public?</h3>
+                        <p>Yes. Steam must allow access to your profile and game details so the picker can read your owned games.</p>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Where do I find my Steam ID?</h3>
+                        <p>You can use your 17-digit Steam ID, or paste the custom name or URL from your Steam Community profile.</p>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Can it pick only games I have never played?</h3>
+                        <p>Yes. Select “Only pick unplayed games” to use games for which Steam reports no recorded playtime.</p>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Can I choose again or exclude a game?</h3>
+                        <p>Yes. You can choose again instantly, or block the current game from future picks in this browser.</p>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="home-faq-item">
+                        <h3>Does Random Steam Game change anything in my library?</h3>
+                        <p>No. It reads your public game list to make a pick; it does not add, remove, or organize games in your Steam library.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
 
 @code {
     private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl();
