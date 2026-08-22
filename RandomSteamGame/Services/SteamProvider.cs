@@ -52,6 +52,10 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         {
             return await _steamClient.GetSteamDeckCompatibilityAsync(appIds, ct);
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception exception)
         {
             _logger.LogWarning(
