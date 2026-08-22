@@ -74,6 +74,7 @@
     private bool _isBusy;
     private bool _identityLoaded;
     private string? _errorMessage;
+    private bool _unplayedOnly;
 
     protected override async Task OnAfterRenderAsync(
         bool firstRender)
@@ -88,16 +89,12 @@
 
         try
         {
-            var identity =
-                await BrowserIdentityStore.GetIdentityAsync();
-
-            _model.SteamId =
-                Clean(identity.SteamId);
-
-            _model.VanityUrl =
-                _model.SteamId is null
-                    ? Clean(identity.VanityUrl)
-                    : null;
+            var identity = await BrowserIdentityStore.GetIdentityAsync();
+            _unplayedOnly = identity.UnplayedOnly;
+            _model.SteamId = Clean(identity.SteamId);
+            _model.VanityUrl = _model.SteamId is null
+                ? Clean(identity.VanityUrl)
+                : null;
 
             StateHasChanged();
         }
@@ -171,7 +168,7 @@
                 new SteamIdentity(
                     steamId.ToString(),
                     null,
-                    UnplayedOnly: false));
+                    _unplayedOnly));
 
             NavManager.NavigateTo(
                 $"/api/steam/{steamId}/library/export.csv",
