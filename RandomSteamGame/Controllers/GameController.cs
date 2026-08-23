@@ -108,6 +108,10 @@ public class GameController : ApiController
             return Problem([Errors.Steam.InvalidSteamId]);
         }
 
+        var occurredAt = DateTimeOffset.UtcNow;
+        var correlationId = Guid.NewGuid().ToString("N");
+        var stopwatch = Stopwatch.StartNew();
+
         var result = await service.GetOwnedGamesAsync(steamId);
         if (result.IsError)
         {
@@ -119,14 +123,62 @@ public class GameController : ApiController
 
         if (service is ISteamDeckCompatibilityProvider deckProvider)
         {
-            deckCompatibility =
-                await deckProvider.GetSteamDeckCompatibilityAsync(
-                    result.Value.Games.Select(game => game.AppId),
-                    HttpContext.RequestAborted);
+            deckCompatibility = await deckProvider.GetSteamDeckCompatibilityAsync(
+                result.Value.Games.Select(game => game.AppId),
+                HttpContext.RequestAborted);
         }
 
         var csvBytes = _steamLibraryExportService.Export(result.Value, deckCompatibility);
-        return File(csvBytes, "text/csv; charset=utf-8", $"steam-library-{steamId}.csv");
+
+        var verifiedCount = 0;
+        var playableCount = 0;
+        var unsupportedCount = 0;
+        var unknownCount = 0;
+
+        foreach (var game in result.Value.Games)
+        {
+            var category =
+                deckCompatibility.TryGetValue(game.AppId, out var value)
+                    ? value
+                    : SteamDeckCompatibilityCategory.Unknown;
+
+            switch (category)
+            {
+                case SteamDeckCompatibilityCategory.Verified:
+                    verifiedCount++;
+                    break;
+
+                case SteamDeckCompatibilityCategory.Playable:
+                    playableCount++;
+                    break;
+
+                case SteamDeckCompatibilityCategory.Unsupported:
+                    unsupportedCount++;
+                    break;
+
+                default:
+                    unknownCount++;
+                    break;
+            }
+        }
+
+        stopwatch.Stop();
+
+        await PublishLibraryExportCompletedEventAsync(
+            provider,
+            result.Value.Games.Count,
+            stopwatch.ElapsedMilliseconds,
+            verifiedCount,
+            playableCount,
+            unsupportedCount,
+            unknownCount,
+            occurredAt,
+            correlationId);
+
+        return File(
+            csvBytes,
+            "text/csv; charset=utf-8",
+            $"steam-library-{steamId}.csv");
     }
 
     /// <summary>
@@ -265,6 +317,47 @@ public class GameController : ApiController
             identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
 
         return Ok(result.Game);
+    }
+
+    private async Task PublishLibraryExportCompletedEventAsync(
+    string provider,
+    int gameCount,
+    long durationMilliseconds,
+    int verifiedCount,
+    int playableCount,
+    int unsupportedCount,
+    int unknownCount,
+    DateTimeOffset occurredAt,
+    string correlationId)
+    {
+        try
+        {
+            await _missionControlClient.TryPublishAsync(
+                eventType: RandomSteamGameEventTypes.LibraryExportCompleted,
+                payload: new LibraryExportCompletedEvent(
+                    VisitorId: GetVisitorIdForTelemetry(),
+                    Provider: provider,
+                    GameCount: gameCount,
+                    DurationMilliseconds: durationMilliseconds,
+                    VerifiedCount: verifiedCount,
+                    PlayableCount: playableCount,
+                    UnsupportedCount: unsupportedCount,
+                    UnknownCount: unknownCount,
+                    CommitSha: string.IsNullOrWhiteSpace(_applicationOptions.CommitSha)
+                        ? null
+                        : _applicationOptions.CommitSha),
+                occurredAt: occurredAt,
+                payloadTypeInfo: RandomSteamGameJsonContext.Default.LibraryExportCompletedEvent,
+                correlationId: correlationId,
+                cancellationToken: CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to publish library-export event {CorrelationId}.",
+                correlationId);
+        }
     }
 
     private async Task PublishGamePickEventAsync(
