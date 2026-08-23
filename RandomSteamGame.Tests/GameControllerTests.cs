@@ -17,6 +17,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
+using SteamDeckCompatibilityCategory = SteamApiClient.Contracts.SteamApi.SteamDeckCompatibilityCategory;
 
 namespace RandomSteamGame.Tests;
 
@@ -57,6 +58,101 @@ public class GameControllerTests
         var result = await controller.ExportLibrary("steam", steamId);
 
         AssertValidationProblem(result, "Steam.InvalidSteamId");
+    }
+
+    [Fact]
+    public async Task ExportLibrary_Success_PublishesLibraryExportEvent()
+    {
+        const long steamId = 76561197960287930L;
+
+        var missionControl = new RecordingMissionControlClient();
+
+        var provider = new FakeGameProvider(
+            library: new OwnedGamesResponse(
+                steamId,
+                4,
+                [
+                    new Game(10, "Verified Game", 60, null, 0, 0, 0, 0, 0),
+                new Game(20, "Playable Game", 60, null, 0, 0, 0, 0, 0),
+                new Game(30, "Unsupported Game", 60, null, 0, 0, 0, 0, 0),
+                new Game(40, "Unknown Game", 60, null, 0, 0, 0, 0, 0)
+                ]),
+            deckCompatibility: new Dictionary<int, SteamDeckCompatibilityCategory>
+            {
+                [10] = SteamDeckCompatibilityCategory.Verified,
+                [20] = SteamDeckCompatibilityCategory.Playable,
+                [30] = SteamDeckCompatibilityCategory.Unsupported
+            });
+
+        var controller = CreateController(
+            provider,
+            missionControlClient: missionControl,
+            applicationOptions: new ApplicationOptions
+            {
+                CommitSha = "abc123"
+            },
+            remoteIpAddress: "192.0.2.42");
+
+        var result = await controller.ExportLibrary("steam", steamId);
+
+        Assert.IsType<FileContentResult>(result);
+
+        var published = Assert.Single(missionControl.LibraryExportEvents);
+
+        Assert.Equal(
+            RandomSteamGameEventTypes.LibraryExportCompleted,
+            published.EventType);
+
+        Assert.Equal("hashed-192.0.2.42", published.Payload.VisitorId);
+        Assert.Equal("steam", published.Payload.Provider);
+        Assert.Equal(4, published.Payload.GameCount);
+        Assert.Equal(1, published.Payload.VerifiedCount);
+        Assert.Equal(1, published.Payload.PlayableCount);
+        Assert.Equal(1, published.Payload.UnsupportedCount);
+        Assert.Equal(1, published.Payload.UnknownCount);
+        Assert.Equal("abc123", published.Payload.CommitSha);
+        Assert.True(published.Payload.DurationMilliseconds >= 0);
+
+        Assert.Equal(
+            published.Payload.GameCount,
+            published.Payload.VerifiedCount +
+            published.Payload.PlayableCount +
+            published.Payload.UnsupportedCount +
+            published.Payload.UnknownCount);
+    }
+
+    [Fact]
+    public async Task ExportLibrary_MissionControlFailure_DoesNotChangeSuccessfulResponse()
+    {
+        const long steamId = 76561197960287930L;
+
+        var missionControl = new RecordingMissionControlClient
+        {
+            ExceptionToThrow =
+                new InvalidOperationException("Mission Control unavailable.")
+        };
+
+        var provider = new FakeGameProvider(
+            new OwnedGamesResponse(
+                steamId,
+                1,
+                [
+                    new Game(10, "Portal", 90, null, 0, 0, 0, 0, 0)
+                ]));
+
+        var controller = CreateController(
+            provider,
+            missionControlClient: missionControl);
+
+        var result = await controller.ExportLibrary("steam", steamId);
+
+        var file = Assert.IsType<FileContentResult>(result);
+
+        Assert.Equal(
+            $"steam-library-{steamId}.csv",
+            file.FileDownloadName);
+
+        Assert.Single(missionControl.LibraryExportEvents);
     }
 
     [Theory]
@@ -679,7 +775,7 @@ public class GameControllerTests
             published.Payload.VisitorId);
     }
 
-    private sealed class FakeGameProvider : IGameProvider
+    private sealed class FakeGameProvider : IGameProvider, ISteamDeckCompatibilityProvider
     {
         private readonly OwnedGamesResponse _library;
         private readonly ErrorOr<GameDetails> _randomGameResult;
@@ -687,6 +783,7 @@ public class GameControllerTests
         private readonly OwnedGamesCacheInfo _cacheInfo;
         private readonly int _eligibleGameCount;
         private readonly int _libraryGameCount;
+        private readonly IReadOnlyDictionary<int, SteamDeckCompatibilityCategory> _deckCompatibility;
 
         public int GetOwnedGamesCallCount { get; private set; }
         public int GetRandomGameDetailsCallCount { get; private set; }
@@ -705,6 +802,7 @@ public class GameControllerTests
             ErrorOr<GameDetails>? randomGameResult = null,
             ErrorOr<long>? resolveIdentifierResult = null,
             OwnedGamesCacheInfo? cacheInfo = null,
+            IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>? deckCompatibility = null,
             int eligibleGameCount = 1,
             int libraryGameCount = 1)
         {
@@ -714,6 +812,15 @@ public class GameControllerTests
             _cacheInfo = cacheInfo ?? OwnedGamesCacheInfo.Unknown;
             _eligibleGameCount = eligibleGameCount;
             _libraryGameCount = libraryGameCount;
+            _deckCompatibility = deckCompatibility ?? new Dictionary<int, SteamDeckCompatibilityCategory>();
+        }
+
+        public Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>
+            GetSteamDeckCompatibilityAsync(
+                IEnumerable<int> appIds,
+                CancellationToken ct = default)
+        {
+            return Task.FromResult(_deckCompatibility);
         }
 
         public string ProviderKey => "steam";
@@ -797,6 +904,8 @@ public class GameControllerTests
     private sealed class RecordingMissionControlClient : IMissionControlClient
     {
         public List<PublishedEventRecord> PublishedEvents { get; } = [];
+        public List<PublishedLibraryExportEventRecord> LibraryExportEvents { get; } = [];
+
         public Exception? ExceptionToThrow { get; init; }
 
         public Task<bool> TryPublishAsync<TPayload>(
@@ -807,13 +916,30 @@ public class GameControllerTests
             string? correlationId = null,
             CancellationToken cancellationToken = default)
         {
-            PublishedEvents.Add(new PublishedEventRecord(
-                eventType,
-                payload is GamePickCompletedEvent completed
-                    ? completed
-                    : throw new InvalidOperationException("Unexpected payload type."),
-                occurredAt,
-                correlationId ?? string.Empty));
+            switch (payload)
+            {
+                case GamePickCompletedEvent gamePick:
+                    PublishedEvents.Add(
+                        new PublishedEventRecord(
+                            eventType,
+                            gamePick,
+                            occurredAt,
+                            correlationId ?? string.Empty));
+                    break;
+
+                case LibraryExportCompletedEvent libraryExport:
+                    LibraryExportEvents.Add(
+                        new PublishedLibraryExportEventRecord(
+                            eventType,
+                            libraryExport,
+                            occurredAt,
+                            correlationId ?? string.Empty));
+                    break;
+
+                default:
+                    throw new InvalidOperationException(
+                        $"Unexpected payload type: {typeof(TPayload).Name}");
+            }
 
             if (ExceptionToThrow is not null)
             {
@@ -833,6 +959,12 @@ public class GameControllerTests
     private sealed record PublishedEventRecord(
         string EventType,
         GamePickCompletedEvent Payload,
+        DateTimeOffset OccurredAt,
+        string CorrelationId);
+
+    private sealed record PublishedLibraryExportEventRecord(
+        string EventType,
+        LibraryExportCompletedEvent Payload,
         DateTimeOffset OccurredAt,
         string CorrelationId);
 }
