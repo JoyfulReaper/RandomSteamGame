@@ -728,7 +728,8 @@ public class GameControllerTests
         FakeAppStatsService? appStatsService = null,
         RecordingMissionControlClient? missionControlClient = null,
         ApplicationOptions? applicationOptions = null,
-        string? remoteIpAddress = null)
+        string? remoteIpAddress = null,
+        ILibraryExportCooldownTracker? libraryExportCooldownTracker = null)
     {
         var controller = new GameController(
             new GameProviderFactory([provider ?? new FakeGameProvider()]),
@@ -737,6 +738,7 @@ public class GameControllerTests
             new SteamLibraryExportService(),
             missionControlClient ?? new RecordingMissionControlClient(),
             new StubVisitorIdProvider(),
+            libraryExportCooldownTracker ?? new FakeLibraryExportCooldownTracker(),
             Microsoft.Extensions.Options.Options.Create(
                 applicationOptions ?? new ApplicationOptions()),
             NullLogger<GameController>.Instance);
@@ -934,6 +936,28 @@ public class GameControllerTests
             }
 
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeLibraryExportCooldownTracker
+    : ILibraryExportCooldownTracker
+    {
+        public TimeSpan? RetryAfter { get; set; }
+
+        public int MarkSucceededCallCount { get; private set; }
+
+        public string? LastPartitionKey { get; private set; }
+
+        public TimeSpan? GetRetryAfter(string partitionKey)
+        {
+            LastPartitionKey = partitionKey;
+            return RetryAfter;
+        }
+
+        public void MarkSucceeded(string partitionKey)
+        {
+            LastPartitionKey = partitionKey;
+            MarkSucceededCallCount++;
         }
     }
 

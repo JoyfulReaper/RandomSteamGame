@@ -127,16 +127,14 @@ public class GameController : ApiController
             Response.Headers.RetryAfter =
                 retryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-            return StatusCode(
-                StatusCodes.Status429TooManyRequests,
-                new ApiProblem
-                {
-                    Title = "TooManyRequests",
-                    Status = StatusCodes.Status429TooManyRequests,
-                    Detail =
-                        "Steam library CSV exports are limited to one " +
-                        "successful export per IP address every 72 hours."
-                });
+            return new ContentResult
+            {
+                StatusCode = StatusCodes.Status429TooManyRequests,
+                ContentType = "text/plain; charset=utf-8",
+                Content =
+                    "Steam library CSV exports are limited to one per IP address " +
+                    "every 72 hours after a successful export."
+            };
         }
 
         var occurredAt = DateTimeOffset.UtcNow;
