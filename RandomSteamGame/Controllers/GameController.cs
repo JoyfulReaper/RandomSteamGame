@@ -98,6 +98,10 @@ public class GameController : ApiController
         string provider,
         long steamId)
     {
+        Response.Headers["Cache-Control"] = "private, no-store";
+        Response.Headers["CDN-Cache-Control"] = "no-store";
+
+
         if (!TryGetProvider(provider, out var service))
         {
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);

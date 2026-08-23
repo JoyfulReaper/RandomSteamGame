@@ -23,6 +23,42 @@ namespace RandomSteamGame.Tests;
 
 public class GameControllerTests
 {
+    [Fact]
+    public async Task ExportLibrary_DisablesBrowserAndCdnCaching()
+    {
+        const long steamId = 76561197960287930L;
+
+        var controller = CreateController(
+            new FakeGameProvider(
+                new OwnedGamesResponse(
+                    steamId,
+                    1,
+                    [
+                        new Game(
+                        10,
+                        "Portal",
+                        90,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0)
+                    ])));
+
+        var result = await controller.ExportLibrary("steam", steamId);
+
+        Assert.IsType<FileContentResult>(result);
+
+        Assert.Equal(
+            "private, no-store",
+            controller.Response.Headers["Cache-Control"].ToString());
+
+        Assert.Equal(
+            "no-store",
+            controller.Response.Headers["CDN-Cache-Control"].ToString());
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-76561197960287930L)]
