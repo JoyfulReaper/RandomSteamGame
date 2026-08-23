@@ -7,6 +7,45 @@ namespace RandomSteamGame.Tests;
 
 public class SteamLibraryExportServiceTests
 {
+    [Theory]
+    [InlineData("=1+1", "'=1+1")]
+    [InlineData("+SUM(A1:A2)", "'+SUM(A1:A2)")]
+    [InlineData("-1+2", "'-1+2")]
+    [InlineData("@SUM(A1:A2)", "'@SUM(A1:A2)")]
+    [InlineData("Normal Game", "Normal Game")]
+    public void Export_ProtectsGameNamesFromSpreadsheetFormulaInjection(
+    string gameName,
+    string expectedName)
+    {
+        var service = new SteamLibraryExportService();
+
+        var library = new OwnedGamesResponse(
+            76561197960287930L,
+            1,
+            [
+                new Game(
+                1,
+                gameName,
+                0,
+                null,
+                0,
+                0,
+                0,
+                0,
+                0)
+            ]);
+
+        var csv = Encoding.UTF8.GetString(
+            service.Export(
+                library,
+                new Dictionary<int, SteamDeckCompatibilityCategory>()));
+
+        Assert.Equal(
+            "game,id,hours,last_played,steam_deck\r\n" +
+            $"{expectedName},1,0,,unknown\r\n",
+            csv);
+    }
+
     [Fact]
     public void Export_EscapesNamesWithCommasQuotesAndNewlines()
     {

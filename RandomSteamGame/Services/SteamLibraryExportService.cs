@@ -76,6 +76,8 @@ public sealed class SteamLibraryExportService : ISteamLibraryExportService
 
     private static string Escape(string value)
     {
+        value = ProtectSpreadsheetFormula(value);
+
         var requiresQuotes = value.Contains(',') ||
                              value.Contains('"') ||
                              value.Contains('\r') ||
@@ -87,5 +89,19 @@ public sealed class SteamLibraryExportService : ISteamLibraryExportService
         }
 
         return $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+    }
+
+    private static string ProtectSpreadsheetFormula(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        return value[0] switch
+        {
+            '=' or '+' or '-' or '@' => $"'{value}",
+            _ => value
+        };
     }
 }
