@@ -211,6 +211,7 @@ public static class ServiceExtensions
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<IAppStatsService, AppStatsService>();
+        services.AddScoped<ILibraryExportCooldownTracker, LibraryExportCooldownTracker>();
         services.AddScoped<ISteamLibraryExportService, SteamLibraryExportService>();
         services.AddScoped<SqliteConnection>(_ => new SqliteConnection(connectionString));
 
@@ -277,14 +278,11 @@ public static class ServiceExtensions
             {
                 var partitionKey = LibraryExportRateLimitPartitionKey.From(httpContext.Connection.RemoteIpAddress);
 
-                return RateLimitPartition.GetSlidingWindowLimiter(
+                return RateLimitPartition.GetConcurrencyLimiter(
                     partitionKey: partitionKey,
-                    factory: _ => new SlidingWindowRateLimiterOptions
+                    factory: _ => new ConcurrencyLimiterOptions
                     {
                         PermitLimit = 1,
-                        Window = TimeSpan.FromHours(72),
-                        SegmentsPerWindow = 72,
-                        AutoReplenishment = true,
                         QueueLimit = 0,
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
                     });
@@ -307,8 +305,8 @@ public static class ServiceExtensions
                         StringComparison.Ordinal))
                 {
                     await context.HttpContext.Response.WriteAsync(
-                        "Steam library CSV exports are limited to one per IP address every 72 hours. " +
-                        "Need more frequent exports? Contact me.",
+                        "A Steam library CSV export is already in progress for this IP address. " +
+                        "Please wait for it to finish and try again.",
                         token);
 
                     return;

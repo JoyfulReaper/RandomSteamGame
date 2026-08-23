@@ -43,6 +43,7 @@ public class GameController : ApiController
     private readonly ApplicationOptions _applicationOptions;
     private readonly ILogger<GameController> _logger;
     private readonly IVisitorIdProvider _visitorIdProvider;
+    private readonly ILibraryExportCooldownTracker _libraryExportCooldownTracker;
 
     public GameController(
         GameProviderFactory factory,
@@ -51,6 +52,7 @@ public class GameController : ApiController
         ISteamLibraryExportService steamLibraryExportService,
         IMissionControlClient missionControlClient,
         IVisitorIdProvider visitorIdProvider,
+        ILibraryExportCooldownTracker libraryExportCooldownTracker,
         IOptions<ApplicationOptions> applicationOptions,
         ILogger<GameController> logger)
     {
@@ -62,6 +64,7 @@ public class GameController : ApiController
         _appStatsService = appStatsService;
         _steamLibraryExportService = steamLibraryExportService;
         _logger = logger;
+        _libraryExportCooldownTracker = libraryExportCooldownTracker;
     }
 
     /// <summary>
@@ -112,6 +115,30 @@ public class GameController : ApiController
             return Problem([Errors.Steam.InvalidSteamId]);
         }
 
+        var partitionKey = LibraryExportRateLimitPartitionKey.From(HttpContext.Connection.RemoteIpAddress);
+        var retryAfter = _libraryExportCooldownTracker.GetRetryAfter(partitionKey);
+
+        if (retryAfter is not null)
+        {
+            var retryAfterSeconds = Math.Max(
+                1,
+                (long)Math.Ceiling(retryAfter.Value.TotalSeconds));
+
+            Response.Headers.RetryAfter =
+                retryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+            return StatusCode(
+                StatusCodes.Status429TooManyRequests,
+                new ApiProblem
+                {
+                    Title = "TooManyRequests",
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Detail =
+                        "Steam library CSV exports are limited to one " +
+                        "successful export per IP address every 72 hours."
+                });
+        }
+
         var occurredAt = DateTimeOffset.UtcNow;
         var correlationId = Guid.NewGuid().ToString("N");
         var stopwatch = Stopwatch.StartNew();
@@ -133,6 +160,8 @@ public class GameController : ApiController
         }
 
         var csvBytes = _steamLibraryExportService.Export(result.Value, deckCompatibility);
+
+        _libraryExportCooldownTracker.MarkSucceeded(partitionKey);
 
         var verifiedCount = 0;
         var playableCount = 0;
