@@ -1,21 +1,22 @@
 @page "/"
 
-@inject NavigationManager NavManager
 @inject IBetaAvailabilityService BetaAvailabilityService
 @inject IAppStatsService AppStatsService
 @inject IHttpContextAccessor HttpContextAccessor
 @inject ILogger<Home> Logger
+@inject CanonicalUrlService CanonicalUrls
 
 <HeadContent>
     <link rel="canonical" href="@CanonicalUrl" />
-    <meta name="keywords" content="Random Steam Game, Steam Game Picker, Random Game, Random Steam Game Picker, Game Picker, Random Game Picker, Steam, Valve, Game, Video Game, videogame" />
-    <meta name="description" content="Discover your next Steam game with our blazing fast random Steam game picker with caching that works with Steam IDs or vanity URLs." />
+    <meta name="description" content="@Description" />
     <meta name="author" content="Kyle Givler" />
+    <SocialMetadata Title="@Title" Description="@Description" CanonicalUrl="@CanonicalUrl" />
+    @((MarkupString)StructuredDataScript)
 </HeadContent>
 
-<PageTitle>Random Steam Game Picker - Find Your Next Game</PageTitle>
+<PageTitle>@Title</PageTitle>
 
-<main class="container mt-5 home-shell">
+<div class="container mt-5 home-shell">
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
             @if (_isBetaSite)
@@ -55,13 +56,28 @@
                     Steam library roulette
                 </p>
 
-                <h1 class="home-title text-center mb-3">Random Steam Picker</h1>
+                <h1 class="home-title text-center mb-3">Random Steam Game Picker</h1>
 
                 <p class="home-lead text-center small mb-4">
                     Paste a Steam ID or vanity URL to pick a random game from your library.
                 </p>
 
                 <SteamPickerForm @rendermode="InteractiveAuto" />
+            </div>
+
+            <div class="home-info-card mt-3 text-center">
+                <h2 class="h5 mb-2">Need your whole Steam library?</h2>
+
+                <p class="small mb-3">
+                    Export your public Steam library to CSV with game names,
+                    App IDs, playtime, last-played dates, and Steam Deck
+                    compatibility.
+                </p>
+
+                <a href="/library-export"
+                   class="btn btn-outline-info btn-sm">
+                    Export Steam Library to CSV
+                </a>
             </div>
 
             <footer class="home-footer text-center mt-4 text-muted small">
@@ -89,23 +105,146 @@
                        rel="noopener noreferrer">GitHub Issues</a>
                 </p>
             </footer>
-
         </div>
     </div>
-</main>
+
+    <section class="home-guide mt-5" aria-labelledby="how-it-works-heading">
+        <div class="row g-4">
+            <div class="col-12 col-lg-6">
+                <div class="home-info-card h-100">
+                    <h2 id="how-it-works-heading">How it works</h2>
+                    <ol class="home-steps mb-0">
+                        <li>Enter your 17-digit Steam ID or Steam vanity URL.</li>
+                        <li>The picker reads the games in your public Steam library.</li>
+                        <li>It randomly chooses a game you actually own.</li>
+                        <li>Choose again immediately whenever the first pick does not fit.</li>
+                        <li>Turn on unplayed-only mode to limit picks to games with no recorded playtime.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <div class="home-info-card h-100">
+                    <h2>Useful Steam library features</h2>
+                    <ul class="home-feature-list mb-0">
+                        <li><strong>Unplayed-only picks:</strong> focus on games with no Steam playtime recorded.</li>
+                        <li><strong>Quick rerolls:</strong> choose another owned game without returning to the form.</li>
+                        <li><strong>Browser-based exclusions:</strong> block an unwanted game from future picks in this browser, then reset the list whenever you want.</li>
+                        <li><strong>Fresh library data:</strong> refresh the cached Steam game list after buying new games if your picks look out of date.</li>
+                        <li><strong>Launch through Steam:</strong> open the selected game directly in the Steam client.</li>
+                        <li><strong>Steam library CSV export:</strong> download your public library with game names, App IDs, playtime, last-played dates, and Steam Deck compatibility.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="home-faq mt-4 mb-4" aria-labelledby="faq-heading">
+            <h2 id="faq-heading">Frequently asked questions</h2>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Does my Steam profile need to be public?</h3>
+                        <p>
+                            Yes. Steam must allow access to your profile and game details
+                            so the picker can read your owned games.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Where do I find my Steam ID?</h3>
+                        <p>
+                            You can use your 17-digit Steam ID, or paste the custom name
+                            or URL from your Steam Community profile.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Can it pick only games I have never played?</h3>
+                        <p>
+                            Yes. Select “Only pick unplayed games” to use games for which
+                            Steam reports no recorded playtime.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Can I choose again or exclude a game?</h3>
+                        <p>
+                            Yes. You can choose again instantly, or block the current game
+                            from future picks in this browser.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Can I export my Steam library?</h3>
+                        <p>
+                            Yes. You can export your public Steam library as CSV with game
+                            names, App IDs, playtime, last-played dates, and Steam Deck
+                            compatibility. Exports are limited to one per IP address every
+                            72 hours.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="home-faq-item h-100">
+                        <h3>Does Random Steam Game change anything in my library?</h3>
+                        <p>
+                            No. It reads your public game list to make a pick or export your
+                            library; it does not add, remove, or organize games in Steam.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
 
 @code {
-    private string CanonicalUrl => NavManager.BaseUri.TrimEnd('/');
+    private const string Title = "Random Steam Game Picker – Pick From Your Library";
+    private const string Description = "Paste your Steam ID or vanity URL to pick a random game from your public Steam library, filter to unplayed games, and choose again in seconds.";
+
+    private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl();
+    private string StructuredDataJson => System.Text.Json.JsonSerializer.Serialize(
+        new Dictionary<string, object>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "WebApplication",
+            ["name"] = "Random Steam Game Picker",
+            ["url"] = CanonicalUrl,
+            ["description"] = Description,
+            ["applicationCategory"] = "UtilitiesApplication",
+            ["operatingSystem"] = "Any device with a web browser",
+            ["isAccessibleForFree"] = true,
+            ["featureList"] = new[]
+                {
+                    "Random game selection from a public Steam library",
+                    "Unplayed-only game filtering",
+                    "Browser-based game exclusions",
+                    "Steam library CSV export",
+                    "Steam Deck compatibility included in library exports"
+                }
+        });
+    private string StructuredDataScript =>
+        $"<script type=\"application/ld+json\">{StructuredDataJson}</script>";
+
     private bool _betaAvailable;
     private bool _isBetaSite;
     private AppStatsResponse? _appStats;
 
     protected override async Task OnInitializedAsync()
     {
-        _isBetaSite = string.Equals(
-            NavManager.ToAbsoluteUri(NavManager.Uri).Host,
-            "randombeta.kgivler.com",
-            StringComparison.OrdinalIgnoreCase);
+        _isBetaSite = CanonicalUrls.IsBetaHost(
+            HttpContextAccessor.HttpContext?.Request.Host.Host);
 
         await LoadAppStatsAsync();
 

@@ -53,8 +53,9 @@ public static class ServiceExtensions
         var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
         var steamOptions = GetSteamOptions(config);
 
-        services.Configure<ApplicationOptions>(
-            config.GetSection(ApplicationOptions.SectionName));
+        services.Configure<ApplicationOptions>(config.GetSection(ApplicationOptions.SectionName));
+        services.Configure<TelemetryOptions>(config.GetSection(TelemetryOptions.SectionName));
+        services.AddSingleton<IVisitorIdProvider, VisitorIdProvider>();
 
         services.AddJoyfulReaperSqliteHitCounter(options =>
         {
@@ -74,10 +75,10 @@ public static class ServiceExtensions
         services.AddMemoryCache();
         services.AddHttpClient<RandomSteamApiClient>();
         services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
+        services.AddSingleton<CanonicalUrlService>();
 
         services.AddMissionControlClient(
-            config.GetSection(
-                MissionControlClientOptions.SectionName));
+            config.GetSection(MissionControlClientOptions.SectionName));
         services.AddHostedService<ApplicationStartupTelemetryService>();
 
         services.AddAntiforgery(options =>
@@ -187,12 +188,18 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddGameProviderServices(this IServiceCollection services)
+    private static IServiceCollection AddGameProviderServices(
+        this IServiceCollection services)
     {
         var providerType = typeof(IGameProvider);
-        var implementations = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(type => providerType.IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract);
+
+        var implementations = typeof(SteamProvider)
+            .Assembly
+            .GetTypes()
+            .Where(type =>
+                providerType.IsAssignableFrom(type) &&
+                !type.IsInterface &&
+                !type.IsAbstract);
 
         foreach (var implementation in implementations)
         {
@@ -210,6 +217,7 @@ public static class ServiceExtensions
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<IAppStatsService, AppStatsService>();
+        services.AddScoped<ILibraryExportCooldownTracker, LibraryExportCooldownTracker>();
         services.AddScoped<ISteamLibraryExportService, SteamLibraryExportService>();
         services.AddScoped<SqliteConnection>(_ => new SqliteConnection(connectionString));
 
@@ -272,10 +280,47 @@ public static class ServiceExtensions
                 limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             });
 
+            options.AddPolicy("library_export_limiter", httpContext =>
+            {
+                var partitionKey = LibraryExportRateLimitPartitionKey.From(httpContext.Connection.RemoteIpAddress);
+
+                return RateLimitPartition.GetConcurrencyLimiter(
+                    partitionKey: partitionKey,
+                    factory: _ => new ConcurrencyLimiterOptions
+                    {
+                        PermitLimit = 1,
+                        QueueLimit = 0,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                    });
+            });
+
             options.OnRejected = async (context, token) =>
             {
                 context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                await context.HttpContext.Response.WriteAsync("Too many requests. Please slow down and try again in a few seconds.", token);
+                context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
+
+                var policyName = context.HttpContext
+                    .GetEndpoint()?
+                    .Metadata
+                    .GetMetadata<EnableRateLimitingAttribute>()?
+                    .PolicyName;
+
+                if (string.Equals(
+                        policyName,
+                        "library_export_limiter",
+                        StringComparison.Ordinal))
+                {
+                    await context.HttpContext.Response.WriteAsync(
+                        "A Steam library CSV export is already in progress for this IP address. " +
+                        "Please wait for it to finish and try again.",
+                        token);
+
+                    return;
+                }
+
+                await context.HttpContext.Response.WriteAsync(
+                    "Too many requests. Please slow down and try again in a few seconds.",
+                    token);
             };
         });
 

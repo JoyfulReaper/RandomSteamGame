@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using RandomSteamGame.Events;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services;
+using System.Text.Json.Serialization.Metadata;
 
 namespace RandomSteamGame.Tests;
 
@@ -93,20 +94,50 @@ public class ApplicationStartupTelemetryServiceTests
     private sealed class RecordingMissionControlClient : IMissionControlClient
     {
         public List<PublishedEventRecord> PublishedEvents { get; } = [];
+        public List<PublishedLibraryExportEventRecord> LibraryExportEvents { get; } = [];
         public Exception? ExceptionToThrow { get; init; }
 
         public Task<bool> TryPublishAsync<TPayload>(
             string eventType,
             TPayload payload,
+            JsonTypeInfo<TPayload> payloadTypeInfo,
             DateTimeOffset occurredAt,
             string? correlationId = null,
             CancellationToken cancellationToken = default)
         {
-            PublishedEvents.Add(new PublishedEventRecord(
-                eventType,
-                payload!,
-                occurredAt,
-                correlationId));
+            switch (payload)
+            {
+                case ApplicationStartedEvent applicationStarted:
+                    PublishedEvents.Add(
+                        new PublishedEventRecord(
+                            eventType,
+                            applicationStarted,
+                            occurredAt,
+                            correlationId));
+                    break;
+
+                case GamePickCompletedEvent gamePick:
+                    PublishedEvents.Add(
+                        new PublishedEventRecord(
+                            eventType,
+                            gamePick,
+                            occurredAt,
+                            correlationId ?? string.Empty));
+                    break;
+
+                case LibraryExportCompletedEvent libraryExport:
+                    LibraryExportEvents.Add(
+                        new PublishedLibraryExportEventRecord(
+                            eventType,
+                            libraryExport,
+                            occurredAt,
+                            correlationId ?? string.Empty));
+                    break;
+
+                default:
+                    throw new InvalidOperationException(
+                        $"Unexpected payload type: {typeof(TPayload).Name}");
+            }
 
             if (ExceptionToThrow is not null)
             {
@@ -122,4 +153,10 @@ public class ApplicationStartupTelemetryServiceTests
         object Payload,
         DateTimeOffset OccurredAt,
         string? CorrelationId);
+
+    private sealed record PublishedLibraryExportEventRecord(
+        string EventType,
+        LibraryExportCompletedEvent Payload,
+        DateTimeOffset OccurredAt,
+        string CorrelationId);
 }

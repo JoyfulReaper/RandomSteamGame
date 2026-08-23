@@ -8,6 +8,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
@@ -27,11 +28,228 @@ public class SteamClientTests
             ApiKey = "FAKE_API_KEY",
             Cache = new CacheSettings
             {
-                OwnedGames = new CachePolicy { AbsoluteMinutes = 60 },
-                VanitySuccess = new CachePolicy { AbsoluteMinutes = 120 },
-                VanityNotFound = new CachePolicy { AbsoluteMinutes = 15 }
+                OwnedGames = new CachePolicy
+                {
+                    AbsoluteMinutes = 60
+                },
+                AppDetails = new CachePolicy
+                {
+                    AbsoluteMinutes = 60
+                },
+                SteamDeckCompatibility = new CachePolicy
+                {
+                    AbsoluteMinutes = 1440
+                },
+                VanitySuccess = new CachePolicy
+                {
+                    AbsoluteMinutes = 120
+                },
+                VanityNotFound = new CachePolicy
+                {
+                    AbsoluteMinutes = 15
+                }
             }
         });
+    }
+
+    [Fact]
+    public async Task GetSteamDeckCompatibilityAsync_ReturnsMappedCategories()
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            response = new
+            {
+                store_items = new[]
+                {
+                new
+                {
+                    appid = 620,
+                    platforms = new
+                    {
+                        steam_deck_compat_category = 3
+                    }
+                },
+                new
+                {
+                    appid = 400,
+                    platforms = new
+                    {
+                        steam_deck_compat_category = 2
+                    }
+                },
+                new
+                {
+                    appid = 251570,
+                    platforms = new
+                    {
+                        steam_deck_compat_category = 1
+                    }
+                },
+                new
+                {
+                    appid = 371140,
+                    platforms = new
+                    {
+                        steam_deck_compat_category = 0
+                    }
+                }
+            }
+            }
+        });
+
+        var client = CreateClient(
+            json,
+            HttpStatusCode.OK);
+
+        var result =
+            await client.GetSteamDeckCompatibilityAsync(
+                [620, 400, 251570, 371140],
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            SteamDeckCompatibilityCategory.Verified,
+            result[620]);
+
+        Assert.Equal(
+            SteamDeckCompatibilityCategory.Playable,
+            result[400]);
+
+        Assert.Equal(
+            SteamDeckCompatibilityCategory.Unsupported,
+            result[251570]);
+
+        Assert.Equal(
+            SteamDeckCompatibilityCategory.Unknown,
+            result[371140]);
+    }
+
+    [Fact]
+    public async Task GetSteamDeckCompatibilityAsync_UsesCachedResult()
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            response = new
+            {
+                store_items = new[]
+                {
+                new
+                {
+                    appid = 620,
+                    platforms = new
+                    {
+                        steam_deck_compat_category = 3
+                    }
+                }
+            }
+            }
+        });
+
+        var handler = new SequencedHttpMessageHandler(
+            (json, HttpStatusCode.OK));
+
+        var client = CreateClient(handler);
+
+        var first =
+            await client.GetSteamDeckCompatibilityAsync(
+                [620],
+                TestContext.Current.CancellationToken);
+
+        var second =
+            await client.GetSteamDeckCompatibilityAsync(
+                [620],
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            SteamDeckCompatibilityCategory.Verified,
+            first[620]);
+
+        Assert.Equal(
+            SteamDeckCompatibilityCategory.Verified,
+            second[620]);
+
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task GetSteamDeckCompatibilityAsync_HttpFailureIsNotCached()
+    {
+        var successJson = JsonSerializer.Serialize(new
+        {
+            response = new
+            {
+                store_items = new[]
+                {
+                new
+                {
+                    appid = 620,
+                    platforms = new
+                    {
+                        steam_deck_compat_category = 3
+                    }
+                }
+            }
+            }
+        });
+
+        var handler = new SequencedHttpMessageHandler(
+            (string.Empty, HttpStatusCode.InternalServerError),
+            (successJson, HttpStatusCode.OK));
+
+        var client = CreateClient(handler);
+
+        var first =
+            await client.GetSteamDeckCompatibilityAsync(
+                [620],
+                TestContext.Current.CancellationToken);
+
+        var second =
+            await client.GetSteamDeckCompatibilityAsync(
+                [620],
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            SteamDeckCompatibilityCategory.Unknown,
+            first[620]);
+
+        Assert.Equal(
+            SteamDeckCompatibilityCategory.Verified,
+            second[620]);
+
+        Assert.Equal(2, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task GetSteamDeckCompatibilityAsync_RequestsPlatformData()
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            response = new
+            {
+                store_items = Array.Empty<object>()
+            }
+        });
+
+        var handler = new SequencedHttpMessageHandler(
+            (json, HttpStatusCode.OK));
+
+        var client = CreateClient(handler);
+
+        await client.GetSteamDeckCompatibilityAsync(
+            [620],
+            TestContext.Current.CancellationToken);
+
+        var requestUri = Assert.Single(handler.RequestUris);
+        var decodedQuery = Uri.UnescapeDataString(requestUri.Query);
+
+        Assert.Contains(
+            "\"ids\":[{\"appid\":620}]",
+            decodedQuery,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "\"data_request\":{\"include_platforms\":true}",
+            decodedQuery,
+            StringComparison.Ordinal);
     }
 
     #region GetOwnedGames Tests

@@ -21,16 +21,19 @@ public sealed class AppStatsService : IAppStatsService
     private readonly IHitCounter _hitCounter;
     private readonly IMissionControlClient _missionControlClient;
     private readonly ILogger<AppStatsService> _logger;
+    private readonly IVisitorIdProvider _visitorIdProvider;
 
     public AppStatsService(
         SqliteConnection dbConnection,
         IHitCounter hitCounter,
         IMissionControlClient missionControlClient,
+        IVisitorIdProvider visitorIdProvider,
         ILogger<AppStatsService> logger)
     {
         _dbConnection = dbConnection;
         _hitCounter = hitCounter;
         _missionControlClient = missionControlClient;
+        _visitorIdProvider = visitorIdProvider;
         _logger = logger;
     }
 
@@ -45,12 +48,16 @@ public sealed class AppStatsService : IAppStatsService
 
         try
         {
+            var visitorId = _visitorIdProvider.GetVisitorId(ip);
+
             await _missionControlClient.TryPublishAsync(
                 eventType: RandomSteamGameEventTypes.SiteVisitRecorded,
                 payload: new SiteVisitRecordedEvent(
+                    VisitorId: visitorId,
                     TotalHits: response.TotalHits,
                     UniqueVisitors: response.UniqueVisitors,
                     DurationMilliseconds: stopwatch.ElapsedMilliseconds),
+                payloadTypeInfo: RandomSteamGameJsonContext.Default.SiteVisitRecordedEvent,
                 occurredAt: occurredAt,
                 correlationId: correlationId,
                 cancellationToken: CancellationToken.None);

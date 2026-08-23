@@ -1,8 +1,8 @@
 using ErrorOr;
+using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Controllers;
@@ -11,16 +11,54 @@ using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
+using SteamApiClient.Services;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using JoyfulReaperLib.MissionControl;
-using SteamApiClient.Services;
+using System.Text.Json.Serialization.Metadata;
+using SteamDeckCompatibilityCategory = SteamApiClient.Contracts.SteamApi.SteamDeckCompatibilityCategory;
 
 namespace RandomSteamGame.Tests;
 
 public class GameControllerTests
 {
+    [Fact]
+    public async Task ExportLibrary_DisablesBrowserAndCdnCaching()
+    {
+        const long steamId = 76561197960287930L;
+
+        var controller = CreateController(
+            new FakeGameProvider(
+                new OwnedGamesResponse(
+                    steamId,
+                    1,
+                    [
+                        new Game(
+                        10,
+                        "Portal",
+                        90,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0)
+                    ])));
+
+        var result = await controller.ExportLibrary("steam", steamId);
+
+        Assert.IsType<FileContentResult>(result);
+
+        Assert.Equal(
+            "private, no-store",
+            controller.Response.Headers["Cache-Control"].ToString());
+
+        Assert.Equal(
+            "no-store",
+            controller.Response.Headers["CDN-Cache-Control"].ToString());
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-76561197960287930L)]
@@ -56,6 +94,101 @@ public class GameControllerTests
         var result = await controller.ExportLibrary("steam", steamId);
 
         AssertValidationProblem(result, "Steam.InvalidSteamId");
+    }
+
+    [Fact]
+    public async Task ExportLibrary_Success_PublishesLibraryExportEvent()
+    {
+        const long steamId = 76561197960287930L;
+
+        var missionControl = new RecordingMissionControlClient();
+
+        var provider = new FakeGameProvider(
+            library: new OwnedGamesResponse(
+                steamId,
+                4,
+                [
+                    new Game(10, "Verified Game", 60, null, 0, 0, 0, 0, 0),
+                new Game(20, "Playable Game", 60, null, 0, 0, 0, 0, 0),
+                new Game(30, "Unsupported Game", 60, null, 0, 0, 0, 0, 0),
+                new Game(40, "Unknown Game", 60, null, 0, 0, 0, 0, 0)
+                ]),
+            deckCompatibility: new Dictionary<int, SteamDeckCompatibilityCategory>
+            {
+                [10] = SteamDeckCompatibilityCategory.Verified,
+                [20] = SteamDeckCompatibilityCategory.Playable,
+                [30] = SteamDeckCompatibilityCategory.Unsupported
+            });
+
+        var controller = CreateController(
+            provider,
+            missionControlClient: missionControl,
+            applicationOptions: new ApplicationOptions
+            {
+                CommitSha = "abc123"
+            },
+            remoteIpAddress: "192.0.2.42");
+
+        var result = await controller.ExportLibrary("steam", steamId);
+
+        Assert.IsType<FileContentResult>(result);
+
+        var published = Assert.Single(missionControl.LibraryExportEvents);
+
+        Assert.Equal(
+            RandomSteamGameEventTypes.LibraryExportCompleted,
+            published.EventType);
+
+        Assert.Equal("hashed-192.0.2.42", published.Payload.VisitorId);
+        Assert.Equal("steam", published.Payload.Provider);
+        Assert.Equal(4, published.Payload.GameCount);
+        Assert.Equal(1, published.Payload.VerifiedCount);
+        Assert.Equal(1, published.Payload.PlayableCount);
+        Assert.Equal(1, published.Payload.UnsupportedCount);
+        Assert.Equal(1, published.Payload.UnknownCount);
+        Assert.Equal("abc123", published.Payload.CommitSha);
+        Assert.True(published.Payload.DurationMilliseconds >= 0);
+
+        Assert.Equal(
+            published.Payload.GameCount,
+            published.Payload.VerifiedCount +
+            published.Payload.PlayableCount +
+            published.Payload.UnsupportedCount +
+            published.Payload.UnknownCount);
+    }
+
+    [Fact]
+    public async Task ExportLibrary_MissionControlFailure_DoesNotChangeSuccessfulResponse()
+    {
+        const long steamId = 76561197960287930L;
+
+        var missionControl = new RecordingMissionControlClient
+        {
+            ExceptionToThrow =
+                new InvalidOperationException("Mission Control unavailable.")
+        };
+
+        var provider = new FakeGameProvider(
+            new OwnedGamesResponse(
+                steamId,
+                1,
+                [
+                    new Game(10, "Portal", 90, null, 0, 0, 0, 0, 0)
+                ]));
+
+        var controller = CreateController(
+            provider,
+            missionControlClient: missionControl);
+
+        var result = await controller.ExportLibrary("steam", steamId);
+
+        var file = Assert.IsType<FileContentResult>(result);
+
+        Assert.Equal(
+            $"steam-library-{steamId}.csv",
+            file.FileDownloadName);
+
+        Assert.Single(missionControl.LibraryExportEvents);
     }
 
     [Theory]
@@ -548,14 +681,21 @@ public class GameControllerTests
     }
 
     [Fact]
-    public void GameController_UsesRateLimitingPolicy_ForLibraryExportEndpoint()
+    public void GameController_UsesDedicatedRateLimitingPolicy_ForLibraryExportEndpoint()
     {
-        var controllerAttribute = typeof(GameController).GetCustomAttribute<EnableRateLimitingAttribute>();
-        var action = typeof(GameController).GetMethod(nameof(GameController.ExportLibrary));
+        var action =
+            typeof(GameController)
+                .GetMethod(nameof(GameController.ExportLibrary));
 
         Assert.NotNull(action);
-        Assert.NotNull(controllerAttribute);
-        Assert.Equal("steam_api_limiter", controllerAttribute.PolicyName);
+
+        var attribute = action.GetCustomAttribute<EnableRateLimitingAttribute>();
+
+        Assert.NotNull(attribute);
+
+        Assert.Equal(
+            "library_export_limiter",
+            attribute.PolicyName);
     }
 
     [Fact]
@@ -587,7 +727,9 @@ public class GameControllerTests
         FakeGameProvider? provider = null,
         FakeAppStatsService? appStatsService = null,
         RecordingMissionControlClient? missionControlClient = null,
-        ApplicationOptions? applicationOptions = null)
+        ApplicationOptions? applicationOptions = null,
+        string? remoteIpAddress = null,
+        ILibraryExportCooldownTracker? libraryExportCooldownTracker = null)
     {
         var controller = new GameController(
             new GameProviderFactory([provider ?? new FakeGameProvider()]),
@@ -595,13 +737,22 @@ public class GameControllerTests
             appStatsService ?? new FakeAppStatsService(),
             new SteamLibraryExportService(),
             missionControlClient ?? new RecordingMissionControlClient(),
-            Microsoft.Extensions.Options.Options.Create(applicationOptions ?? new ApplicationOptions()),
+            new StubVisitorIdProvider(),
+            libraryExportCooldownTracker ?? new FakeLibraryExportCooldownTracker(),
+            Microsoft.Extensions.Options.Options.Create(
+                applicationOptions ?? new ApplicationOptions()),
             NullLogger<GameController>.Instance);
 
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
         };
+
+        if (remoteIpAddress is not null)
+        {
+            controller.HttpContext.Connection.RemoteIpAddress =
+                IPAddress.Parse(remoteIpAddress);
+        }
 
         return controller;
     }
@@ -639,7 +790,30 @@ public class GameControllerTests
         Assert.True(publishedEvent.Payload.Timings.SelectionMilliseconds >= 0);
     }
 
-    private sealed class FakeGameProvider : IGameProvider
+    [Fact]
+    public async Task GetRandomGameDetails_IncludesHashedVisitorIdInTelemetry()
+    {
+        var missionControl = new RecordingMissionControlClient();
+
+        var controller = CreateController(
+            missionControlClient: missionControl,
+            remoteIpAddress: "192.0.2.42");
+
+        var result = await controller.GetRandomGameDetails(
+            "steam",
+            76561197960287930L,
+            vanityUrl: null);
+
+        Assert.IsType<OkObjectResult>(result);
+
+        var published = Assert.Single(missionControl.PublishedEvents);
+
+        Assert.Equal(
+            "hashed-192.0.2.42",
+            published.Payload.VisitorId);
+    }
+
+    private sealed class FakeGameProvider : IGameProvider, ISteamDeckCompatibilityProvider
     {
         private readonly OwnedGamesResponse _library;
         private readonly ErrorOr<GameDetails> _randomGameResult;
@@ -647,6 +821,7 @@ public class GameControllerTests
         private readonly OwnedGamesCacheInfo _cacheInfo;
         private readonly int _eligibleGameCount;
         private readonly int _libraryGameCount;
+        private readonly IReadOnlyDictionary<int, SteamDeckCompatibilityCategory> _deckCompatibility;
 
         public int GetOwnedGamesCallCount { get; private set; }
         public int GetRandomGameDetailsCallCount { get; private set; }
@@ -665,6 +840,7 @@ public class GameControllerTests
             ErrorOr<GameDetails>? randomGameResult = null,
             ErrorOr<long>? resolveIdentifierResult = null,
             OwnedGamesCacheInfo? cacheInfo = null,
+            IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>? deckCompatibility = null,
             int eligibleGameCount = 1,
             int libraryGameCount = 1)
         {
@@ -674,6 +850,15 @@ public class GameControllerTests
             _cacheInfo = cacheInfo ?? OwnedGamesCacheInfo.Unknown;
             _eligibleGameCount = eligibleGameCount;
             _libraryGameCount = libraryGameCount;
+            _deckCompatibility = deckCompatibility ?? new Dictionary<int, SteamDeckCompatibilityCategory>();
+        }
+
+        public Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>
+            GetSteamDeckCompatibilityAsync(
+                IEnumerable<int> appIds,
+                CancellationToken ct = default)
+        {
+            return Task.FromResult(_deckCompatibility);
         }
 
         public string ProviderKey => "steam";
@@ -754,25 +939,67 @@ public class GameControllerTests
         }
     }
 
+    private sealed class FakeLibraryExportCooldownTracker
+    : ILibraryExportCooldownTracker
+    {
+        public TimeSpan? RetryAfter { get; set; }
+
+        public int MarkSucceededCallCount { get; private set; }
+
+        public string? LastPartitionKey { get; private set; }
+
+        public TimeSpan? GetRetryAfter(string partitionKey)
+        {
+            LastPartitionKey = partitionKey;
+            return RetryAfter;
+        }
+
+        public void MarkSucceeded(string partitionKey)
+        {
+            LastPartitionKey = partitionKey;
+            MarkSucceededCallCount++;
+        }
+    }
+
     private sealed class RecordingMissionControlClient : IMissionControlClient
     {
         public List<PublishedEventRecord> PublishedEvents { get; } = [];
+        public List<PublishedLibraryExportEventRecord> LibraryExportEvents { get; } = [];
+
         public Exception? ExceptionToThrow { get; init; }
 
         public Task<bool> TryPublishAsync<TPayload>(
             string eventType,
             TPayload payload,
+            JsonTypeInfo<TPayload> payloadTypeInfo,
             DateTimeOffset occurredAt,
             string? correlationId = null,
             CancellationToken cancellationToken = default)
         {
-            PublishedEvents.Add(new PublishedEventRecord(
-                eventType,
-                payload is GamePickCompletedEvent completed
-                    ? completed
-                    : throw new InvalidOperationException("Unexpected payload type."),
-                occurredAt,
-                correlationId ?? string.Empty));
+            switch (payload)
+            {
+                case GamePickCompletedEvent gamePick:
+                    PublishedEvents.Add(
+                        new PublishedEventRecord(
+                            eventType,
+                            gamePick,
+                            occurredAt,
+                            correlationId ?? string.Empty));
+                    break;
+
+                case LibraryExportCompletedEvent libraryExport:
+                    LibraryExportEvents.Add(
+                        new PublishedLibraryExportEventRecord(
+                            eventType,
+                            libraryExport,
+                            occurredAt,
+                            correlationId ?? string.Empty));
+                    break;
+
+                default:
+                    throw new InvalidOperationException(
+                        $"Unexpected payload type: {typeof(TPayload).Name}");
+            }
 
             if (ExceptionToThrow is not null)
             {
@@ -783,9 +1010,21 @@ public class GameControllerTests
         }
     }
 
+    private sealed class StubVisitorIdProvider : IVisitorIdProvider
+    {
+        public string GetVisitorId(string ipAddress)
+            => $"hashed-{ipAddress}";
+    }
+
     private sealed record PublishedEventRecord(
         string EventType,
         GamePickCompletedEvent Payload,
+        DateTimeOffset OccurredAt,
+        string CorrelationId);
+
+    private sealed record PublishedLibraryExportEventRecord(
+        string EventType,
+        LibraryExportCompletedEvent Payload,
         DateTimeOffset OccurredAt,
         string CorrelationId);
 }

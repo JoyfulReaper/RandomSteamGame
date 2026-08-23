@@ -6,7 +6,8 @@ COPY . .
 RUN dotnet restore RandomSteamGame.slnx
 
 # Production gate: the image does not build unless all tests pass.
-RUN dotnet test RandomSteamGame.slnx \
+RUN Steam__ApiKey=00000000000000000000000000000000 \
+    dotnet test RandomSteamGame.slnx \
     --configuration Release \
     --no-restore
 

@@ -1,0 +1,68 @@
+﻿@page "/library-export"
+
+@inject CanonicalUrlService CanonicalUrls
+
+<PageTitle>@Title</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="@Description" />
+    <link rel="canonical" href="@CanonicalUrl" />
+    <SocialMetadata Title="@Title"
+                    Description="@Description"
+                    CanonicalUrl="@CanonicalUrl" />
+</HeadContent>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-9 col-lg-7">
+
+            <div class="home-card">
+                <p class="home-eyebrow text-center mb-2">
+                    Steam library utility
+                </p>
+
+                <h1 class="home-title text-center mb-3">
+                    Export Your Steam Library
+                </h1>
+
+                <p class="home-lead text-center mb-4">
+                    Download your public Steam library as CSV,
+                    including playtime, last-played date, App ID,
+                    and Steam Deck compatibility.
+                </p>
+
+                <LibraryExportForm @rendermode="InteractiveAuto" />
+            </div>
+
+            <div class="home-info-card mt-4">
+                <h2>What is included?</h2>
+
+                <ul class="mb-3">
+                    <li>Game name</li>
+                    <li>Steam App ID</li>
+                    <li>Total playtime in hours</li>
+                    <li>Last played date</li>
+                    <li>
+                        Steam Deck status:
+                        verified, playable, unsupported, or unknown
+                    </li>
+                </ul>
+
+                <p class="text-muted small mb-0">
+                    Exports are limited to one per IP address every
+                    72 hours to protect Steam API capacity.
+                    Need more frequent exports?
+                    <a href="/support">Contact me.</a>
+                </p>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@code {
+    private const string Title = "Export Steam Library to CSV – Random Steam Game";
+    private const string Description = "Export your public Steam library to CSV with game names, App IDs, playtime, last-played dates, and Steam Deck compatibility.";
+    private string CanonicalUrl =>
+        CanonicalUrls.GetCanonicalUrl("/library-export");
+}

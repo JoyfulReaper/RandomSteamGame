@@ -1,0 +1,196 @@
+﻿@inject RandomSteamApiClient ApiClient
+@inject IBrowserSteamIdentityStore BrowserIdentityStore
+@inject NavigationManager NavManager
+@inject ILogger<LibraryExportForm> Logger
+
+@if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <div class="alert alert-danger mb-3"
+         role="alert">
+        @_errorMessage
+    </div>
+}
+
+<EditForm Model="_model"
+          OnValidSubmit="ExportAsync"
+          FormName="libraryExportForm">
+
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label for="exportSteamId"
+               class="form-label">
+            17 Digit Steam ID
+        </label>
+
+        <InputText id="exportSteamId"
+                   class="form-control"
+                   @bind-Value="_model.SteamId" />
+
+        <ValidationMessage For="() => _model.SteamId" />
+    </div>
+
+    <div class="text-center fw-bold my-2 text-muted">
+        OR
+    </div>
+
+    <div class="mb-4">
+        <label for="exportVanity"
+               class="form-label">
+            Steam Vanity/Custom URL
+        </label>
+
+        <InputText id="exportVanity"
+                   class="form-control"
+                   @bind-Value="_model.VanityUrl" />
+
+        <ValidationMessage For="() => _model.VanityUrl" />
+    </div>
+
+    <button type="submit"
+            class="btn btn-primary w-100 py-2"
+            disabled="@_isBusy">
+
+        @if (_isBusy)
+        {
+            <span class="spinner-border spinner-border-sm me-2"
+                  role="status"></span>
+            <span>Preparing export...</span>
+        }
+        else
+        {
+            <span>Download Steam Library CSV</span>
+        }
+    </button>
+</EditForm>
+
+<p class="text-muted small text-center mt-3 mb-0">
+    One export per IP address every 72 hours.
+</p>
+
+@code {
+    private readonly SteamPickerFormModel _model = new();
+
+    private bool _isBusy;
+    private bool _identityLoaded;
+    private string? _errorMessage;
+    private bool _unplayedOnly;
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!RendererInfo.IsInteractive ||
+            _identityLoaded)
+        {
+            return;
+        }
+
+        _identityLoaded = true;
+
+        try
+        {
+            var identity = await BrowserIdentityStore.GetIdentityAsync();
+            _unplayedOnly = identity.UnplayedOnly;
+            _model.SteamId = Clean(identity.SteamId);
+            _model.VanityUrl = _model.SteamId is null
+                ? Clean(identity.VanityUrl)
+                : null;
+
+            StateHasChanged();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogDebug(
+                exception,
+                "Unable to load saved Steam identity for library export.");
+        }
+    }
+
+    private async Task ExportAsync()
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        _errorMessage = null;
+        _isBusy = true;
+
+        try
+        {
+            _model.SteamId =
+                Clean(_model.SteamId);
+
+            _model.VanityUrl =
+                Clean(_model.VanityUrl);
+
+            long steamId;
+
+            if (_model.SteamId is not null &&
+                long.TryParse(
+                    _model.SteamId,
+                    out steamId))
+            {
+                // Steam ID supplied directly.
+            }
+            else if (_model.VanityUrl is not null)
+            {
+                var result =
+                    await ApiClient.ResolveVanityUrlAsync(
+                        "steam",
+                        _model.VanityUrl);
+
+                if (!result.IsSuccess)
+                {
+                    _errorMessage =
+                        result.GetErrorMessage(
+                            "Unable to resolve vanity URL.");
+
+                    return;
+                }
+
+                steamId = result.Value;
+
+                _model.SteamId =
+                    steamId.ToString();
+
+                _model.VanityUrl = null;
+            }
+            else
+            {
+                _errorMessage =
+                    "Enter a valid Steam ID or vanity URL.";
+
+                return;
+            }
+
+            await BrowserIdentityStore.SetIdentityAsync(
+                new SteamIdentity(
+                    steamId.ToString(),
+                    null,
+                    _unplayedOnly));
+
+            NavManager.NavigateTo(
+                $"/api/steam/{steamId}/library/export.csv",
+                forceLoad: true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(
+                exception,
+                "Failed to start Steam library export.");
+
+            _errorMessage =
+                "Something went wrong while starting the export.";
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private static string? Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+}

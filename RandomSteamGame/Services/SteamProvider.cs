@@ -13,10 +13,11 @@ using RandomSteamGame.Shared.Services;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
 using System.Diagnostics;
+using SteamDeckCompatibilityCategory = SteamApiClient.Contracts.SteamApi.SteamDeckCompatibilityCategory;
 
 namespace RandomSteamGame.Services;
 
-public class SteamProvider : IGameProvider
+public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
 {
     private readonly ISteamClient _steamClient;
     private readonly ISteamStoreClient _steamStoreClient;
@@ -24,7 +25,7 @@ public class SteamProvider : IGameProvider
     private readonly IHtmlSanitizerService _htmlSanitizer;
     private readonly ILogger<SteamProvider> _logger;
 
-    private const int MAX_ATTEMPTS = 3; // TODO make configurable in appsettings
+    private const int MAX_ATTEMPTS = 4; // TODO make configurable in appsettings
 
     public string ProviderKey => "steam";
 
@@ -40,6 +41,29 @@ public class SteamProvider : IGameProvider
         _steamStoreClient = steamStoreClient;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+    }
+
+    public async Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>
+    GetSteamDeckCompatibilityAsync(
+        IEnumerable<int> appIds,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            return await _steamClient.GetSteamDeckCompatibilityAsync(appIds, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to load Steam Deck compatibility data.");
+
+            return new Dictionary<int, SteamDeckCompatibilityCategory>();
+        }
     }
 
     public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)

@@ -68,6 +68,57 @@
     margin-bottom: 0;
 }
 
+.home-guide {
+    color: #cbd5e1;
+}
+
+.home-guide h2 {
+    margin-bottom: 1rem;
+    color: #f8fafc;
+    font-size: 1.35rem;
+}
+
+.home-info-card,
+.home-faq-item {
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 0.9rem;
+}
+
+.home-info-card {
+    padding: 1.4rem;
+}
+
+.home-steps,
+.home-feature-list {
+    padding-left: 1.25rem;
+    line-height: 1.65;
+}
+
+.home-steps li + li,
+.home-feature-list li + li {
+    margin-top: 0.55rem;
+}
+
+.home-feature-list strong {
+    color: #e2e8f0;
+}
+
+.home-faq-item {
+    padding: 1.1rem 1.2rem;
+}
+
+.home-faq-item h3 {
+    margin-bottom: 0.45rem;
+    color: #e2e8f0;
+    font-size: 1rem;
+}
+
+.home-faq-item p {
+    margin: 0;
+    line-height: 1.55;
+}
+
 .home-beta-banner {
     display: flex;
     align-items: center;

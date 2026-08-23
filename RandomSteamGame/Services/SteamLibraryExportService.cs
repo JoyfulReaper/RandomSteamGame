@@ -1,16 +1,19 @@
-using System.Globalization;
-using System.Text;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
+using System.Globalization;
+using System.Text;
+using SteamDeckCompatibilityCategory = SteamApiClient.Contracts.SteamApi.SteamDeckCompatibilityCategory;
 
 namespace RandomSteamGame.Services;
 
 public sealed class SteamLibraryExportService : ISteamLibraryExportService
 {
     private const string CsvNewLine = "\r\n";
-    private const string UnknownSteamDeckStatus = "unknown";
 
-    public byte[] Export(OwnedGamesResponse library)
+    public byte[] Export(
+        OwnedGamesResponse library,
+        IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>
+        steamDeckCompatibility)
     {
         var builder = new StringBuilder();
         builder.Append("game,id,hours,last_played,steam_deck");
@@ -26,7 +29,7 @@ public sealed class SteamLibraryExportService : ISteamLibraryExportService
             builder.Append(',');
             builder.Append(FormatLastPlayed(game.RTimeLastPlayed));
             builder.Append(',');
-            builder.Append(UnknownSteamDeckStatus);
+            builder.Append(FormatSteamDeckStatus(game.AppId, steamDeckCompatibility));
             builder.Append(CsvNewLine);
         }
 
@@ -41,7 +44,7 @@ public sealed class SteamLibraryExportService : ISteamLibraryExportService
 
     private static string FormatLastPlayed(long rTimeLastPlayed)
     {
-        if (rTimeLastPlayed <= 0)
+        if (rTimeLastPlayed <= 86_400) // 86_400 is exactly Jan 2, 1970 UTC
         {
             return string.Empty;
         }
@@ -52,8 +55,29 @@ public sealed class SteamLibraryExportService : ISteamLibraryExportService
             .ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
     }
 
+    private static string FormatSteamDeckStatus(
+        int appId,
+        IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>
+        steamDeckCompatibility)
+    {
+        if (!steamDeckCompatibility.TryGetValue(appId, out var category))
+        {
+            return "unknown";
+        }
+
+        return category switch
+        {
+            SteamDeckCompatibilityCategory.Unsupported => "unsupported",
+            SteamDeckCompatibilityCategory.Playable => "playable",
+            SteamDeckCompatibilityCategory.Verified => "verified",
+            _ => "unknown"
+        };
+    }
+
     private static string Escape(string value)
     {
+        value = ProtectSpreadsheetFormula(value);
+
         var requiresQuotes = value.Contains(',') ||
                              value.Contains('"') ||
                              value.Contains('\r') ||
@@ -65,5 +89,19 @@ public sealed class SteamLibraryExportService : ISteamLibraryExportService
         }
 
         return $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+    }
+
+    private static string ProtectSpreadsheetFormula(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        return value[0] switch
+        {
+            '=' or '+' or '-' or '@' => $"'{value}",
+            _ => value
+        };
     }
 }

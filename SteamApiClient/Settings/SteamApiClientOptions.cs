@@ -34,6 +34,8 @@ public record CacheSettings
     public CachePolicy VanitySuccess { get; init; } = default!;
     [Required]
     public CachePolicy VanityNotFound { get; init; } = default!;
+    [Required]
+    public CachePolicy SteamDeckCompatibility { get; init; } = default!;
 }
 
 public record CachePolicy

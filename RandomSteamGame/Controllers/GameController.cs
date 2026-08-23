@@ -21,6 +21,7 @@ using SteamApiClient;
 using SteamApiClient.Services;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using SteamDeckCompatibilityCategory = SteamApiClient.Contracts.SteamApi.SteamDeckCompatibilityCategory;
 
 namespace RandomSteamGame.Controllers;
 
@@ -41,6 +42,8 @@ public class GameController : ApiController
     private readonly IMissionControlClient _missionControlClient;
     private readonly ApplicationOptions _applicationOptions;
     private readonly ILogger<GameController> _logger;
+    private readonly IVisitorIdProvider _visitorIdProvider;
+    private readonly ILibraryExportCooldownTracker _libraryExportCooldownTracker;
 
     public GameController(
         GameProviderFactory factory,
@@ -48,16 +51,20 @@ public class GameController : ApiController
         IAppStatsService appStatsService,
         ISteamLibraryExportService steamLibraryExportService,
         IMissionControlClient missionControlClient,
+        IVisitorIdProvider visitorIdProvider,
+        ILibraryExportCooldownTracker libraryExportCooldownTracker,
         IOptions<ApplicationOptions> applicationOptions,
         ILogger<GameController> logger)
     {
         _missionControlClient = missionControlClient;
+        _visitorIdProvider = visitorIdProvider;
         _applicationOptions = applicationOptions.Value;
         _factory = factory;
         _ownedGamesCacheResetTracker = ownedGamesCacheResetTracker;
         _appStatsService = appStatsService;
         _steamLibraryExportService = steamLibraryExportService;
         _logger = logger;
+        _libraryExportCooldownTracker = libraryExportCooldownTracker;
     }
 
     /// <summary>
@@ -87,10 +94,17 @@ public class GameController : ApiController
     /// GET /api/steam/{steamId}/library/export.csv
     /// </summary>
     [HttpGet("{steamId:long}/library/export.csv")]
+    [EnableRateLimiting("library_export_limiter")]
     [Produces("text/csv")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ExportLibrary(string provider, long steamId)
+    public async Task<IActionResult> ExportLibrary(
+        string provider,
+        long steamId)
     {
+        Response.Headers["Cache-Control"] = "private, no-store";
+        Response.Headers["CDN-Cache-Control"] = "no-store";
+
+
         if (!TryGetProvider(provider, out var service))
         {
             return Problem([Errors.Steam.UnsupportedProvider(provider)]);
@@ -101,14 +115,101 @@ public class GameController : ApiController
             return Problem([Errors.Steam.InvalidSteamId]);
         }
 
+        var partitionKey = LibraryExportRateLimitPartitionKey.From(HttpContext.Connection.RemoteIpAddress);
+        var retryAfter = _libraryExportCooldownTracker.GetRetryAfter(partitionKey);
+
+        if (retryAfter is not null)
+        {
+            var retryAfterSeconds = Math.Max(
+                1,
+                (long)Math.Ceiling(retryAfter.Value.TotalSeconds));
+
+            Response.Headers.RetryAfter =
+                retryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+            return new ContentResult
+            {
+                StatusCode = StatusCodes.Status429TooManyRequests,
+                ContentType = "text/plain; charset=utf-8",
+                Content =
+                    "Steam library CSV exports are limited to one per IP address " +
+                    "every 72 hours after a successful export."
+            };
+        }
+
+        var occurredAt = DateTimeOffset.UtcNow;
+        var correlationId = Guid.NewGuid().ToString("N");
+        var stopwatch = Stopwatch.StartNew();
+
         var result = await service.GetOwnedGamesAsync(steamId);
         if (result.IsError)
         {
             return Problem(result.Errors);
         }
 
-        var csvBytes = _steamLibraryExportService.Export(result.Value);
-        return File(csvBytes, "text/csv; charset=utf-8", $"steam-library-{steamId}.csv");
+        IReadOnlyDictionary<int, SteamDeckCompatibilityCategory> deckCompatibility =
+            new Dictionary<int, SteamDeckCompatibilityCategory>();
+
+        if (service is ISteamDeckCompatibilityProvider deckProvider)
+        {
+            deckCompatibility = await deckProvider.GetSteamDeckCompatibilityAsync(
+                result.Value.Games.Select(game => game.AppId),
+                HttpContext.RequestAborted);
+        }
+
+        var csvBytes = _steamLibraryExportService.Export(result.Value, deckCompatibility);
+
+        _libraryExportCooldownTracker.MarkSucceeded(partitionKey);
+
+        var verifiedCount = 0;
+        var playableCount = 0;
+        var unsupportedCount = 0;
+        var unknownCount = 0;
+
+        foreach (var game in result.Value.Games)
+        {
+            var category =
+                deckCompatibility.TryGetValue(game.AppId, out var value)
+                    ? value
+                    : SteamDeckCompatibilityCategory.Unknown;
+
+            switch (category)
+            {
+                case SteamDeckCompatibilityCategory.Verified:
+                    verifiedCount++;
+                    break;
+
+                case SteamDeckCompatibilityCategory.Playable:
+                    playableCount++;
+                    break;
+
+                case SteamDeckCompatibilityCategory.Unsupported:
+                    unsupportedCount++;
+                    break;
+
+                default:
+                    unknownCount++;
+                    break;
+            }
+        }
+
+        stopwatch.Stop();
+
+        await PublishLibraryExportCompletedEventAsync(
+            provider,
+            result.Value.Games.Count,
+            stopwatch.ElapsedMilliseconds,
+            verifiedCount,
+            playableCount,
+            unsupportedCount,
+            unknownCount,
+            occurredAt,
+            correlationId);
+
+        return File(
+            csvBytes,
+            "text/csv; charset=utf-8",
+            $"steam-library-{steamId}.csv");
     }
 
     /// <summary>
@@ -249,6 +350,47 @@ public class GameController : ApiController
         return Ok(result.Game);
     }
 
+    private async Task PublishLibraryExportCompletedEventAsync(
+    string provider,
+    int gameCount,
+    long durationMilliseconds,
+    int verifiedCount,
+    int playableCount,
+    int unsupportedCount,
+    int unknownCount,
+    DateTimeOffset occurredAt,
+    string correlationId)
+    {
+        try
+        {
+            await _missionControlClient.TryPublishAsync(
+                eventType: RandomSteamGameEventTypes.LibraryExportCompleted,
+                payload: new LibraryExportCompletedEvent(
+                    VisitorId: GetVisitorIdForTelemetry(),
+                    Provider: provider,
+                    GameCount: gameCount,
+                    DurationMilliseconds: durationMilliseconds,
+                    VerifiedCount: verifiedCount,
+                    PlayableCount: playableCount,
+                    UnsupportedCount: unsupportedCount,
+                    UnknownCount: unknownCount,
+                    CommitSha: string.IsNullOrWhiteSpace(_applicationOptions.CommitSha)
+                        ? null
+                        : _applicationOptions.CommitSha),
+                occurredAt: occurredAt,
+                payloadTypeInfo: RandomSteamGameJsonContext.Default.LibraryExportCompletedEvent,
+                correlationId: correlationId,
+                cancellationToken: CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to publish library-export event {CorrelationId}.",
+                correlationId);
+        }
+    }
+
     private async Task PublishGamePickEventAsync(
         string provider,
         RandomGamePickAttempt? telemetry,
@@ -268,13 +410,13 @@ public class GameController : ApiController
                 eventType:
                     RandomSteamGameEventTypes.GamePickCompleted,
                 payload: new GamePickCompletedEvent(
+                    VisitorId: GetVisitorIdForTelemetry(),
                     Provider: provider,
                     AppId: telemetry?.Game?.Id,
                     // Display metadata only. Use AppId for stable joins, grouping, and identity.
                     GameName: GamePickTelemetryName.Sanitize(telemetry?.Game?.Name),
                     UnplayedOnly: unplayedOnly,
-                    DurationMilliseconds:
-                        stopwatch.ElapsedMilliseconds,
+                    DurationMilliseconds: stopwatch.ElapsedMilliseconds,
                     CacheStatus: telemetry?.Cache.StatusName ?? OwnedGamesCacheInfo.Unknown.StatusName,
                     CacheAgeSeconds: telemetry?.Cache.AgeSeconds,
                     EligibleGameCount: telemetry?.EligibleGameCount,
@@ -295,6 +437,7 @@ public class GameController : ApiController
                     Outcome: outcome,
                     Succeeded: succeeded),
                 occurredAt: occurredAt,
+                payloadTypeInfo: RandomSteamGameJsonContext.Default.GamePickCompletedEvent,
                 correlationId: correlationId,
                 cancellationToken: CancellationToken.None);
         }
@@ -420,4 +563,23 @@ public class GameController : ApiController
         }
     }
 
+    private string? GetVisitorIdForTelemetry()
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+            return string.IsNullOrWhiteSpace(ip)
+                ? null
+                : _visitorIdProvider.GetVisitorId(ip);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to generate visitor ID for game-pick telemetry.");
+
+            return null;
+        }
+    }
 }

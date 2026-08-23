@@ -2,8 +2,14 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 	<url>
 		<loc>https://randomsteam.kgivler.com/</loc>
-		<lastmod>2026-07-01</lastmod>
-		<changefreq>weekly</changefreq>
-		<priority>1.0</priority>
+	</url>
+	<url>
+		<loc>https://randomsteam.kgivler.com/support</loc>
+	</url>
+	<url>
+		<loc>https://randomsteam.kgivler.com/contributors</loc>
+	</url>
+	<url>
+		<loc>https://randomsteam.kgivler.com/library-export</loc>
 	</url>
 </urlset>

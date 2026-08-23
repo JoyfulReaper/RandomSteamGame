@@ -42,7 +42,8 @@ public class SteamApiDependencyInjectionTests
                 ["Steam:Cache:VanitySuccess:AbsoluteMinutes"] = "120",
                 ["Steam:Cache:VanityNotFound:AbsoluteMinutes"] = "15",
                 ["Steam:RateLimiting:PermitLimit"] = "20",
-                ["Steam:RateLimiting:WindowSeconds"] = "10"
+                ["Steam:RateLimiting:WindowSeconds"] = "10",
+                ["Steam:Cache:SteamDeckCompatibility:AbsoluteMinutes"] = "1440",
             })
             .Build();
     }
