@@ -25,6 +25,51 @@ public sealed class LibraryExportRateLimitHttpTests :
     }
 
     [Fact]
+    public async Task LibraryExportCooldown_IsSharedByUsersBehindSameIp()
+    {
+        using var application =
+            _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.RemoveAll<IGameProvider>();
+                    services.AddScoped<
+                        IGameProvider,
+                        ExportGameProvider>();
+                });
+            });
+
+        using var client = application.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false
+            });
+
+        const string sharedIp = "198.51.100.60";
+        const long otherSteamId = 76561198000000000L;
+
+        using var first =
+            await SendExportAsync(
+                client,
+                sharedIp,
+                SteamId);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            first.StatusCode);
+
+        using var secondUser =
+            await SendExportAsync(
+                client,
+                sharedIp,
+                otherSteamId);
+
+        Assert.Equal(
+            HttpStatusCode.TooManyRequests,
+            secondUser.StatusCode);
+    }
+
+    [Fact]
     public async Task LibraryExportCooldown_FailedAttempt_DoesNotConsumeCooldown()
     {
         using var application =
@@ -139,11 +184,12 @@ public sealed class LibraryExportRateLimitHttpTests :
 
     private static Task<HttpResponseMessage> SendExportAsync(
         HttpClient client,
-        string forwardedFor)
+        string forwardedFor,
+        long steamId = SteamId)
     {
         var request = new HttpRequestMessage(
             HttpMethod.Get,
-            $"/api/steam/{SteamId}/library/export.csv");
+            $"/api/steam/{steamId}/library/export.csv");
 
         request.Headers.TryAddWithoutValidation(
             "X-Forwarded-For",
