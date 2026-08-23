@@ -1,6 +1,6 @@
 # Random Steam Game Picker
 
-Random Steam Game Picker chooses a game from your own public Steam library. Enter a 17-digit Steam ID or Steam vanity URL, optionally limit the pool to unplayed games, and let the picker answer the important question: **What should I play?**
+Random Steam Game Picker chooses a game from your own public Steam library and can export that library as CSV. Enter a 17-digit Steam ID, Steam vanity name, or Steam Community vanity URL, optionally limit the picker to unplayed games, and let it answer the important question: **What should I play?**
 
 **Live application:** [https://randomsteam.kgivler.com](https://randomsteam.kgivler.com)
 
@@ -27,9 +27,11 @@ It is made for anyone with a large backlog, limited decision-making energy, and 
 - Refreshes cached library data after the user's Steam library changes
 - Displays the selected game's description and recorded playtime
 - Opens the selected game through the Steam desktop client
-- Exposes a CSV library export endpoint through the server API
+- Exports a public Steam library from the [`/library-export`](https://randomsteam.kgivler.com/library-export) page
+- Includes game name, App ID, playtime, last-played time, and Steam Deck compatibility in CSV exports
+- Accepts numeric Steam IDs, vanity names, and Steam Community vanity URLs for both picking and exporting
 
-Steam must be able to access the profile's game details. Picker preferences and blocked games are stored in browser cookies, so they do not synchronize across browsers or devices.
+Steam must be able to access the profile's game details. The saved Steam identity, unplayed-only preference, blocked games, and library-refresh timing are stored in browser cookies, so they do not synchronize across browsers or devices. The application does not require Steam sign-in.
 
 ## How It Works
 
@@ -39,6 +41,23 @@ Steam must be able to access the profile's game details. Picker preferences and 
 4. It randomly selects one eligible game and loads its details.
 5. Play it, choose again, or block it and roll once more.
 
+### Library export
+
+1. Open `/library-export` and enter a Steam ID, vanity name, or Steam Community vanity URL.
+2. Vanity input is resolved to a numeric Steam ID through the Steam Web API.
+3. The application loads the public library and fetches Steam Deck compatibility in batches.
+4. The browser downloads `steam-library-{steamId}.csv` with these columns:
+
+   | Column | Value |
+   | --- | --- |
+   | `game` | Steam game name |
+   | `id` | Steam App ID |
+   | `hours` | Total recorded playtime in decimal hours |
+   | `last_played` | UTC timestamp in `yyyy-MM-ddTHH:mm:ssZ` format, or blank when Steam reports no meaningful date |
+   | `steam_deck` | `verified`, `playable`, `unsupported`, or `unknown` |
+
+If Deck compatibility cannot be retrieved for a game, the export uses `unknown` rather than failing the whole download. Exports are limited to one request per IP address every 72 hours to protect Steam API capacity.
+
 ## Tech Stack
 
 - .NET 10 and ASP.NET Core
@@ -46,6 +65,8 @@ Steam must be able to access the profile's game details. Picker preferences and 
 - Steam Web API and Steam Store API
 - ASP.NET Core HybridCache with memory and SQLite-backed caching
 - SQLite for lightweight application data
+- Server-rendered Razor components with Interactive Auto picker and export forms
+- ASP.NET Core rate limiting, Data Protection, and liveness/readiness health checks
 - Optional Mission Control telemetry
 
 ## Repository Overview
@@ -59,7 +80,7 @@ Steam must be able to access the profile's game details. Picker preferences and 
 | `RandomSteamGame.Tests` | Host, controller, provider, persistence, and component-supporting tests |
 | `SteamApiClient.Tests` | Tests for the Steam integration library |
 
-The central picker flow is `GameController` → `GameProviderFactory` → `SteamProvider` → `SteamApiClient`.
+The central picker flow is `GameController` → `GameProviderFactory` → `SteamProvider` → `SteamApiClient`. The `/library-export` page is server-rendered for metadata and indexability, while `LibraryExportForm` uses Interactive Auto for browser identity access and vanity resolution.
 
 ## Running Locally
 
@@ -104,6 +125,37 @@ The only secret required for normal local use is the Steam Web API key:
 | `Steam:ApiKey` | `Steam__ApiKey` | Reads public library data from the Steam Web API |
 
 The tracked [`RandomSteamGame/appsettings.json`](RandomSteamGame/appsettings.json) also contains non-secret settings for caching, rate limiting, allowed origins, canonical hosts, Data Protection, and optional Mission Control telemetry.
+
+Important operational settings include:
+
+| Configuration key | Purpose |
+| --- | --- |
+| `Application:CanonicalOrigin` | Production origin used for canonical and social metadata |
+| `Application:BetaHost` | Host that receives `X-Robots-Tag: noindex, nofollow` |
+| `DataProtection:KeysPath` | Optional persistent Data Protection key-ring location |
+| `Steam:ConnectionString` | SQLite connection string for Steam response caching |
+| `Steam:Cache:*` | Cache durations for libraries, app details, vanity results, and Deck compatibility |
+| `Steam:RateLimiting:*` | General Steam API request limit; CSV export has a separate one-per-IP/72-hour policy |
+| `Cors:AllowedOrigins` | Browser origins permitted to call the API |
+| `MissionControl:*` | Optional deployment and game-pick telemetry configuration |
+| `Telemetry:VisitorHashKey` | Optional key used to pseudonymize visitor identifiers for telemetry |
+
+When `DataProtection:KeysPath` is empty, development and non-Windows deployments use `.keys/data-protection` beneath the application content root. Production Windows deployments use a machine-level application-data directory.
+
+## Docker
+
+The repository Dockerfile builds on the .NET 10 SDK image, runs the full Release test suite as an image-build gate, publishes the application, and runs it as the image's non-root application user.
+
+The Dockerfile declares port `5182`. Set `ASPNETCORE_HTTP_PORTS=5182` in the container environment, or publish whichever ASP.NET Core port your deployment configures. Mount persistent storage for the SQLite files and Data Protection key ring when deploying containers that may be replaced or recreated. To use the Dockerfile's prepared key directory, set `DataProtection__KeysPath=/data-protection` and mount a volume there. The application provides:
+
+- `/health/live` for process liveness
+- `/health/ready` for local dependency readiness, including SQLite and the Data Protection key directory
+
+The production deployment is designed to run behind a loopback reverse proxy or Cloudflare Tunnel. Forwarded client IP and scheme headers are accepted only from loopback proxies; update the trusted-proxy configuration if a proxy reaches the application from another address, especially when relying on per-IP rate limiting.
+
+## Search and indexing
+
+The home page and library-export page publish canonical URLs, descriptions, and social metadata. The application also serves `robots.txt`, `sitemap.xml`, and `WebApplication` JSON-LD. The configured beta host sends `X-Robots-Tag: noindex, nofollow`, and generated random-game result pages are excluded from indexing.
 
 ## Tests
 
