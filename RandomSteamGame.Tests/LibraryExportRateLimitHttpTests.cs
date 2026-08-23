@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
@@ -21,6 +22,61 @@ public sealed class LibraryExportRateLimitHttpTests :
         SeoWebApplicationFactory factory)
     {
         _factory = factory;
+    }
+
+    [Fact]
+    public async Task LibraryExportCooldown_FailedAttempt_DoesNotConsumeCooldown()
+    {
+        using var application =
+            _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.RemoveAll<IGameProvider>();
+                    services.AddSingleton<
+                        IGameProvider,
+                        FailingThenSuccessfulExportGameProvider>();
+                });
+            });
+
+        using var client = application.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false
+            });
+
+        const string clientIp = "198.51.100.50";
+
+        using var failed =
+            await SendExportAsync(client, clientIp);
+
+        Assert.Equal(
+            HttpStatusCode.InternalServerError,
+            failed.StatusCode);
+
+        using var retry =
+            await SendExportAsync(client, clientIp);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            retry.StatusCode);
+
+        using var afterSuccess =
+            await SendExportAsync(client, clientIp);
+
+        Assert.Equal(
+            HttpStatusCode.TooManyRequests,
+            afterSuccess.StatusCode);
+
+        Assert.NotNull(afterSuccess.Headers.RetryAfter);
+        Assert.NotNull(afterSuccess.Headers.RetryAfter.Delta);
+
+        Assert.True(
+            afterSuccess.Headers.RetryAfter.Delta > TimeSpan.Zero);
+
+        Assert.True(
+            afterSuccess.Headers.RetryAfter.Delta <=
+            TimeSpan.FromHours(72));
     }
 
     [Fact]
@@ -96,6 +152,72 @@ public sealed class LibraryExportRateLimitHttpTests :
         return client.SendAsync(
             request,
             TestContext.Current.CancellationToken);
+    }
+
+    private sealed class FailingThenSuccessfulExportGameProvider
+    : IGameProvider
+    {
+        private int _ownedGamesCallCount;
+
+        public string ProviderKey => "steam";
+
+        public Task<ErrorOr<OwnedGamesResponse>>
+            GetOwnedGamesAsync(long userId)
+        {
+            if (Interlocked.Increment(
+                    ref _ownedGamesCallCount) == 1)
+            {
+                return Task.FromResult<ErrorOr<OwnedGamesResponse>>(
+                    Errors.Steam.SteamApiFailed);
+            }
+
+            OwnedGamesResponse library =
+                new(
+                    userId,
+                    1,
+                    [
+                        new Game(
+                        620,
+                        "Portal 2",
+                        120,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0)
+                    ]);
+
+            return Task.FromResult<
+                ErrorOr<OwnedGamesResponse>>(library);
+        }
+
+        public Task<ErrorOr<GameDetails>>
+            GetRandomGameDetailsAsync(
+                long userId,
+                bool unplayedOnly = false)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<RandomGamePickAttempt>
+            GetRandomGamePickAsync(
+                long userId,
+                bool unplayedOnly = false)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ErrorOr<long>>
+            ResolveIdentifierAsync(string identifier)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task InvalidateOwnedGamesCacheAsync(long userId)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class ExportGameProvider : IGameProvider

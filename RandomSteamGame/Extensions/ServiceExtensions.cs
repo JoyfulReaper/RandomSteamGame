@@ -188,12 +188,18 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddGameProviderServices(this IServiceCollection services)
+    private static IServiceCollection AddGameProviderServices(
+        this IServiceCollection services)
     {
         var providerType = typeof(IGameProvider);
-        var implementations = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(type => providerType.IsAssignableFrom(type) && !type.IsInterface && !type.IsAbstract);
+
+        var implementations = typeof(SteamProvider)
+            .Assembly
+            .GetTypes()
+            .Where(type =>
+                providerType.IsAssignableFrom(type) &&
+                !type.IsInterface &&
+                !type.IsAbstract);
 
         foreach (var implementation in implementations)
         {
