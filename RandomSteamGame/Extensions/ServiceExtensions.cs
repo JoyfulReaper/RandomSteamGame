@@ -275,12 +275,10 @@ public static class ServiceExtensions
 
             options.AddPolicy("library_export_limiter", httpContext =>
             {
-                var ipAddress =
-                    httpContext.Connection.RemoteIpAddress?.ToString()
-                    ?? "unknown";
+                var partitionKey = LibraryExportRateLimitPartitionKey.From(httpContext.Connection.RemoteIpAddress);
 
                 return RateLimitPartition.GetSlidingWindowLimiter(
-                    partitionKey: ipAddress,
+                    partitionKey: partitionKey,
                     factory: _ => new SlidingWindowRateLimiterOptions
                     {
                         PermitLimit = 1,
