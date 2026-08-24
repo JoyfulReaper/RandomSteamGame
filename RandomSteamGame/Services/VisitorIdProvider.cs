@@ -11,13 +11,22 @@ public sealed class VisitorIdProvider : IVisitorIdProvider
 {
     private readonly byte[]? _key;
 
-    public VisitorIdProvider(IOptions<TelemetryOptions> options)
+    public VisitorIdProvider(
+        IOptions<TelemetryOptions> options,
+        ILogger<VisitorIdProvider> logger)
     {
         var key = options.Value.VisitorHashKey;
 
-        _key = string.IsNullOrWhiteSpace(key)
-            ? null
-            : Encoding.UTF8.GetBytes(key);
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            logger.LogWarning(
+                "Telemetry VisitorHashKey is not configured. " +
+                "Visitor IDs will be omitted from telemetry.");
+
+            return;
+        }
+
+        _key = Encoding.UTF8.GetBytes(key);
     }
 
     public string? GetVisitorId(string ipAddress)
