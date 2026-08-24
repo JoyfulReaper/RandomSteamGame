@@ -151,6 +151,74 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
             directive => directive.StartsWith("Disallow:", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData("/api/stats")]
+    [InlineData("/health/live")]
+    [InlineData("/error")]
+    public async Task NonPageEndpoint_ReturnsNoindexNofollowHeader(string path)
+    {
+        using var response = await _client.GetAsync(
+            path,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+    }
+
+    [Fact]
+    public async Task JsonApiResponse_ReturnsNoindexNofollowHeader()
+    {
+        using var response = await _client.GetAsync(
+            "/api/steam/1/library",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+    }
+
+    [Fact]
+    public async Task DirectNotFoundPage_ReturnsNotFoundAndNoindexNofollow()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await _client.GetAsync("/not-found", cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+        Assert.Equal(
+            "noindex,nofollow",
+            GetAttribute(document, "meta[name='robots']", "content").Replace(" ", string.Empty));
+    }
+
+    [Fact]
+    public async Task DirectErrorPage_ReturnsInternalServerErrorAndNoindexNofollow()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await _client.GetAsync("/Error", cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+        Assert.Equal(
+            "noindex,nofollow",
+            GetAttribute(document, "meta[name='robots']", "content").Replace(" ", string.Empty));
+    }
+
+    [Fact]
+    public async Task UnknownRoute_ReturnsNotFoundAndNoindexNofollow()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await _client.GetAsync(
+            "/definitely-not-a-public-route",
+            cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+        Assert.Equal(
+            "noindex,nofollow",
+            GetAttribute(document, "meta[name='robots']", "content").Replace(" ", string.Empty));
+    }
+
     [Fact]
     public async Task SupportedRandomGame_ReturnsNoindexMetadataAndProductionCanonical()
     {
@@ -173,6 +241,17 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
     {
         using var response = await _client.GetAsync(
             "/random-game/gog/76561197960287930",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+    }
+
+    [Fact]
+    public async Task InvalidRandomGameRoute_ReturnsNotFoundAndNoindexNofollowHeader()
+    {
+        using var response = await _client.GetAsync(
+            "/random-game/steam/not-a-number",
             TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);

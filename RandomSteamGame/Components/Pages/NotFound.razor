@@ -1,5 +1,6 @@
 ﻿@page "/not-found"
 @layout MainLayout
+@inject IHttpContextAccessor HttpContextAccessor
 
 <PageTitle>404: OBJECT NOT FOUND</PageTitle>
 <HeadContent>
@@ -44,3 +45,21 @@
     </div>
 </div>
 </LayoutView>
+
+@code {
+    protected override void OnInitialized()
+    {
+        var response = HttpContextAccessor.HttpContext?.Response;
+        if (response is null)
+        {
+            return;
+        }
+
+        if (response.StatusCode == StatusCodes.Status200OK)
+        {
+            response.StatusCode = StatusCodes.Status404NotFound;
+        }
+
+        response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+    }
+}

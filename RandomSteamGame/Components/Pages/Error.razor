@@ -65,6 +65,13 @@
 
         if (HttpContext != null)
         {
+            if (HttpContext.Response.StatusCode == StatusCodes.Status200OK)
+            {
+                HttpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            }
+
+            HttpContext.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+
             var exceptionHandlerFeature = HttpContext.Features.Get<IExceptionHandlerFeature>();
             if (exceptionHandlerFeature?.Error != null)
             {
