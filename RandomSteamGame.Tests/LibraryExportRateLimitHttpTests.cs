@@ -25,6 +25,73 @@ public sealed class LibraryExportRateLimitHttpTests :
     }
 
     [Fact]
+    public async Task LibraryExportLimiter_LimitsGlobalConcurrentExports()
+    {
+        var provider = new BlockingExportGameProvider();
+
+        using var application =
+            _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureTestServices(services =>
+                {
+                    services.RemoveAll<IGameProvider>();
+                    services.AddSingleton<IGameProvider>(provider);
+                });
+            });
+
+        using var client = application.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false
+            });
+
+        var firstTask = SendExportAsync(
+            client,
+            "198.51.100.70");
+
+        var secondTask = SendExportAsync(
+            client,
+            "198.51.100.71");
+
+        try
+        {
+            await provider.WaitUntilTwoStartedAsync();
+
+            using var third = await SendExportAsync(
+                client,
+                "198.51.100.72");
+
+            Assert.Equal(
+                HttpStatusCode.TooManyRequests,
+                third.StatusCode);
+
+            var rejectionMessage =
+                await third.Content.ReadAsStringAsync(
+                    TestContext.Current.CancellationToken);
+
+            Assert.Contains(
+                "capacity",
+                rejectionMessage,
+                StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            provider.Release();
+        }
+
+        using var first = await firstTask;
+        using var second = await secondTask;
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            first.StatusCode);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            second.StatusCode);
+    }
+
+    [Fact]
     public async Task LibraryExportCooldown_IsSharedByUsersBehindSameIp()
     {
         using var application =
@@ -198,6 +265,89 @@ public sealed class LibraryExportRateLimitHttpTests :
         return client.SendAsync(
             request,
             TestContext.Current.CancellationToken);
+    }
+
+    private sealed class BlockingExportGameProvider : IGameProvider
+    {
+        private readonly TaskCompletionSource<bool> _twoStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private readonly TaskCompletionSource<bool> _release =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private int _callCount;
+
+        public string ProviderKey => "steam";
+
+        public async Task WaitUntilTwoStartedAsync()
+        {
+            await _twoStarted.Task.WaitAsync(
+                TimeSpan.FromSeconds(5),
+                TestContext.Current.CancellationToken);
+        }
+
+        public void Release()
+        {
+            _release.TrySetResult(true);
+        }
+
+        public async Task<ErrorOr<OwnedGamesResponse>>
+            GetOwnedGamesAsync(long userId)
+        {
+            if (Interlocked.Increment(ref _callCount) == 2)
+            {
+                _twoStarted.TrySetResult(true);
+            }
+
+            await _release.Task.WaitAsync(
+                TestContext.Current.CancellationToken);
+
+            OwnedGamesResponse library =
+                new(
+                    userId,
+                    1,
+                    [
+                        new Game(
+                        620,
+                        "Portal 2",
+                        120,
+                        null,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0)
+                    ]);
+
+            return library;
+        }
+
+        public Task<ErrorOr<GameDetails>>
+            GetRandomGameDetailsAsync(
+                long userId,
+                bool unplayedOnly = false)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<RandomGamePickAttempt>
+            GetRandomGamePickAsync(
+                long userId,
+                bool unplayedOnly = false)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ErrorOr<long>>
+            ResolveIdentifierAsync(string identifier)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task InvalidateOwnedGamesCacheAsync(long userId)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FailingThenSuccessfulExportGameProvider

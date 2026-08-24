@@ -272,6 +272,34 @@ public static class ServiceExtensions
     {
         services.AddRateLimiter(options =>
         {
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            httpContext =>
+            {
+                var policyName = httpContext
+                    .GetEndpoint()?
+                    .Metadata
+                    .GetMetadata<EnableRateLimitingAttribute>()?
+                    .PolicyName;
+
+                if (!string.Equals(
+                        policyName,
+                        "library_export_limiter",
+                        StringComparison.Ordinal))
+                {
+                    return RateLimitPartition.GetNoLimiter(
+                        "non-library-export");
+                }
+
+                return RateLimitPartition.GetConcurrencyLimiter(
+                    partitionKey: "library-export-global",
+                    factory: _ => new ConcurrencyLimiterOptions
+                    {
+                        PermitLimit = 2, // TODO: Make configurable
+                        QueueLimit = 0,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                    });
+            });
+
             options.AddFixedWindowLimiter("steam_api_limiter", limiterOptions =>
             {
                 limiterOptions.Window = TimeSpan.FromSeconds(rateLimiting.WindowSeconds);
@@ -311,8 +339,8 @@ public static class ServiceExtensions
                         StringComparison.Ordinal))
                 {
                     await context.HttpContext.Response.WriteAsync(
-                        "A Steam library CSV export is already in progress for this IP address. " +
-                        "Please wait for it to finish and try again.",
+                        "Steam library CSV export capacity is currently busy. " +
+                        "Please wait for an in-progress export to finish and try again.",
                         token);
 
                     return;
