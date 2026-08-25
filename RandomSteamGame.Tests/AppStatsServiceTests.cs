@@ -88,6 +88,7 @@ public class AppStatsServiceTests : IDisposable
         Assert.Equal("hashed-visitor-a", payload.VisitorId);
         Assert.Equal(1, payload.TotalHits);
         Assert.Equal(1, payload.UniqueVisitors);
+        Assert.True(payload.IsUniqueVisitor);
     }
 
     [Fact]
@@ -98,6 +99,17 @@ public class AppStatsServiceTests : IDisposable
 
         Assert.Equal(2, stats.TotalHits);
         Assert.Equal(1, stats.UniqueVisitors);
+
+        Assert.Equal(2, _missionControl.PublishedEvents.Count);
+
+        var firstPayload = Assert.IsType<SiteVisitRecordedEvent>(
+            _missionControl.PublishedEvents[0].Payload);
+
+        var secondPayload = Assert.IsType<SiteVisitRecordedEvent>(
+            _missionControl.PublishedEvents[1].Payload);
+
+        Assert.True(firstPayload.IsUniqueVisitor);
+        Assert.False(secondPayload.IsUniqueVisitor);
     }
 
     [Fact]

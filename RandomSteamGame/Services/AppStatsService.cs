@@ -49,11 +49,13 @@ public sealed class AppStatsService : IAppStatsService
         try
         {
             var visitorId = _visitorIdProvider.GetVisitorId(ip);
+            var isUniqueVisitor = await IsUniqueVisitorHitAsync(ip);
 
             await _missionControlClient.TryPublishAsync(
                 eventType: RandomSteamGameEventTypes.SiteVisitRecorded,
                 payload: new SiteVisitRecordedEvent(
                     VisitorId: visitorId,
+                    IsUniqueVisitor: isUniqueVisitor,
                     TotalHits: response.TotalHits,
                     UniqueVisitors: response.UniqueVisitors,
                     DurationMilliseconds: stopwatch.ElapsedMilliseconds),
@@ -108,5 +110,29 @@ public sealed class AppStatsService : IAppStatsService
 
         var result = await command.ExecuteScalarAsync();
         return result is null or DBNull ? 0 : Convert.ToInt64(result);
+    }
+
+    private async Task<bool> IsUniqueVisitorHitAsync(string visitorKey)
+    {
+        if (_dbConnection.State != System.Data.ConnectionState.Open)
+        {
+            await _dbConnection.OpenAsync();
+        }
+
+        await using var command = _dbConnection.CreateCommand();
+        command.CommandText = """
+        SELECT Hits
+        FROM Visitors
+        WHERE IpAddress = $visitorKey
+        LIMIT 1;
+        """;
+
+        command.Parameters.AddWithValue("$visitorKey", visitorKey.Trim());
+
+        var result = await command.ExecuteScalarAsync();
+
+        return result is not null
+            && result is not DBNull
+            && Convert.ToInt64(result) == 1;
     }
 }
