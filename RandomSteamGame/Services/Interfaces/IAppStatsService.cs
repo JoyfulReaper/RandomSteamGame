@@ -11,7 +11,11 @@ namespace RandomSteamGame.Services.Interfaces;
 
 public interface IAppStatsService
 {
-    Task<AppStatsResponse> RecordHitAsync(string ip);
+    Task<AppStatsResponse> RecordHitAsync(
+        string ip,
+        string? userAgent = null);
+
     Task<AppStatsResponse> GetStatsAsync();
+
     Task IncrementRandomGamesGeneratedAsync();
 }

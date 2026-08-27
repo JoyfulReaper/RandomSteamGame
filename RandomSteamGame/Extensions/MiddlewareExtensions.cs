@@ -59,7 +59,17 @@ public static class MiddlewareExtensions
         var canonicalUrls = app.ApplicationServices.GetRequiredService<CanonicalUrlService>();
         app.Use(async (context, next) =>
         {
-            if (canonicalUrls.IsBetaHost(context.Request.Host.Host))
+            if (canonicalUrls.IsBetaHost(context.Request.Host.Host) ||
+                context.Request.Path.StartsWithSegments(
+                    "/api",
+                    StringComparison.OrdinalIgnoreCase) ||
+                context.Request.Path.StartsWithSegments(
+                    "/health",
+                    StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    context.Request.Path.Value,
+                    "/error",
+                    StringComparison.OrdinalIgnoreCase))
             {
                 context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
             }

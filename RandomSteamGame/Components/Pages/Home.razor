@@ -258,10 +258,14 @@
     {
         try
         {
-            var ip = HttpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
+            var httpContext = HttpContextAccessor.HttpContext;
+            var ip = httpContext?.Connection.RemoteIpAddress?.ToString();
+            var userAgent = httpContext?.Request.Headers["User-Agent"]
+                .ToString();
+
             _appStats = string.IsNullOrWhiteSpace(ip)
                 ? await AppStatsService.GetStatsAsync()
-                : await AppStatsService.RecordHitAsync(ip);
+                : await AppStatsService.RecordHitAsync(ip, userAgent);
         }
         catch (Exception ex)
         {

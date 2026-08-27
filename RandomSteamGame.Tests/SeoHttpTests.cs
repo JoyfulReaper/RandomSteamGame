@@ -27,37 +27,78 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
     private const string CanonicalOrigin = "https://randomsteam.kgivler.com";
     private const string HomeTitle = "Random Steam Game Picker – Pick From Your Library";
 
+    public static TheoryData<string, string, string, string> IndexablePageCases => new()
+    {
+        { "/", HomeTitle, CanonicalOrigin, "Random Steam Game Picker" },
+        {
+            "/library-export",
+            "Export Steam Library to CSV – Random Steam Game",
+            $"{CanonicalOrigin}/library-export",
+            "Export Your Steam Library"
+        },
+        {
+            "/support",
+            "Support Random Steam Game Picker",
+            $"{CanonicalOrigin}/support",
+            "Support the Picker"
+        },
+        {
+            "/contributors",
+            "Contributors - Random Steam Game Picker",
+            $"{CanonicalOrigin}/contributors",
+            "Contributors & Sponsors"
+        }
+    };
+
+    private readonly SeoWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     public SeoHttpTests(SeoWebApplicationFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             AllowAutoRedirect = false
         });
     }
 
+    [Theory]
+    [MemberData(nameof(IndexablePageCases))]
+    public async Task IndexablePage_ReturnsCompleteServerRenderedMetadata(
+        string path,
+        string expectedTitle,
+        string expectedCanonicalUrl,
+        string expectedH1)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await _client.GetAsync(path, cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expectedTitle, document.Title);
+
+        var description = GetAttribute(document, "meta[name='description']", "content");
+        Assert.False(string.IsNullOrWhiteSpace(description));
+        Assert.Equal(expectedCanonicalUrl, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.Equal(expectedTitle, GetAttribute(document, "meta[property='og:title']", "content"));
+        Assert.Equal(description, GetAttribute(document, "meta[property='og:description']", "content"));
+        Assert.Equal(expectedCanonicalUrl, GetAttribute(document, "meta[property='og:url']", "content"));
+        Assert.Equal("website", GetAttribute(document, "meta[property='og:type']", "content"));
+        Assert.Equal("summary", GetAttribute(document, "meta[name='twitter:card']", "content"));
+        Assert.Equal(expectedTitle, GetAttribute(document, "meta[name='twitter:title']", "content"));
+        Assert.Equal(description, GetAttribute(document, "meta[name='twitter:description']", "content"));
+        Assert.Equal(expectedH1, document.QuerySelector("h1")?.TextContent.Trim());
+    }
+
     [Fact]
-    public async Task Home_ReturnsServerRenderedSeoMetadata()
+    public async Task Home_ReturnsValidStructuredData()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         using var response = await _client.GetAsync("/", cancellationToken);
         var document = await ParseHtmlAsync(response, cancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(HomeTitle, document.Title);
-        Assert.Equal(CanonicalOrigin, GetAttribute(document, "link[rel='canonical']", "href"));
-
         var description = GetAttribute(document, "meta[name='description']", "content");
-        Assert.False(string.IsNullOrWhiteSpace(description));
-        Assert.Equal(HomeTitle, GetAttribute(document, "meta[property='og:title']", "content"));
-        Assert.Equal(description, GetAttribute(document, "meta[property='og:description']", "content"));
-        Assert.Equal(CanonicalOrigin, GetAttribute(document, "meta[property='og:url']", "content"));
-        Assert.Equal("website", GetAttribute(document, "meta[property='og:type']", "content"));
-        Assert.Equal("summary", GetAttribute(document, "meta[name='twitter:card']", "content"));
-        Assert.Equal(HomeTitle, GetAttribute(document, "meta[name='twitter:title']", "content"));
-        Assert.Equal(description, GetAttribute(document, "meta[name='twitter:description']", "content"));
-        Assert.Equal("Random Steam Game Picker", document.QuerySelector("h1")?.TextContent.Trim());
 
         var structuredDataElement = Assert.IsAssignableFrom<IElement>(
             document.QuerySelector("script[type='application/ld+json']"));
@@ -86,6 +127,39 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Contains(
             "Steam Deck compatibility included in library exports",
             featureList);
+    }
+
+    [Fact]
+    public async Task Home_ReturnsSeoCriticalContentInInitialHtml()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await _client.GetAsync("/", cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Random Steam Game Picker", document.QuerySelector("h1")?.TextContent.Trim());
+
+        var pickerForm = Assert.IsAssignableFrom<IElement>(document.QuerySelector("form"));
+        Assert.Contains("Generate Random Game", pickerForm.TextContent, StringComparison.Ordinal);
+        Assert.Contains("How it works", document.Body?.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Frequently asked questions", document.Body?.TextContent, StringComparison.Ordinal);
+        Assert.NotNull(document.QuerySelector("a[href='/library-export']"));
+    }
+
+    [Fact]
+    public async Task LibraryExport_ReturnsSeoCriticalContentInInitialHtml()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await _client.GetAsync("/library-export", cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Export Your Steam Library", document.QuerySelector("h1")?.TextContent.Trim());
+        Assert.Contains("Download your public Steam library as CSV", document.Body?.TextContent, StringComparison.Ordinal);
+        Assert.Contains("What is included?", document.Body?.TextContent, StringComparison.Ordinal);
+
+        var exportForm = Assert.IsAssignableFrom<IElement>(document.QuerySelector("form"));
+        Assert.Contains("Download Steam Library CSV", exportForm.TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -151,6 +225,74 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
             directive => directive.StartsWith("Disallow:", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData("/api/stats")]
+    [InlineData("/health/live")]
+    [InlineData("/error")]
+    public async Task NonPageEndpoint_ReturnsNoindexNofollowHeader(string path)
+    {
+        using var response = await _client.GetAsync(
+            path,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+    }
+
+    [Fact]
+    public async Task JsonApiResponse_ReturnsNoindexNofollowHeader()
+    {
+        using var response = await _client.GetAsync(
+            "/api/steam/1/library",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+    }
+
+    [Fact]
+    public async Task DirectNotFoundPage_ReturnsNotFoundAndNoindexNofollow()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await _client.GetAsync("/not-found", cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+        Assert.Equal(
+            "noindex,nofollow",
+            GetAttribute(document, "meta[name='robots']", "content").Replace(" ", string.Empty));
+    }
+
+    [Fact]
+    public async Task DirectErrorPage_ReturnsInternalServerErrorAndNoindexNofollow()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await _client.GetAsync("/Error", cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+        Assert.Equal(
+            "noindex,nofollow",
+            GetAttribute(document, "meta[name='robots']", "content").Replace(" ", string.Empty));
+    }
+
+    [Fact]
+    public async Task UnknownRoute_ReturnsNotFoundAndNoindexNofollow()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await _client.GetAsync(
+            "/definitely-not-a-public-route",
+            cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+        Assert.Equal(
+            "noindex,nofollow",
+            GetAttribute(document, "meta[name='robots']", "content").Replace(" ", string.Empty));
+    }
+
     [Fact]
     public async Task SupportedRandomGame_ReturnsNoindexMetadataAndProductionCanonical()
     {
@@ -180,9 +322,24 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
     }
 
     [Fact]
-    public async Task BetaHost_ReturnsNoindexNofollowHeader()
+    public async Task InvalidRandomGameRoute_ReturnsNotFoundAndNoindexNofollowHeader()
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/support");
+        using var response = await _client.GetAsync(
+            "/random-game/steam/not-a-number",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/random-game/steam/76561197960287930")]
+    [InlineData("/health/live")]
+    [InlineData("/support")]
+    public async Task BetaHost_ReturnsNoindexNofollowHeader(string path)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Host = "randombeta.kgivler.com";
 
         using var response = await _client.SendAsync(request, TestContext.Current.CancellationToken);
@@ -192,42 +349,50 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
     }
 
     [Fact]
-    public async Task LibraryExport_ReturnsSeoMetadata()
+    public async Task ProductionExceptionHandler_ReturnsServerRenderedNoindexErrorPage()
     {
-        var cancellationToken =
-            TestContext.Current.CancellationToken;
+        using var productionFactory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Production");
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IAppStatsService>();
+                services.AddScoped<IAppStatsService, ThrowingAppStatsService>();
+            });
+        });
+        using var client = productionFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var cancellationToken = TestContext.Current.CancellationToken;
 
-        using var response =
-            await _client.GetAsync(
-                "/library-export",
-                cancellationToken);
+        using var response = await client.GetAsync("/", cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
 
-        var document =
-            await ParseHtmlAsync(
-                response,
-                cancellationToken);
-
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+        Assert.Equal("500: CORE UNSTABLE", document.Title);
         Assert.Equal(
-            HttpStatusCode.OK,
-            response.StatusCode);
+            "noindex,nofollow",
+            GetAttribute(document, "meta[name='robots']", "content").Replace(" ", string.Empty));
+        Assert.False(string.IsNullOrWhiteSpace(
+            GetAttribute(document, "meta[name='description']", "content")));
+    }
 
-        Assert.Equal(
-            "Export Steam Library to CSV – Random Steam Game",
-            document.Title);
+    private sealed class ThrowingAppStatsService : IAppStatsService
+    {
+        public Task<AppStatsResponse> RecordHitAsync(
+            string ip,
+            string? userAgent = null) =>
+            throw new InvalidOperationException(
+                "Intentional production pipeline SEO test failure.");
 
-        Assert.Equal(
-            $"{CanonicalOrigin}/library-export",
-            GetAttribute(
-                document,
-                "link[rel='canonical']",
-                "href"));
+        public Task<AppStatsResponse> GetStatsAsync() =>
+            throw new InvalidOperationException(
+                "Intentional production pipeline SEO test failure.");
 
-        Assert.False(
-            string.IsNullOrWhiteSpace(
-                GetAttribute(
-                    document,
-                    "meta[name='description']",
-                    "content")));
+        public Task IncrementRandomGamesGeneratedAsync() =>
+            Task.CompletedTask;
     }
 
     private static async Task<IDocument> ParseHtmlAsync(
@@ -344,11 +509,16 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
     {
         private static readonly AppStatsResponse EmptyStats = new(0, 0, 0);
 
-        public Task<AppStatsResponse> RecordHitAsync(string ip) => Task.FromResult(EmptyStats);
+        public Task<AppStatsResponse> RecordHitAsync(
+            string ip,
+            string? userAgent = null) =>
+            Task.FromResult(EmptyStats);
 
-        public Task<AppStatsResponse> GetStatsAsync() => Task.FromResult(EmptyStats);
+        public Task<AppStatsResponse> GetStatsAsync() =>
+            Task.FromResult(EmptyStats);
 
-        public Task IncrementRandomGamesGeneratedAsync() => Task.CompletedTask;
+        public Task IncrementRandomGamesGeneratedAsync() =>
+            Task.CompletedTask;
     }
 
     private sealed class StubBetaAvailabilityService : IBetaAvailabilityService

@@ -1,4 +1,5 @@
-﻿using RandomSteamGame.Options;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 
 namespace RandomSteamGame.Tests;
@@ -80,7 +81,8 @@ public sealed class VisitorIdProviderTests
     {
         var provider = new VisitorIdProvider(
             Microsoft.Extensions.Options.Options.Create(
-                new TelemetryOptions()));
+                new TelemetryOptions()),
+            NullLogger<VisitorIdProvider>.Instance);
 
         var visitorId = provider.GetVisitorId("192.0.2.42");
 
@@ -107,6 +109,7 @@ public sealed class VisitorIdProviderTests
                 new TelemetryOptions
                 {
                     VisitorHashKey = key
-                }));
+                }),
+            NullLogger<VisitorIdProvider>.Instance);
     }
 }
