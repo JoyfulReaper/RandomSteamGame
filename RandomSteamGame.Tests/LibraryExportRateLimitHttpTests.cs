@@ -129,15 +129,31 @@ public sealed class LibraryExportRateLimitHttpTests :
 
         await provider.WaitUntilFirstStartedAsync();
 
-        using var second = await SendExportAsync(
+        var secondTask = SendExportAsync(
             client,
             "198.51.100.71");
 
-        Assert.Equal(
-            HttpStatusCode.TooManyRequests,
-            second.StatusCode);
+        try
+        {
+            var secondEnteredProviderTask =
+                provider.WaitUntilTwoStartedAsync();
 
-        provider.Release();
+            var completedTask = await Task.WhenAny(
+                secondTask,
+                secondEnteredProviderTask);
+
+            Assert.Same(secondTask, completedTask);
+
+            using var second = await secondTask;
+
+            Assert.Equal(
+                HttpStatusCode.TooManyRequests,
+                second.StatusCode);
+        }
+        finally
+        {
+            provider.Release();
+        }
 
         using var first = await firstTask;
 

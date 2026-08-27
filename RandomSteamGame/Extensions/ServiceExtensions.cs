@@ -76,8 +76,7 @@ public static class ServiceExtensions
         services.AddSteamServices(config);
         services.AddApplicationCors(config, env);
 
-        var libraryExportOptions = GetLibraryExportOptions(config);
-        services.AddSteamRateLimiting(steamOptions.RateLimiting, libraryExportOptions);
+        services.AddSteamRateLimiting(steamOptions.RateLimiting);
 
         services.AddApplicationHealthChecks();
         services.AddMemoryCache();
@@ -276,90 +275,114 @@ public static class ServiceExtensions
 
     private static IServiceCollection AddSteamRateLimiting(
         this IServiceCollection services,
-        RateLimitingOptions rateLimiting,
-        LibraryExportOptions libraryExport)
+        RateLimitingOptions rateLimiting)
     {
-        services.AddRateLimiter(options =>
-        {
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
-            httpContext =>
-            {
-                var policyName = httpContext
-                    .GetEndpoint()?
-                    .Metadata
-                    .GetMetadata<EnableRateLimitingAttribute>()?
-                    .PolicyName;
+        services.AddRateLimiter();
 
-                if (!string.Equals(
-                        policyName,
-                        "library_export_limiter",
-                        StringComparison.Ordinal))
+        services
+            .AddOptions<Microsoft.AspNetCore.RateLimiting.RateLimiterOptions>()
+            .Configure<Microsoft.Extensions.Options.IOptions<LibraryExportOptions>>(
+                (options, libraryExportOptions) =>
                 {
-                    return RateLimitPartition.GetNoLimiter(
-                        "non-library-export");
-                }
+                    options.GlobalLimiter =
+                        PartitionedRateLimiter.Create<HttpContext, string>(
+                            httpContext =>
+                            {
+                                var policyName = httpContext
+                                    .GetEndpoint()?
+                                    .Metadata
+                                    .GetMetadata<EnableRateLimitingAttribute>()?
+                                    .PolicyName;
 
-                return RateLimitPartition.GetConcurrencyLimiter(
-                    partitionKey: "library-export-global",
-                    factory: _ => new ConcurrencyLimiterOptions
-                    {
-                        PermitLimit = libraryExport.GlobalConcurrency,
-                        QueueLimit = 0,
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
-                    });
-            });
+                                if (!string.Equals(
+                                        policyName,
+                                        "library_export_limiter",
+                                        StringComparison.Ordinal))
+                                {
+                                    return RateLimitPartition.GetNoLimiter(
+                                        "non-library-export");
+                                }
 
-            options.AddFixedWindowLimiter("steam_api_limiter", limiterOptions =>
-            {
-                limiterOptions.Window = TimeSpan.FromSeconds(rateLimiting.WindowSeconds);
-                limiterOptions.PermitLimit = rateLimiting.PermitLimit;
-                limiterOptions.QueueLimit = 0;
-                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-            });
+                                return RateLimitPartition.GetConcurrencyLimiter(
+                                    partitionKey: "library-export-global",
+                                    factory: _ => new ConcurrencyLimiterOptions
+                                    {
+                                        PermitLimit =
+                                            libraryExportOptions.Value.GlobalConcurrency,
+                                        QueueLimit = 0,
+                                        QueueProcessingOrder =
+                                            QueueProcessingOrder.OldestFirst
+                                    });
+                            });
 
-            options.AddPolicy("library_export_limiter", httpContext =>
-            {
-                var partitionKey = LibraryExportRateLimitPartitionKey.From(httpContext.Connection.RemoteIpAddress);
+                    options.AddFixedWindowLimiter(
+                        "steam_api_limiter",
+                        limiterOptions =>
+                        {
+                            limiterOptions.Window =
+                                TimeSpan.FromSeconds(
+                                    rateLimiting.WindowSeconds);
 
-                return RateLimitPartition.GetConcurrencyLimiter(
-                    partitionKey: partitionKey,
-                    factory: _ => new ConcurrencyLimiterOptions
-                    {
-                        PermitLimit = 1,
-                        QueueLimit = 0,
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
-                    });
-            });
+                            limiterOptions.PermitLimit =
+                                rateLimiting.PermitLimit;
 
-            options.OnRejected = async (context, token) =>
-            {
-                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
+                            limiterOptions.QueueLimit = 0;
 
-                var policyName = context.HttpContext
-                    .GetEndpoint()?
-                    .Metadata
-                    .GetMetadata<EnableRateLimitingAttribute>()?
-                    .PolicyName;
+                            limiterOptions.QueueProcessingOrder =
+                                QueueProcessingOrder.OldestFirst;
+                        });
 
-                if (string.Equals(
-                        policyName,
+                    options.AddPolicy(
                         "library_export_limiter",
-                        StringComparison.Ordinal))
-                {
-                    await context.HttpContext.Response.WriteAsync(
-                        "Steam library CSV export capacity is currently busy. " +
-                        "Please wait for an in-progress export to finish and try again.",
-                        token);
+                        httpContext =>
+                        {
+                            var partitionKey =
+                                LibraryExportRateLimitPartitionKey.From(
+                                    httpContext.Connection.RemoteIpAddress);
 
-                    return;
-                }
+                            return RateLimitPartition.GetConcurrencyLimiter(
+                                partitionKey: partitionKey,
+                                factory: _ => new ConcurrencyLimiterOptions
+                                {
+                                    PermitLimit = 1,
+                                    QueueLimit = 0,
+                                    QueueProcessingOrder =
+                                        QueueProcessingOrder.OldestFirst
+                                });
+                        });
 
-                await context.HttpContext.Response.WriteAsync(
-                    "Too many requests. Please slow down and try again in a few seconds.",
-                    token);
-            };
-        });
+                    options.OnRejected = async (context, token) =>
+                    {
+                        context.HttpContext.Response.StatusCode =
+                            StatusCodes.Status429TooManyRequests;
+
+                        context.HttpContext.Response.ContentType =
+                            "text/plain; charset=utf-8";
+
+                        var policyName = context.HttpContext
+                            .GetEndpoint()?
+                            .Metadata
+                            .GetMetadata<EnableRateLimitingAttribute>()?
+                            .PolicyName;
+
+                        if (string.Equals(
+                                policyName,
+                                "library_export_limiter",
+                                StringComparison.Ordinal))
+                        {
+                            await context.HttpContext.Response.WriteAsync(
+                                "Steam library CSV export capacity is currently busy. " +
+                                "Please wait for an in-progress export to finish and try again.",
+                                token);
+
+                            return;
+                        }
+
+                        await context.HttpContext.Response.WriteAsync(
+                            "Too many requests. Please slow down and try again in a few seconds.",
+                            token);
+                    };
+                });
 
         return services;
     }
@@ -378,15 +401,6 @@ public static class ServiceExtensions
         {
             throw new InvalidOperationException("CRITICAL: Invalid Steam API Key.");
         }
-    }
-
-    private static LibraryExportOptions GetLibraryExportOptions(
-        IConfiguration config)
-    {
-        return config
-            .GetSection(LibraryExportOptions.SectionName)
-            .Get<LibraryExportOptions>()
-            ?? new LibraryExportOptions();
     }
 }
 
