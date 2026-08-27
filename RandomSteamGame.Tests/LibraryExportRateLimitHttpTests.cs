@@ -1,6 +1,7 @@
 ﻿using ErrorOr;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RandomSteamGame.Common.Errors;
@@ -23,6 +24,7 @@ public sealed class LibraryExportRateLimitHttpTests :
     {
         _factory = factory;
     }
+
 
     [Fact]
     public async Task LibraryExportLimiter_LimitsGlobalConcurrentExports()
@@ -89,6 +91,59 @@ public sealed class LibraryExportRateLimitHttpTests :
         Assert.Equal(
             HttpStatusCode.OK,
             second.StatusCode);
+    }
+
+    [Fact]
+    public async Task LibraryExportLimiter_UsesConfiguredGlobalConcurrency()
+    {
+        var provider = new BlockingExportGameProvider();
+
+        using var application =
+            _factory.WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureAppConfiguration((_, configuration) =>
+                {
+                    configuration.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["Steam:LibraryExport:GlobalConcurrency"] = "1"
+                        });
+                });
+
+                builder.ConfigureTestServices(services =>
+                {
+                    services.RemoveAll<IGameProvider>();
+                    services.AddSingleton<IGameProvider>(provider);
+                });
+            });
+
+        using var client = application.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false
+            });
+
+        var firstTask = SendExportAsync(
+            client,
+            "198.51.100.70");
+
+        await provider.WaitUntilFirstStartedAsync();
+
+        using var second = await SendExportAsync(
+            client,
+            "198.51.100.71");
+
+        Assert.Equal(
+            HttpStatusCode.TooManyRequests,
+            second.StatusCode);
+
+        provider.Release();
+
+        using var first = await firstTask;
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            first.StatusCode);
     }
 
     [Fact]
@@ -272,6 +327,9 @@ public sealed class LibraryExportRateLimitHttpTests :
         private readonly TaskCompletionSource<bool> _twoStarted =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        private readonly TaskCompletionSource<bool> _firstStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly TaskCompletionSource<bool> _release =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -294,7 +352,14 @@ public sealed class LibraryExportRateLimitHttpTests :
         public async Task<ErrorOr<OwnedGamesResponse>>
             GetOwnedGamesAsync(long userId)
         {
-            if (Interlocked.Increment(ref _callCount) == 2)
+            var callCount = Interlocked.Increment(ref _callCount);
+
+            if (callCount == 1)
+            {
+                _firstStarted.TrySetResult(true);
+            }
+
+            if (callCount == 2)
             {
                 _twoStarted.TrySetResult(true);
             }
@@ -320,6 +385,14 @@ public sealed class LibraryExportRateLimitHttpTests :
                     ]);
 
             return library;
+        }
+
+
+        public async Task WaitUntilFirstStartedAsync()
+        {
+            await _firstStarted.Task.WaitAsync(
+                TimeSpan.FromSeconds(5),
+                TestContext.Current.CancellationToken);
         }
 
         public Task<ErrorOr<GameDetails>>

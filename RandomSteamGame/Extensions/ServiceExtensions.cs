@@ -303,6 +303,7 @@ public static class ServiceExtensions
                     partitionKey: "library-export-global",
                     factory: _ => new ConcurrencyLimiterOptions
                     {
+                        PermitLimit = libraryExport.GlobalConcurrency,
                         QueueLimit = 0,
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
                     });
