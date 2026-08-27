@@ -53,6 +53,11 @@ public static class ServiceExtensions
         var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
         var steamOptions = GetSteamOptions(config);
 
+        services.AddOptions<LibraryExportOptions>()
+            .Bind(config.GetSection(LibraryExportOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.Configure<ApplicationOptions>(config.GetSection(ApplicationOptions.SectionName));
         services.Configure<TelemetryOptions>(config.GetSection(TelemetryOptions.SectionName));
         services.AddSingleton<IVisitorIdProvider, VisitorIdProvider>();
@@ -70,7 +75,10 @@ public static class ServiceExtensions
         services.AddPersistenceServices(connectionString);
         services.AddSteamServices(config);
         services.AddApplicationCors(config, env);
-        services.AddSteamRateLimiting(steamOptions.RateLimiting);
+
+        var libraryExportOptions = GetLibraryExportOptions(config);
+        services.AddSteamRateLimiting(steamOptions.RateLimiting, libraryExportOptions);
+
         services.AddApplicationHealthChecks();
         services.AddMemoryCache();
         services.AddHttpClient<RandomSteamApiClient>();
@@ -268,7 +276,8 @@ public static class ServiceExtensions
 
     private static IServiceCollection AddSteamRateLimiting(
         this IServiceCollection services,
-        RateLimitingOptions rateLimiting)
+        RateLimitingOptions rateLimiting,
+        LibraryExportOptions libraryExport)
     {
         services.AddRateLimiter(options =>
         {
@@ -294,7 +303,6 @@ public static class ServiceExtensions
                     partitionKey: "library-export-global",
                     factory: _ => new ConcurrencyLimiterOptions
                     {
-                        PermitLimit = 2, // TODO: Make configurable
                         QueueLimit = 0,
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst
                     });
@@ -369,6 +377,15 @@ public static class ServiceExtensions
         {
             throw new InvalidOperationException("CRITICAL: Invalid Steam API Key.");
         }
+    }
+
+    private static LibraryExportOptions GetLibraryExportOptions(
+        IConfiguration config)
+    {
+        return config
+            .GetSection(LibraryExportOptions.SectionName)
+            .Get<LibraryExportOptions>()
+            ?? new LibraryExportOptions();
     }
 }
 
