@@ -1,6 +1,6 @@
 /*
  * Random Steam Game
- * 
+ *
  * Copyright (c) 2026 Kyle Givler
  * Licensed under the MIT License.
  */
@@ -45,11 +45,16 @@ public class AppStatsServiceTests : IDisposable
         InitializeSchema();
 
         _connection = new SqliteConnection(_connectionString);
-        var hitCounter = new SqliteHitCounter(Microsoft.Extensions.Options.Options.Create(new SqliteHitCounterOptions
-        {
-            ConnectionString = _connectionString
-        }));
+
+        var hitCounter = new SqliteHitCounter(
+            Microsoft.Extensions.Options.Options.Create(
+                new SqliteHitCounterOptions
+                {
+                    ConnectionString = _connectionString
+                }));
+
         _missionControl = new RecordingMissionControlClient();
+
         _service = new AppStatsService(
             _connection,
             hitCounter,
@@ -71,12 +76,15 @@ public class AppStatsServiceTests : IDisposable
     [Fact]
     public async Task RecordHitAsync_OneVisitor_ReturnsOneHitAndOneUniqueVisitor()
     {
-        var stats = await _service.RecordHitAsync("visitor-a");
+        var stats = await _service.RecordHitAsync(
+            "visitor-a",
+            "RandomSteamGame-Test/1.0");
 
         Assert.Equal(1, stats.TotalHits);
         Assert.Equal(1, stats.UniqueVisitors);
 
-        var published = Assert.Single(_missionControl.PublishedEvents);
+        var published = Assert.Single(
+            _missionControl.PublishedEvents);
 
         Assert.Equal(
             RandomSteamGameEventTypes.SiteVisitRecorded,
@@ -85,7 +93,14 @@ public class AppStatsServiceTests : IDisposable
         var payload = Assert.IsType<SiteVisitRecordedEvent>(
             published.Payload);
 
-        Assert.Equal("hashed-visitor-a", payload.VisitorId);
+        Assert.Equal(
+            "hashed-visitor-a",
+            payload.VisitorId);
+
+        Assert.Equal(
+            "RandomSteamGame-Test/1.0",
+            payload.UserAgent);
+
         Assert.Equal(1, payload.TotalHits);
         Assert.Equal(1, payload.UniqueVisitors);
         Assert.True(payload.IsUniqueVisitor);
@@ -94,13 +109,20 @@ public class AppStatsServiceTests : IDisposable
     [Fact]
     public async Task RecordHitAsync_SameVisitorTwice_IncrementsHitsButNotUniqueVisitors()
     {
-        await _service.RecordHitAsync("visitor-a");
-        var stats = await _service.RecordHitAsync("visitor-a");
+        await _service.RecordHitAsync(
+            "visitor-a",
+            "First-Agent/1.0");
+
+        var stats = await _service.RecordHitAsync(
+            "visitor-a",
+            "Second-Agent/2.0");
 
         Assert.Equal(2, stats.TotalHits);
         Assert.Equal(1, stats.UniqueVisitors);
 
-        Assert.Equal(2, _missionControl.PublishedEvents.Count);
+        Assert.Equal(
+            2,
+            _missionControl.PublishedEvents.Count);
 
         var firstPayload = Assert.IsType<SiteVisitRecordedEvent>(
             _missionControl.PublishedEvents[0].Payload);
@@ -110,16 +132,98 @@ public class AppStatsServiceTests : IDisposable
 
         Assert.True(firstPayload.IsUniqueVisitor);
         Assert.False(secondPayload.IsUniqueVisitor);
+
+        Assert.Equal(
+            "First-Agent/1.0",
+            firstPayload.UserAgent);
+
+        Assert.Equal(
+            "Second-Agent/2.0",
+            secondPayload.UserAgent);
     }
 
     [Fact]
     public async Task RecordHitAsync_TwoVisitors_ReturnsTwoUniqueVisitors()
     {
         await _service.RecordHitAsync("visitor-a");
-        var stats = await _service.RecordHitAsync("visitor-b");
+
+        var stats = await _service.RecordHitAsync(
+            "visitor-b");
 
         Assert.Equal(2, stats.TotalHits);
         Assert.Equal(2, stats.UniqueVisitors);
+    }
+
+    [Fact]
+    public async Task RecordHitAsync_NullUserAgent_PublishesNullUserAgent()
+    {
+        await _service.RecordHitAsync(
+            "visitor-a",
+            null);
+
+        var published = Assert.Single(
+            _missionControl.PublishedEvents);
+
+        var payload = Assert.IsType<SiteVisitRecordedEvent>(
+            published.Payload);
+
+        Assert.Null(payload.UserAgent);
+    }
+
+    [Fact]
+    public async Task RecordHitAsync_WhitespaceUserAgent_PublishesNullUserAgent()
+    {
+        await _service.RecordHitAsync(
+            "visitor-a",
+            "   ");
+
+        var published = Assert.Single(
+            _missionControl.PublishedEvents);
+
+        var payload = Assert.IsType<SiteVisitRecordedEvent>(
+            published.Payload);
+
+        Assert.Null(payload.UserAgent);
+    }
+
+    [Fact]
+    public async Task RecordHitAsync_UserAgent_TrimsWhitespace()
+    {
+        await _service.RecordHitAsync(
+            "visitor-a",
+            "  RandomSteamGame-Test/1.0  ");
+
+        var published = Assert.Single(
+            _missionControl.PublishedEvents);
+
+        var payload = Assert.IsType<SiteVisitRecordedEvent>(
+            published.Payload);
+
+        Assert.Equal(
+            "RandomSteamGame-Test/1.0",
+            payload.UserAgent);
+    }
+
+    [Fact]
+    public async Task RecordHitAsync_LongUserAgent_TruncatesUserAgent()
+    {
+        var userAgent = new string('x', 600);
+
+        await _service.RecordHitAsync(
+            "visitor-a",
+            userAgent);
+
+        var published = Assert.Single(
+            _missionControl.PublishedEvents);
+
+        var payload = Assert.IsType<SiteVisitRecordedEvent>(
+            published.Payload);
+
+        Assert.NotNull(payload.UserAgent);
+        Assert.Equal(512, payload.UserAgent.Length);
+        Assert.Equal(
+            new string('x', 512),
+            payload.UserAgent);
     }
 
     [Fact]
@@ -130,7 +234,9 @@ public class AppStatsServiceTests : IDisposable
 
         var stats = await _service.GetStatsAsync();
 
-        Assert.Equal(2, stats.RandomGamesGenerated);
+        Assert.Equal(
+            2,
+            stats.RandomGamesGenerated);
     }
 
     [Fact]
@@ -153,7 +259,9 @@ public class AppStatsServiceTests : IDisposable
             new StubVisitorIdProvider(),
             NullLogger<AppStatsService>.Instance);
 
-        var stats = await service.RecordHitAsync("visitor-a");
+        var stats = await service.RecordHitAsync(
+            "visitor-a",
+            "RandomSteamGame-Test/1.0");
 
         Assert.Equal(1, stats.TotalHits);
         Assert.Equal(1, stats.UniqueVisitors);
@@ -170,16 +278,22 @@ public class AppStatsServiceTests : IDisposable
 
         if (Directory.Exists(_basePath))
         {
-            Directory.Delete(_basePath, recursive: true);
+            Directory.Delete(
+                _basePath,
+                recursive: true);
         }
     }
 
     private void InitializeSchema()
     {
-        using var connection = new SqliteConnection(_connectionString);
+        using var connection =
+            new SqliteConnection(_connectionString);
+
         connection.Open();
 
-        using var command = connection.CreateCommand();
+        using var command =
+            connection.CreateCommand();
+
         command.CommandText = """
             CREATE TABLE IF NOT EXISTS Visitors (
                 IpAddress TEXT PRIMARY KEY,
@@ -194,12 +308,18 @@ public class AppStatsServiceTests : IDisposable
 
             INSERT INTO AppStats (Id, RandomGamesGenerated)
             SELECT 1, 0
-            WHERE NOT EXISTS (SELECT 1 FROM AppStats WHERE Id = 1);
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM AppStats
+                WHERE Id = 1
+            );
             """;
+
         command.ExecuteNonQuery();
     }
 
-    private static void DeleteIfExists(string path)
+    private static void DeleteIfExists(
+        string path)
     {
         if (File.Exists(path))
         {
@@ -207,17 +327,21 @@ public class AppStatsServiceTests : IDisposable
         }
     }
 
-    private sealed class StubVisitorIdProvider : IVisitorIdProvider
+    private sealed class StubVisitorIdProvider
+        : IVisitorIdProvider
     {
-        public string GetVisitorId(string ipAddress)
+        public string GetVisitorId(
+            string ipAddress)
         {
             return $"hashed-{ipAddress}";
         }
     }
 
-    private sealed class RecordingMissionControlClient : IMissionControlClient
+    private sealed class RecordingMissionControlClient
+        : IMissionControlClient
     {
         public List<PublishedEventRecord> PublishedEvents { get; } = [];
+
         public Exception? ExceptionToThrow { get; init; }
 
         public Task<bool> TryPublishAsync<TPayload>(
@@ -228,11 +352,12 @@ public class AppStatsServiceTests : IDisposable
             string? correlationId = null,
             CancellationToken cancellationToken = default)
         {
-            PublishedEvents.Add(new PublishedEventRecord(
-                eventType,
-                payload!,
-                occurredAt,
-                correlationId));
+            PublishedEvents.Add(
+                new PublishedEventRecord(
+                    eventType,
+                    payload!,
+                    occurredAt,
+                    correlationId));
 
             if (ExceptionToThrow is not null)
             {

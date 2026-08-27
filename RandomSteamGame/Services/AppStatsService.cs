@@ -22,6 +22,7 @@ public sealed class AppStatsService : IAppStatsService
     private readonly IMissionControlClient _missionControlClient;
     private readonly ILogger<AppStatsService> _logger;
     private readonly IVisitorIdProvider _visitorIdProvider;
+    private const int MaxUserAgentLength = 512;
 
     public AppStatsService(
         SqliteConnection dbConnection,
@@ -37,7 +38,9 @@ public sealed class AppStatsService : IAppStatsService
         _logger = logger;
     }
 
-    public async Task<AppStatsResponse> RecordHitAsync(string ip)
+    public async Task<AppStatsResponse> RecordHitAsync(
+        string ip,
+        string? userAgent = null)
     {
         var occurredAt = DateTimeOffset.UtcNow;
         var correlationId = Guid.NewGuid().ToString("N");
@@ -50,11 +53,13 @@ public sealed class AppStatsService : IAppStatsService
         {
             var visitorId = _visitorIdProvider.GetVisitorId(ip);
             var isUniqueVisitor = await IsUniqueVisitorHitAsync(ip);
+            var normalizedUserAgent = NormalizeUserAgent(userAgent);
 
             await _missionControlClient.TryPublishAsync(
                 eventType: RandomSteamGameEventTypes.SiteVisitRecorded,
                 payload: new SiteVisitRecordedEvent(
                     VisitorId: visitorId,
+                    UserAgent: normalizedUserAgent,
                     IsUniqueVisitor: isUniqueVisitor,
                     TotalHits: response.TotalHits,
                     UniqueVisitors: response.UniqueVisitors,
@@ -134,5 +139,19 @@ public sealed class AppStatsService : IAppStatsService
         return result is not null
             && result is not DBNull
             && Convert.ToInt64(result) == 1;
+    }
+
+    private static string? NormalizeUserAgent(string? userAgent)
+    {
+        if (string.IsNullOrWhiteSpace(userAgent))
+        {
+            return null;
+        }
+
+        var trimmed = userAgent.Trim();
+
+        return trimmed.Length <= MaxUserAgentLength
+            ? trimmed
+            : trimmed[..MaxUserAgentLength];
     }
 }

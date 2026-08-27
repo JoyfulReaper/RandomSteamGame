@@ -381,13 +381,18 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 
     private sealed class ThrowingAppStatsService : IAppStatsService
     {
-        public Task<AppStatsResponse> RecordHitAsync(string ip) =>
-            throw new InvalidOperationException("Intentional production pipeline SEO test failure.");
+        public Task<AppStatsResponse> RecordHitAsync(
+            string ip,
+            string? userAgent = null) =>
+            throw new InvalidOperationException(
+                "Intentional production pipeline SEO test failure.");
 
         public Task<AppStatsResponse> GetStatsAsync() =>
-            throw new InvalidOperationException("Intentional production pipeline SEO test failure.");
+            throw new InvalidOperationException(
+                "Intentional production pipeline SEO test failure.");
 
-        public Task IncrementRandomGamesGeneratedAsync() => Task.CompletedTask;
+        public Task IncrementRandomGamesGeneratedAsync() =>
+            Task.CompletedTask;
     }
 
     private static async Task<IDocument> ParseHtmlAsync(
@@ -504,11 +509,16 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
     {
         private static readonly AppStatsResponse EmptyStats = new(0, 0, 0);
 
-        public Task<AppStatsResponse> RecordHitAsync(string ip) => Task.FromResult(EmptyStats);
+        public Task<AppStatsResponse> RecordHitAsync(
+            string ip,
+            string? userAgent = null) =>
+            Task.FromResult(EmptyStats);
 
-        public Task<AppStatsResponse> GetStatsAsync() => Task.FromResult(EmptyStats);
+        public Task<AppStatsResponse> GetStatsAsync() =>
+            Task.FromResult(EmptyStats);
 
-        public Task IncrementRandomGamesGeneratedAsync() => Task.CompletedTask;
+        public Task IncrementRandomGamesGeneratedAsync() =>
+            Task.CompletedTask;
     }
 
     private sealed class StubBetaAvailabilityService : IBetaAvailabilityService

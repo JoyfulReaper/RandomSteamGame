@@ -920,8 +920,10 @@ public class GameControllerTests
         public int IncrementCallCount { get; private set; }
         public bool ThrowOnIncrement { get; init; }
 
-        public Task<AppStatsResponse> RecordHitAsync(string ip)
-            => Task.FromResult(new AppStatsResponse(0, 0, 0));
+        public Task<AppStatsResponse> RecordHitAsync(
+            string ip,
+            string? userAgent = null) =>
+            Task.FromResult(new AppStatsResponse(0, 0, 0));
 
         public Task<AppStatsResponse> GetStatsAsync()
             => Task.FromResult(new AppStatsResponse(0, 0, 0));
