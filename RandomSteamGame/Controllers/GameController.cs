@@ -163,6 +163,8 @@ public class GameController : ApiController
 
         var csvBytes = _steamLibraryExportService.Export(result.Value, deckCompatibility);
 
+        await TrackLibraryExportedAsync();
+
         _libraryExportCooldownTracker.MarkSucceeded(partitionKey);
 
         var verifiedCount = 0;
@@ -597,6 +599,19 @@ public class GameController : ApiController
         {
             // This should never block game generation.
             _logger.LogWarning(ex, "Failed to increment random games generated counter.");
+        }
+    }
+
+    private async Task TrackLibraryExportedAsync()
+    {
+        try
+        {
+            await _appStatsService.IncrementLibrariesExportedAsync();
+        }
+        catch (Exception exception)
+        {
+            // Stats must never prevent a successful export.
+            _logger.LogWarning(exception, "Failed to increment libraries exported counter.");
         }
     }
 
