@@ -48,11 +48,11 @@ public sealed class AppStatsService : IAppStatsService
         var stats = await _hitCounter.RecordHitAsync(ip);
         var counters = await GetApplicationCountersAsync();
         var response =
-        new AppStatsResponse(
-            stats.TotalHits,
-            stats.UniqueVisitors,
-            counters.RandomGamesGenerated,
-            counters.LibrariesExported);
+            new AppStatsResponse(
+                stats.TotalHits,
+                stats.UniqueVisitors,
+                counters.RandomGamesGenerated,
+                counters.LibrariesExported);
 
         try
         {
