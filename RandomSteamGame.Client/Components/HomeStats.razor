@@ -1,7 +1,8 @@
 <p>
     Total Hits: @TotalHits |
     Unique Visitors: @UniqueVisitors |
-    Random Games Generated: @RandomGamesGenerated
+    Random Games Generated: @RandomGamesGenerated |
+    Libraries Exported: @LibrariesExported
 </p>
 
 @code {
@@ -11,4 +12,5 @@
     private long TotalHits => Stats?.TotalHits ?? 0;
     private long UniqueVisitors => Stats?.UniqueVisitors ?? 0;
     private long RandomGamesGenerated => Stats?.RandomGamesGenerated ?? 0;
+    private long LibrariesExported => Stats?.LibrariesExported ?? 0;
 }
