@@ -18,4 +18,6 @@ public interface IAppStatsService
     Task<AppStatsResponse> GetStatsAsync();
 
     Task IncrementRandomGamesGeneratedAsync();
+
+    Task IncrementLibrariesExportedAsync();
 }

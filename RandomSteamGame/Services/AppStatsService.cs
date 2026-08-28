@@ -46,8 +46,13 @@ public sealed class AppStatsService : IAppStatsService
         var correlationId = Guid.NewGuid().ToString("N");
         var stopwatch = Stopwatch.StartNew();
         var stats = await _hitCounter.RecordHitAsync(ip);
-        var randomGamesGenerated = await GetRandomGamesGeneratedAsync();
-        var response = new AppStatsResponse(stats.TotalHits, stats.UniqueVisitors, randomGamesGenerated);
+        var counters = await GetApplicationCountersAsync();
+        var response =
+        new AppStatsResponse(
+            stats.TotalHits,
+            stats.UniqueVisitors,
+            counters.RandomGamesGenerated,
+            counters.LibrariesExported);
 
         try
         {
@@ -83,8 +88,33 @@ public sealed class AppStatsService : IAppStatsService
     public async Task<AppStatsResponse> GetStatsAsync()
     {
         var stats = await _hitCounter.GetHitCountsAsync();
-        var randomGamesGenerated = await GetRandomGamesGeneratedAsync();
-        return new AppStatsResponse(stats.TotalHits, stats.UniqueVisitors, randomGamesGenerated);
+        var counters = await GetApplicationCountersAsync();
+
+        return new AppStatsResponse(
+            stats.TotalHits,
+            stats.UniqueVisitors,
+            counters.RandomGamesGenerated,
+            counters.LibrariesExported);
+    }
+
+    public async Task IncrementLibrariesExportedAsync()
+    {
+        if (_dbConnection.State !=
+            System.Data.ConnectionState.Open)
+        {
+            await _dbConnection.OpenAsync();
+        }
+
+        await using var command = _dbConnection.CreateCommand();
+
+        command.CommandText = """
+            UPDATE AppStats
+            SET LibrariesExported =
+                LibrariesExported + 1
+            WHERE Id = 1;
+            """;
+
+        await command.ExecuteNonQueryAsync();
     }
 
     public async Task IncrementRandomGamesGeneratedAsync()
@@ -103,18 +133,31 @@ public sealed class AppStatsService : IAppStatsService
         await command.ExecuteNonQueryAsync();
     }
 
-    private async Task<long> GetRandomGamesGeneratedAsync()
+    private async Task<(long RandomGamesGenerated, long LibrariesExported)>
+        GetApplicationCountersAsync()
     {
-        if (_dbConnection.State != System.Data.ConnectionState.Open)
+        if (_dbConnection.State !=
+            System.Data.ConnectionState.Open)
         {
             await _dbConnection.OpenAsync();
         }
 
         await using var command = _dbConnection.CreateCommand();
-        command.CommandText = "SELECT RandomGamesGenerated FROM AppStats WHERE Id = 1;";
+        command.CommandText = """
+            SELECT
+                RandomGamesGenerated,
+                LibrariesExported
+            FROM AppStats
+            WHERE Id = 1;
+            """;
 
-        var result = await command.ExecuteScalarAsync();
-        return result is null or DBNull ? 0 : Convert.ToInt64(result);
+        await using var reader = await command.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+        {
+            return (0, 0);
+        }
+
+        return (reader.GetInt64(0), reader.GetInt64(1));
     }
 
     private async Task<bool> IsUniqueVisitorHitAsync(string visitorKey)

@@ -44,7 +44,8 @@ public static class ServiceExtensions
 
             CREATE TABLE IF NOT EXISTS AppStats (
                 Id INTEGER PRIMARY KEY CHECK (Id = 1),
-                RandomGamesGenerated INTEGER NOT NULL DEFAULT 0
+                RandomGamesGenerated INTEGER NOT NULL DEFAULT 0,
+                LibrariesExported INTEGER NOT NULL DEFAULT 0
             );
 
             INSERT INTO AppStats (Id, RandomGamesGenerated)
@@ -53,6 +54,7 @@ public static class ServiceExtensions
             """;
 
         var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
+        EnsureAppStatsSchema(connectionString);
         var steamOptions = GetSteamOptions(config);
 
         services.AddOptions<LibraryExportOptions>()
@@ -417,6 +419,46 @@ public static class ServiceExtensions
                 });
 
         return services;
+    }
+
+    private static void EnsureAppStatsSchema(
+        string connectionString)
+    {
+        using var connection = new SqliteConnection(connectionString);
+        connection.Open();
+
+        var hasLibrariesExported = false;
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA table_info(AppStats);";
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var columnName = reader.GetString(1);
+
+                if (string.Equals(columnName, "LibrariesExported", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasLibrariesExported = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasLibrariesExported)
+        {
+            return;
+        }
+
+        using var alterCommand = connection.CreateCommand();
+
+        alterCommand.CommandText = """
+            ALTER TABLE AppStats
+            ADD COLUMN LibrariesExported
+            INTEGER NOT NULL DEFAULT 0;
+            """;
+
+        alterCommand.ExecuteNonQuery();
     }
 
     private static SteamClientApiOptions GetSteamOptions(IConfiguration config)

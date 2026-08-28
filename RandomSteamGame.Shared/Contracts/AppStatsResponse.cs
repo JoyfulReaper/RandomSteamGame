@@ -10,4 +10,5 @@ namespace RandomSteamGame.Shared.Contracts;
 public sealed record AppStatsResponse(
     long TotalHits,
     long UniqueVisitors,
-    long RandomGamesGenerated);
+    long RandomGamesGenerated,
+    long LibrariesExported = 0);

@@ -393,6 +393,9 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 
         public Task IncrementRandomGamesGeneratedAsync() =>
             Task.CompletedTask;
+
+        public Task IncrementLibrariesExportedAsync() =>
+            Task.CompletedTask;
     }
 
     private static async Task<IDocument> ParseHtmlAsync(
@@ -518,6 +521,9 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
             Task.FromResult(EmptyStats);
 
         public Task IncrementRandomGamesGeneratedAsync() =>
+            Task.CompletedTask;
+
+        public Task IncrementLibrariesExportedAsync() =>
             Task.CompletedTask;
     }
 
