@@ -139,6 +139,8 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("Random Steam Game Picker", document.QuerySelector("h1")?.TextContent.Trim());
 
+        Assert.Contains("Libraries Exported:", document.Body?.TextContent, StringComparison.Ordinal);
+
         var pickerForm = Assert.IsAssignableFrom<IElement>(document.QuerySelector("form"));
         Assert.Contains("Generate Random Game", pickerForm.TextContent, StringComparison.Ordinal);
         Assert.Contains("How it works", document.Body?.TextContent, StringComparison.Ordinal);
