@@ -24,6 +24,69 @@ namespace RandomSteamGame.Tests;
 public class GameControllerTests
 {
     [Fact]
+    public async Task ExportLibrary_Cooldown_PublishesLibraryExportRejectedEvent()
+    {
+        const long steamId = 76561197960287930L;
+
+        var missionControl = new RecordingMissionControlClient();
+
+        var cooldownTracker = new FakeLibraryExportCooldownTracker
+        {
+            RetryAfter = TimeSpan.FromHours(12)
+        };
+
+        var controller = CreateController(
+            missionControlClient: missionControl,
+            applicationOptions: new ApplicationOptions
+            {
+                CommitSha = "abc123"
+            },
+            remoteIpAddress: "192.0.2.42",
+            libraryExportCooldownTracker: cooldownTracker);
+
+        var result = await controller.ExportLibrary(
+            "steam",
+            steamId);
+
+        var content = Assert.IsType<ContentResult>(result);
+
+        Assert.Equal(
+            StatusCodes.Status429TooManyRequests,
+            content.StatusCode);
+
+        Assert.Equal(
+            "43200",
+            controller.Response.Headers.RetryAfter.ToString());
+
+        var published =
+            Assert.Single(missionControl.LibraryExportRejectedEvents);
+
+        Assert.Equal(
+            RandomSteamGameEventTypes.LibraryExportRejected,
+            published.EventType);
+
+        Assert.Equal(
+            "hashed-192.0.2.42",
+            published.Payload.VisitorId);
+
+        Assert.Equal(
+            "steam",
+            published.Payload.Provider);
+
+        Assert.Equal(
+            LibraryExportRejectionReason.Cooldown,
+            published.Payload.Reason);
+
+        Assert.Equal(
+            43200,
+            published.Payload.RetryAfterSeconds);
+
+        Assert.Equal(
+            "abc123",
+            published.Payload.CommitSha);
+    }
+
+    [Fact]
     public async Task ExportLibrary_DisablesBrowserAndCdnCaching()
     {
         const long steamId = 76561197960287930L;
@@ -967,6 +1030,7 @@ public class GameControllerTests
     {
         public List<PublishedEventRecord> PublishedEvents { get; } = [];
         public List<PublishedLibraryExportEventRecord> LibraryExportEvents { get; } = [];
+        public List<PublishedLibraryExportRejectedEventRecord> LibraryExportRejectedEvents { get; } = [];
 
         public Exception? ExceptionToThrow { get; init; }
 
@@ -980,6 +1044,14 @@ public class GameControllerTests
         {
             switch (payload)
             {
+                case LibraryExportRejectedEvent libraryExportRejected:
+                    LibraryExportRejectedEvents.Add(
+                        new PublishedLibraryExportRejectedEventRecord(
+                            eventType,
+                            libraryExportRejected,
+                            occurredAt,
+                            correlationId ?? string.Empty));
+                    break;
                 case GamePickCompletedEvent gamePick:
                     PublishedEvents.Add(
                         new PublishedEventRecord(
@@ -1027,6 +1099,12 @@ public class GameControllerTests
     private sealed record PublishedLibraryExportEventRecord(
         string EventType,
         LibraryExportCompletedEvent Payload,
+        DateTimeOffset OccurredAt,
+        string CorrelationId);
+
+    private sealed record PublishedLibraryExportRejectedEventRecord(
+        string EventType,
+        LibraryExportRejectedEvent Payload,
         DateTimeOffset OccurredAt,
         string CorrelationId);
 }
