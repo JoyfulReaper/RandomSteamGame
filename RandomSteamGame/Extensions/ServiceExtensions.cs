@@ -13,8 +13,10 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Common.Errors;
+using RandomSteamGame.Events;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
@@ -353,11 +355,8 @@ public static class ServiceExtensions
 
                     options.OnRejected = async (context, token) =>
                     {
-                        context.HttpContext.Response.StatusCode =
-                            StatusCodes.Status429TooManyRequests;
-
-                        context.HttpContext.Response.ContentType =
-                            "text/plain; charset=utf-8";
+                        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                        context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
 
                         var policyName = context.HttpContext
                             .GetEndpoint()?
@@ -370,7 +369,40 @@ public static class ServiceExtensions
                                 "library_export_limiter",
                                 StringComparison.Ordinal))
                         {
-                            await context.HttpContext.Response.WriteAsync(
+                            var httpContext = context.HttpContext;
+                            var provider = httpContext.Request.RouteValues["provider"]?.ToString();
+                            var remoteIp = httpContext.Connection.RemoteIpAddress;
+                            var visitorIdProvider = httpContext.RequestServices.GetRequiredService<IVisitorIdProvider>();
+
+                            var visitorId = remoteIp is null
+                                ? null
+                                : visitorIdProvider.GetVisitorId(
+                                    remoteIp.ToString());
+
+                            var applicationOptions = httpContext.RequestServices
+                                .GetRequiredService<IOptions<ApplicationOptions>>()
+                                .Value;
+
+                            var missionControlClient = httpContext.RequestServices
+                                .GetRequiredService<IMissionControlClient>();
+
+                            _ = missionControlClient.TryPublishAsync(
+                                eventType: RandomSteamGameEventTypes.LibraryExportRejected,
+                                payload: new LibraryExportRejectedEvent(
+                                    VisitorId: visitorId,
+                                    Provider: provider,
+                                    Reason: LibraryExportRejectionReason.Capacity,
+                                    RetryAfterSeconds: null,
+                                    CommitSha: string.IsNullOrWhiteSpace(
+                                        applicationOptions.CommitSha)
+                                        ? null
+                                        : applicationOptions.CommitSha),
+                                payloadTypeInfo: RandomSteamGameJsonContext.Default.LibraryExportRejectedEvent,
+                                occurredAt: DateTimeOffset.UtcNow,
+                                correlationId: Guid.NewGuid().ToString("N"),
+                                cancellationToken: CancellationToken.None);
+
+                            await httpContext.Response.WriteAsync(
                                 "Steam library CSV export capacity is currently busy. " +
                                 "Please wait for an in-progress export to finish and try again.",
                                 token);
