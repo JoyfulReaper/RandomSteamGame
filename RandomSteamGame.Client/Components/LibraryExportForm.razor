@@ -1,6 +1,6 @@
 ﻿@inject RandomSteamApiClient ApiClient
 @inject IBrowserSteamIdentityStore BrowserIdentityStore
-@inject NavigationManager NavManager
+@inject IJSRuntime JS
 @inject ILogger<LibraryExportForm> Logger
 
 @if (!string.IsNullOrWhiteSpace(_errorMessage))
@@ -170,9 +170,19 @@
                     null,
                     _unplayedOnly));
 
-            NavManager.NavigateTo(
+            await using var module = await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./js/libraryExport.js");
+
+            var exportError = await module.InvokeAsync<string?>(
+                "download",
                 $"/api/steam/{steamId}/library/export.csv",
-                forceLoad: true);
+                $"steam-library-{steamId}.csv");
+
+            if (!string.IsNullOrWhiteSpace(exportError))
+            {
+                _errorMessage = exportError;
+            }
         }
         catch (Exception exception)
         {
