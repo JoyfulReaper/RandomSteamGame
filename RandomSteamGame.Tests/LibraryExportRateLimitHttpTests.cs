@@ -1,14 +1,17 @@
 ﻿using ErrorOr;
+using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RandomSteamGame.Common.Errors;
+using RandomSteamGame.Events;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using System.Net;
+using System.Text.Json.Serialization.Metadata;
 
 namespace RandomSteamGame.Tests;
 
@@ -25,11 +28,11 @@ public sealed class LibraryExportRateLimitHttpTests :
         _factory = factory;
     }
 
-
     [Fact]
     public async Task LibraryExportLimiter_LimitsGlobalConcurrentExports()
     {
         var provider = new BlockingExportGameProvider();
+        var missionControl = new RecordingMissionControlClient();
 
         using var application =
             _factory.WithWebHostBuilder(builder =>
@@ -38,6 +41,10 @@ public sealed class LibraryExportRateLimitHttpTests :
                 {
                     services.RemoveAll<IGameProvider>();
                     services.AddSingleton<IGameProvider>(provider);
+
+                    services.RemoveAll<IMissionControlClient>();
+                    services.AddSingleton<IMissionControlClient>(
+                        missionControl);
                 });
             });
 
@@ -75,6 +82,25 @@ public sealed class LibraryExportRateLimitHttpTests :
                 "capacity",
                 rejectionMessage,
                 StringComparison.OrdinalIgnoreCase);
+
+            var rejected =
+                Assert.Single(
+                    missionControl.LibraryExportRejectedEvents);
+
+            Assert.Equal(
+                RandomSteamGameEventTypes.LibraryExportRejected,
+                rejected.EventType);
+
+            Assert.Equal(
+                "steam",
+                rejected.Payload.Provider);
+
+            Assert.Equal(
+                LibraryExportRejectionReason.Capacity,
+                rejected.Payload.Reason);
+
+            Assert.Null(
+                rejected.Payload.RetryAfterSeconds);
         }
         finally
         {
@@ -389,20 +415,19 @@ public sealed class LibraryExportRateLimitHttpTests :
                     1,
                     [
                         new Game(
-                        620,
-                        "Portal 2",
-                        120,
-                        null,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0)
+                            620,
+                            "Portal 2",
+                            120,
+                            null,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0)
                     ]);
 
             return library;
         }
-
 
         public async Task WaitUntilFirstStartedAsync()
         {
@@ -440,7 +465,7 @@ public sealed class LibraryExportRateLimitHttpTests :
     }
 
     private sealed class FailingThenSuccessfulExportGameProvider
-    : IGameProvider
+        : IGameProvider
     {
         private int _ownedGamesCallCount;
 
@@ -462,15 +487,15 @@ public sealed class LibraryExportRateLimitHttpTests :
                     1,
                     [
                         new Game(
-                        620,
-                        "Portal 2",
-                        120,
-                        null,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0)
+                            620,
+                            "Portal 2",
+                            120,
+                            null,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0)
                     ]);
 
             return Task.FromResult<
@@ -560,4 +585,35 @@ public sealed class LibraryExportRateLimitHttpTests :
             return Task.CompletedTask;
         }
     }
+
+    private sealed class RecordingMissionControlClient
+        : IMissionControlClient
+    {
+        public List<PublishedLibraryExportRejectedEventRecord>
+            LibraryExportRejectedEvents
+        { get; } = [];
+
+        public Task<bool> TryPublishAsync<TPayload>(
+            string eventType,
+            TPayload payload,
+            JsonTypeInfo<TPayload> payloadTypeInfo,
+            DateTimeOffset occurredAt,
+            string? correlationId = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (payload is LibraryExportRejectedEvent rejected)
+            {
+                LibraryExportRejectedEvents.Add(
+                    new PublishedLibraryExportRejectedEventRecord(
+                        eventType,
+                        rejected));
+            }
+
+            return Task.FromResult(true);
+        }
+    }
+
+    private sealed record PublishedLibraryExportRejectedEventRecord(
+        string EventType,
+        LibraryExportRejectedEvent Payload);
 }
