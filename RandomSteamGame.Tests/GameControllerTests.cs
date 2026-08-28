@@ -991,6 +991,11 @@ public class GameControllerTests
         public Task<AppStatsResponse> GetStatsAsync()
             => Task.FromResult(new AppStatsResponse(0, 0, 0));
 
+        public Task IncrementLibrariesExportedAsync()
+        {
+            return Task.CompletedTask;
+        }
+
         public Task IncrementRandomGamesGeneratedAsync()
         {
             IncrementCallCount++;
