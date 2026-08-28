@@ -7,6 +7,7 @@ namespace RandomSteamGame.Events;
 [JsonSerializable(typeof(GamePickCompletedEvent))]
 [JsonSerializable(typeof(LibraryExportCompletedEvent))]
 [JsonSerializable(typeof(SiteVisitRecordedEvent))]
+[JsonSerializable(typeof(LibraryExportRejectedEvent))]
 public partial class RandomSteamGameJsonContext : JsonSerializerContext
 {
 }
