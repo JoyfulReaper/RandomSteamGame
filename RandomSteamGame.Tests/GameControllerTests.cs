@@ -122,6 +122,94 @@ public class GameControllerTests
             controller.Response.Headers["CDN-Cache-Control"].ToString());
     }
 
+    [Fact]
+    public async Task ExportLibrary_Success_IncrementsLibrariesExported()
+    {
+        const long steamId = 76561197960287930L;
+
+        var appStats = new FakeAppStatsService();
+
+        var provider = new FakeGameProvider(
+            new OwnedGamesResponse(
+                steamId,
+                1,
+                [
+                    new Game(
+                    10,
+                    "Portal",
+                    90,
+                    null,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0)
+                ]));
+
+        var controller = CreateController(
+            provider,
+            appStatsService: appStats);
+
+        var result =
+            await controller.ExportLibrary(
+                "steam",
+                steamId);
+
+        Assert.IsType<FileContentResult>(result);
+
+        Assert.Equal(
+            1,
+            appStats.LibrariesExportedIncrementCallCount);
+    }
+
+    [Fact]
+    public async Task ExportLibrary_AppStatsIncrementFailure_DoesNotChangeSuccessfulResponse()
+    {
+        const long steamId = 76561197960287930L;
+
+        var appStats = new FakeAppStatsService
+        {
+            ThrowOnLibrariesExportedIncrement = true
+        };
+
+        var provider = new FakeGameProvider(
+            new OwnedGamesResponse(
+                steamId,
+                1,
+                [
+                    new Game(
+                    10,
+                    "Portal",
+                    90,
+                    null,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0)
+                ]));
+
+        var controller = CreateController(
+            provider,
+            appStatsService: appStats);
+
+        var result =
+            await controller.ExportLibrary(
+                "steam",
+                steamId);
+
+        var file =
+            Assert.IsType<FileContentResult>(result);
+
+        Assert.Equal(
+            $"steam-library-{steamId}.csv",
+            file.FileDownloadName);
+
+        Assert.Equal(
+            1,
+            appStats.LibrariesExportedIncrementCallCount);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-76561197960287930L)]
@@ -982,6 +1070,8 @@ public class GameControllerTests
     {
         public int IncrementCallCount { get; private set; }
         public bool ThrowOnIncrement { get; init; }
+        public int LibrariesExportedIncrementCallCount { get; private set; }
+        public bool ThrowOnLibrariesExportedIncrement { get; init; }
 
         public Task<AppStatsResponse> RecordHitAsync(
             string ip,
@@ -993,6 +1083,14 @@ public class GameControllerTests
 
         public Task IncrementLibrariesExportedAsync()
         {
+            LibrariesExportedIncrementCallCount++;
+
+            if (ThrowOnLibrariesExportedIncrement)
+            {
+                throw new InvalidOperationException(
+                    "App stats store unavailable.");
+            }
+
             return Task.CompletedTask;
         }
 
