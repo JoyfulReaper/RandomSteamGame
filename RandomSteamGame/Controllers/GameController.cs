@@ -115,17 +115,22 @@ public class GameController : ApiController
             return Problem([Errors.Steam.InvalidSteamId]);
         }
 
+        var occurredAt = DateTimeOffset.UtcNow;
+        var correlationId = Guid.NewGuid().ToString("N");
         var partitionKey = LibraryExportRateLimitPartitionKey.From(HttpContext.Connection.RemoteIpAddress);
         var retryAfter = _libraryExportCooldownTracker.GetRetryAfter(partitionKey);
 
         if (retryAfter is not null)
         {
-            var retryAfterSeconds = Math.Max(
-                1,
-                (long)Math.Ceiling(retryAfter.Value.TotalSeconds));
+            var retryAfterSeconds = Math.Max(1, (long)Math.Ceiling(retryAfter.Value.TotalSeconds));
+            Response.Headers.RetryAfter = retryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-            Response.Headers.RetryAfter =
-                retryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _ = PublishLibraryExportRejectedEventAsync(
+                provider,
+                LibraryExportRejectionReason.Cooldown,
+                retryAfterSeconds,
+                occurredAt,
+                correlationId);
 
             return new ContentResult
             {
@@ -137,8 +142,7 @@ public class GameController : ApiController
             };
         }
 
-        var occurredAt = DateTimeOffset.UtcNow;
-        var correlationId = Guid.NewGuid().ToString("N");
+
         var stopwatch = Stopwatch.StartNew();
 
         var result = await service.GetOwnedGamesAsync(steamId);
@@ -348,6 +352,39 @@ public class GameController : ApiController
             identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
 
         return Ok(result.Game);
+    }
+
+    private async Task PublishLibraryExportRejectedEventAsync(
+        string? provider,
+        string reason,
+        long? retryAfterSeconds,
+        DateTimeOffset occurredAt,
+        string correlationId)
+    {
+        try
+        {
+            await _missionControlClient.TryPublishAsync(
+                eventType: RandomSteamGameEventTypes.LibraryExportRejected,
+                payload: new LibraryExportRejectedEvent(
+                    VisitorId: GetVisitorIdForTelemetry(),
+                    Provider: provider,
+                    Reason: reason,
+                    RetryAfterSeconds: retryAfterSeconds,
+                    CommitSha: string.IsNullOrWhiteSpace(_applicationOptions.CommitSha)
+                        ? null
+                        : _applicationOptions.CommitSha),
+                occurredAt: occurredAt,
+                payloadTypeInfo: RandomSteamGameJsonContext.Default.LibraryExportRejectedEvent,
+                correlationId: correlationId,
+                cancellationToken: CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Failed to publish library-export rejection event {CorrelationId}.",
+                correlationId);
+        }
     }
 
     private async Task PublishLibraryExportCompletedEventAsync(
