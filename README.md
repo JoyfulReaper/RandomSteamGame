@@ -1,10 +1,23 @@
-# Random Steam Game Picker
+# Random Steam Game Picker & Bulk Library Exporter
 
-Random Steam Game Picker chooses a game from your own public Steam library and can export that library as CSV. Enter a 17-digit Steam ID, Steam vanity name, or Steam Community vanity URL, optionally limit the picker to unplayed games, and let it answer the important question: **What should I play?**
+[Live Application](https://randomsteam.kgivler.com)
+[License: MIT](LICENSE.md)
 
-**Live application:** [https://randomsteam.kgivler.com](https://randomsteam.kgivler.com)
+**Random Steam Game Picker** is an ultra-fast, sub-second web utility designed to solve backlog analysis paralysis. Enter any 17-digit Steam ID, vanity name, or Steam Community URL to instantly roll a random game from your library. 
 
-It is made for anyone with a large backlog, limited decision-making energy, and a suspicious tendency to press **Choose Again**.
+Need your data offline? Use the built-in **Steam Library CSV Exporter** to download your entire public collection—complete with game titles, App IDs, playtime stats, last-played timestamps, and real-time **Steam Deck compatibility tracking**—straight to an Excel-ready spreadsheet.
+
+*Built for gamers with massive backlogs, limited decision-making energy, and a suspicious tendency to press **Choose Again**.*
+
+## Key Capabilities
+
+* **Instant Sub-Second Game Roulette:** Leverages a high-performance, multi-tier hybrid cache to deliver near-zero latency rolls that beat typical 8-second scrapers.
+* **Smart Backlog Filtering:** Toggle "Unplayed-Only" mode to instantly isolate and roll games with zero recorded Steam playtime.
+* **Bulk Steam to CSV Export:** Download your entire game index at `/library-export` with granular columns tracking hidden metadata.
+* **Steam Deck Compatibility Audit:** Automates batch-processing queries against the Steam Store API to index `verified`, `playable`, `unsupported`, or `unknown` deck statuses.
+* **Zero Authentication Required:** Operates entirely over public Steam APIs—no Steam sign-in or account credentials required.
+* **Browser-Based Exclusions:** Block specific games or persistent titles from your roulette pool right in your local session.
+
 
 ## Screenshots
 
