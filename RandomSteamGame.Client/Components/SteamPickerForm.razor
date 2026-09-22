@@ -1,4 +1,4 @@
-﻿@implements IDisposable
+@implements IDisposable
 
 @inject RandomSteamApiClient ApiClient
 @inject PersistentComponentState ApplicationState
@@ -24,7 +24,17 @@
         @_selectedTagline
     </p>
 
-    <EditForm Model="HomeModel" OnValidSubmit="HandleValidSubmit" FormName="steamPickerForm">
+    <div class="picker-form-interactivity"
+         inert="@(!RendererInfo.IsInteractive)"
+         aria-busy="@(!RendererInfo.IsInteractive)">
+        @if (!RendererInfo.IsInteractive)
+        {
+            <div class="picker-form-connecting text-center text-muted small mb-2">
+                Connecting…
+            </div>
+        }
+
+        <EditForm Model="HomeModel" OnValidSubmit="HandleValidSubmit" FormName="steamPickerForm">
         <DataAnnotationsValidator />
 
         <div class="mb-3">
@@ -48,7 +58,7 @@
         <div class="form-check mb-4">
             <InputCheckbox id="unplayedOnlyInput"
                            class="form-check-input"
-                           @bind-Value="HomeModel.UnplayedOnly" />
+                               @bind-Value="HomeModel.UnplayedOnly" />
             <label class="form-check-label" for="unplayedOnlyInput">
                 Only pick unplayed games
             </label>
@@ -91,7 +101,8 @@
                 </div>
             </div>
         </div>
-    </EditForm>
+        </EditForm>
+    </div>
 }
 
 @code {
