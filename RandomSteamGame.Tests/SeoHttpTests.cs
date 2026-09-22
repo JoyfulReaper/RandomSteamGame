@@ -141,8 +141,10 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 
         Assert.Contains("Libraries Exported:", document.Body?.TextContent, StringComparison.Ordinal);
 
-        var pickerForm = Assert.IsAssignableFrom<IElement>(document.QuerySelector("form"));
-        Assert.Contains("Generate Random Game", pickerForm.TextContent, StringComparison.Ordinal);
+        // The picker prerenders a loading shell instead of usable form controls.
+        // This prevents input from being entered before Blazor becomes interactive.
+        Assert.Null(document.QuerySelector("#steamIdInput"));
+        Assert.NotNull(document.QuerySelector(".picker-form-loading"));
         Assert.Contains("How it works", document.Body?.TextContent, StringComparison.Ordinal);
         Assert.Contains("Frequently asked questions", document.Body?.TextContent, StringComparison.Ordinal);
         Assert.NotNull(document.QuerySelector("a[href='/library-export']"));

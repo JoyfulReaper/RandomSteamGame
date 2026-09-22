@@ -87,14 +87,11 @@
     margin-top: 0.15rem;
 }
 
-.picker-form-connecting {
-    opacity: 0;
-    animation: picker-show-connecting 0s linear 350ms forwards;
+.picker-form-loading {
+    min-height: 18rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    color: #94a3b8;
 }
-
-@keyframes picker-show-connecting {
-    to {
-        opacity: 1;
-    }
-}
-
