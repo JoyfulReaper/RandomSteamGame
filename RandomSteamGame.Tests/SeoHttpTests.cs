@@ -139,8 +139,12 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("Random Steam Game Picker", document.QuerySelector("h1")?.TextContent.Trim());
 
-        var pickerForm = Assert.IsAssignableFrom<IElement>(document.QuerySelector("form"));
-        Assert.Contains("Generate Random Game", pickerForm.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Libraries Exported:", document.Body?.TextContent, StringComparison.Ordinal);
+
+        // The picker prerenders a loading shell instead of usable form controls.
+        // This prevents input from being entered before Blazor becomes interactive.
+        Assert.Null(document.QuerySelector("#steamIdInput"));
+        Assert.NotNull(document.QuerySelector(".picker-form-loading"));
         Assert.Contains("How it works", document.Body?.TextContent, StringComparison.Ordinal);
         Assert.Contains("Frequently asked questions", document.Body?.TextContent, StringComparison.Ordinal);
         Assert.NotNull(document.QuerySelector("a[href='/library-export']"));
@@ -393,6 +397,9 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 
         public Task IncrementRandomGamesGeneratedAsync() =>
             Task.CompletedTask;
+
+        public Task IncrementLibrariesExportedAsync() =>
+            Task.CompletedTask;
     }
 
     private static async Task<IDocument> ParseHtmlAsync(
@@ -518,6 +525,9 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
             Task.FromResult(EmptyStats);
 
         public Task IncrementRandomGamesGeneratedAsync() =>
+            Task.CompletedTask;
+
+        public Task IncrementLibrariesExportedAsync() =>
             Task.CompletedTask;
     }
 

@@ -71,6 +71,21 @@ public class AppStatsServiceTests : IDisposable
         Assert.Equal(0, stats.TotalHits);
         Assert.Equal(0, stats.UniqueVisitors);
         Assert.Equal(0, stats.RandomGamesGenerated);
+        Assert.Equal(0, stats.LibrariesExported);
+    }
+
+    [Fact]
+    public async Task IncrementLibrariesExportedAsync_IncrementsStoredCounter()
+    {
+        await _service.IncrementLibrariesExportedAsync();
+        await _service.IncrementLibrariesExportedAsync();
+
+        var stats =
+            await _service.GetStatsAsync();
+
+        Assert.Equal(
+            2,
+            stats.LibrariesExported);
     }
 
     [Fact]
@@ -303,7 +318,8 @@ public class AppStatsServiceTests : IDisposable
 
             CREATE TABLE IF NOT EXISTS AppStats (
                 Id INTEGER PRIMARY KEY CHECK (Id = 1),
-                RandomGamesGenerated INTEGER NOT NULL DEFAULT 0
+                RandomGamesGenerated INTEGER NOT NULL DEFAULT 0,
+                LibrariesExported INTEGER NOT NULL DEFAULT 0
             );
 
             INSERT INTO AppStats (Id, RandomGamesGenerated)

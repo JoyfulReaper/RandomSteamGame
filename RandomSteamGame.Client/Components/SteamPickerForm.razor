@@ -18,7 +18,17 @@
     <div class="alert @_cacheResetMessageClass mb-4" role="alert">@_cacheResetMessage</div>
 }
 
-@if (HomeModel is not null)
+@if (!RendererInfo.IsInteractive)
+{
+    <div class="picker-form-loading"
+         role="status"
+         aria-live="polite">
+        <span class="spinner-border spinner-border-sm"
+              aria-hidden="true"></span>
+        <span>Starting picker…</span>
+    </div>
+}
+else if (HomeModel is not null)
 {
     <p class="text-center text-muted small mb-4">
         @_selectedTagline
