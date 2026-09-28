@@ -29,9 +29,15 @@ USER root
 # the native SQLite library.
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
+        ca-certificates \
         curl \
         libsqlite3-0 \
     && rm -rf /var/lib/apt/lists/*
+
+COPY deploy/certs/dn42-root-ca.crt \
+     /usr/local/share/ca-certificates/dn42-root-ca.crt
+
+RUN update-ca-certificates
 
 RUN mkdir -p \
         /app/Data \
