@@ -119,6 +119,7 @@ public class AppStatsServiceTests : IDisposable
         Assert.Equal(1, payload.TotalHits);
         Assert.Equal(1, payload.UniqueVisitors);
         Assert.True(payload.IsUniqueVisitor);
+        Assert.Equal(IngressNetworkClassifier.Unknown, payload.IngressNetwork);
     }
 
     [Fact]
@@ -280,6 +281,25 @@ public class AppStatsServiceTests : IDisposable
 
         Assert.Equal(1, stats.TotalHits);
         Assert.Equal(1, stats.UniqueVisitors);
+    }
+
+    [Fact]
+    public async Task RecordHitAsync_IncludesIngressNetworkInTelemetry()
+    {
+        await _service.RecordHitAsync(
+            "visitor-a",
+            "RandomSteamGame-Test/1.0",
+            IngressNetworkClassifier.Yggdrasil);
+
+        var published = Assert.Single(
+            _missionControl.PublishedEvents);
+
+        var payload = Assert.IsType<SiteVisitRecordedEvent>(
+            published.Payload);
+
+        Assert.Equal(
+            IngressNetworkClassifier.Yggdrasil,
+            payload.IngressNetwork);
     }
 
     public void Dispose()

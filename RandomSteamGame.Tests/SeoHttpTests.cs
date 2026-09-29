@@ -387,7 +387,8 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
     {
         public Task<AppStatsResponse> RecordHitAsync(
             string ip,
-            string? userAgent = null) =>
+            string? userAgent = null,
+            string ingressNetwork = IngressNetworkClassifier.Unknown) =>
             throw new InvalidOperationException(
                 "Intentional production pipeline SEO test failure.");
 
@@ -518,7 +519,8 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
 
         public Task<AppStatsResponse> RecordHitAsync(
             string ip,
-            string? userAgent = null) =>
+            string? userAgent = null,
+            string ingressNetwork = IngressNetworkClassifier.Unknown) =>
             Task.FromResult(EmptyStats);
 
         public Task<AppStatsResponse> GetStatsAsync() =>

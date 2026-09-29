@@ -20,3 +20,66 @@ html, body {
 .main-content-area {
     flex: 1;
 }
+
+.global-footer {
+    flex-shrink: 0;
+    padding: 1rem 0 1.25rem;
+    margin-top: 2rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.global-footer-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.global-footer a {
+    color: #6fdcff;
+    text-decoration: none;
+}
+
+    .global-footer a:hover,
+    .global-footer a:focus {
+        text-decoration: underline;
+    }
+
+.global-footer-divider {
+    margin: 0 0.25rem;
+    opacity: 0.5;
+}
+
+.global-footer-note {
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+html {
+    scrollbar-color: rgba(255, 255, 255, 0.35) rgba(0, 0, 0, 0.35);
+    scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    border: 3px solid rgba(0, 0, 0, 0.35);
+}
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+    }

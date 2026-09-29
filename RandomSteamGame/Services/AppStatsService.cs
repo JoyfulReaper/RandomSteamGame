@@ -40,7 +40,8 @@ public sealed class AppStatsService : IAppStatsService
 
     public async Task<AppStatsResponse> RecordHitAsync(
         string ip,
-        string? userAgent = null)
+        string? userAgent = null,
+        string ingressNetwork = IngressNetworkClassifier.Unknown)
     {
         var occurredAt = DateTimeOffset.UtcNow;
         var correlationId = Guid.NewGuid().ToString("N");
@@ -65,6 +66,7 @@ public sealed class AppStatsService : IAppStatsService
                 payload: new SiteVisitRecordedEvent(
                     VisitorId: visitorId,
                     UserAgent: normalizedUserAgent,
+                    IngressNetwork: ingressNetwork,
                     IsUniqueVisitor: isUniqueVisitor,
                     TotalHits: response.TotalHits,
                     UniqueVisitors: response.UniqueVisitors,

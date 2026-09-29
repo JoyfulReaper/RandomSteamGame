@@ -3,6 +3,7 @@
 public sealed record GamePickCompletedEvent(
     string? VisitorId,
     string Provider,
+    string IngressNetwork,
     int? AppId,
     string? GameName,
     bool UnplayedOnly,

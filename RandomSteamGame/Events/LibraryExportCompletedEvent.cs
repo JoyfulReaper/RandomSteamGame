@@ -3,6 +3,7 @@
 public sealed record LibraryExportCompletedEvent(
     string? VisitorId,
     string Provider,
+    string IngressNetwork,
     int GameCount,
     long DurationMilliseconds,
     int VerifiedCount,

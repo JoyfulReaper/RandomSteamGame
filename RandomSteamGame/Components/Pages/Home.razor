@@ -256,21 +256,15 @@
 
     private async Task LoadAppStatsAsync()
     {
-        try
-        {
-            var httpContext = HttpContextAccessor.HttpContext;
-            var ip = httpContext?.Connection.RemoteIpAddress?.ToString();
-            var userAgent = httpContext?.Request.Headers["User-Agent"]
-                .ToString();
+        var httpContext = HttpContextAccessor.HttpContext;
+        var ip = httpContext?.Connection.RemoteIpAddress?.ToString();
 
-            _appStats = string.IsNullOrWhiteSpace(ip)
-                ? await AppStatsService.GetStatsAsync()
-                : await AppStatsService.RecordHitAsync(ip, userAgent);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to load home page stats.");
-            _appStats = await AppStatsService.GetStatsAsync();
-        }
+        var userAgent = httpContext?.Request.Headers["User-Agent"].ToString();
+
+        var ingressNetwork = IngressNetworkClassifier.FromHost(httpContext?.Request.Host.Host);
+
+        _appStats = string.IsNullOrWhiteSpace(ip)
+            ? await AppStatsService.GetStatsAsync()
+            : await AppStatsService.RecordHitAsync(ip, userAgent, ingressNetwork);
     }
 }

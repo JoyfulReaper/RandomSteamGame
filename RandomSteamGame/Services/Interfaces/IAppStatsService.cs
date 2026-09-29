@@ -13,7 +13,8 @@ public interface IAppStatsService
 {
     Task<AppStatsResponse> RecordHitAsync(
         string ip,
-        string? userAgent = null);
+        string? userAgent = null,
+        string ingressNetwork = IngressNetworkClassifier.Unknown);
 
     Task<AppStatsResponse> GetStatsAsync();
 
