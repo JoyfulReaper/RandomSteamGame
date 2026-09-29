@@ -370,6 +370,7 @@ public class GameController : ApiController
                 payload: new LibraryExportRejectedEvent(
                     VisitorId: GetVisitorIdForTelemetry(),
                     Provider: provider,
+                    IngressNetwork: IngressNetworkClassifier.FromHost(HttpContext.Request.Host.Host),
                     Reason: reason,
                     RetryAfterSeconds: retryAfterSeconds,
                     CommitSha: string.IsNullOrWhiteSpace(_applicationOptions.CommitSha)
@@ -407,6 +408,7 @@ public class GameController : ApiController
                 payload: new LibraryExportCompletedEvent(
                     VisitorId: GetVisitorIdForTelemetry(),
                     Provider: provider,
+                    IngressNetwork: IngressNetworkClassifier.FromHost(HttpContext.Request.Host.Host),
                     GameCount: gameCount,
                     DurationMilliseconds: durationMilliseconds,
                     VerifiedCount: verifiedCount,
@@ -451,6 +453,7 @@ public class GameController : ApiController
                 payload: new GamePickCompletedEvent(
                     VisitorId: GetVisitorIdForTelemetry(),
                     Provider: provider,
+                    IngressNetwork: IngressNetworkClassifier.FromHost(HttpContext.Request.Host.Host),
                     AppId: telemetry?.Game?.Id,
                     // Display metadata only. Use AppId for stable joins, grouping, and identity.
                     GameName: GamePickTelemetryName.Sanitize(telemetry?.Game?.Name),

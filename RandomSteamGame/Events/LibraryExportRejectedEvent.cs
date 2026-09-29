@@ -10,6 +10,7 @@ namespace RandomSteamGame.Events;
 public sealed record LibraryExportRejectedEvent(
     string? VisitorId,
     string? Provider,
+    string IngressNetwork,
     string Reason,
     long? RetryAfterSeconds,
     string? CommitSha);
