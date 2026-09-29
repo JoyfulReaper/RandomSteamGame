@@ -26,7 +26,10 @@ html, body {
     padding: 1rem 0 1.25rem;
     margin-top: 2rem;
     font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 .global-footer-links {
@@ -38,7 +41,7 @@ html, body {
 }
 
 .global-footer a {
-    color: var(--bs-info);
+    color: #6fdcff;
     text-decoration: none;
 }
 
@@ -57,3 +60,26 @@ html, body {
     font-size: 0.75rem;
     opacity: 0.7;
 }
+
+html {
+    scrollbar-color: rgba(255, 255, 255, 0.35) rgba(0, 0, 0, 0.35);
+    scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    border: 3px solid rgba(0, 0, 0, 0.35);
+}
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+    }
