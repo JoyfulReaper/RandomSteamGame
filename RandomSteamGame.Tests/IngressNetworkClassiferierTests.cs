@@ -42,9 +42,20 @@ public class IngressNetworkClassifierTests
     [Fact]
     public void FromHost_ReturnsDefinedConstantValues()
     {
-        Assert.Equal("public", IngressNetworkClassifier.Public);
-        Assert.Equal("dn42", IngressNetworkClassifier.Dn42);
-        Assert.Equal("yggdrasil", IngressNetworkClassifier.Yggdrasil);
-        Assert.Equal("unknown", IngressNetworkClassifier.Unknown);
+        Assert.Equal(
+            "public",
+            IngressNetworkClassifier.Public);
+
+        Assert.Equal(
+            "dn42",
+            IngressNetworkClassifier.Dn42);
+
+        Assert.Equal(
+            "yggdrasil",
+            IngressNetworkClassifier.Yggdrasil);
+
+        Assert.Equal(
+            "unknown",
+            IngressNetworkClassifier.Unknown);
     }
 }

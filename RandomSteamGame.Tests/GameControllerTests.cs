@@ -1075,7 +1075,8 @@ public class GameControllerTests
 
         public Task<AppStatsResponse> RecordHitAsync(
             string ip,
-            string? userAgent = null) =>
+            string? userAgent = null,
+            string ingressNetwork = IngressNetworkClassifier.Unknown) =>
             Task.FromResult(new AppStatsResponse(0, 0, 0));
 
         public Task<AppStatsResponse> GetStatsAsync()
