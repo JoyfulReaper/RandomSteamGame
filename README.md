@@ -166,6 +166,14 @@ The Dockerfile declares port `5182`. Set `ASPNETCORE_HTTP_PORTS=5182` in the con
 
 The production deployment is designed to run behind a loopback reverse proxy or Cloudflare Tunnel. Forwarded client IP and scheme headers are accepted only from loopback proxies; update the trusted-proxy configuration if a proxy reaches the application from another address, especially when relying on per-IP rate limiting.
 
+### Production hosting
+
+The production Random Steam Game deployment runs on GreenCloud infrastructure.
+
+[GreenCloud VPS](https://greencloudvps.com/billing/aff.php?aff=10295)
+
+> Disclosure: This is an affiliate link. If you purchase through it, I may receive a commission at no additional cost to you.
+
 ## Search and indexing
 
 The home page and library-export page publish canonical URLs, descriptions, and social metadata. The application also serves `robots.txt`, `sitemap.xml`, and `WebApplication` JSON-LD. The configured beta host sends `X-Robots-Tag: noindex, nofollow`, and generated random-game result pages are excluded from indexing.
