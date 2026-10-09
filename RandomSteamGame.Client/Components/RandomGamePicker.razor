@@ -1,4 +1,4 @@
-@implements IDisposable
+@implements IAsyncDisposable
 
 @inject PersistentComponentState ApplicationState
 @inject ILogger<RandomGamePicker> Logger
@@ -113,6 +113,7 @@
     private string? _successMessage;
     private string _background = string.Empty;
     private IJSObjectReference? _themeModule;
+    private bool _isDisposed;
     private bool _themeUpdatePending = true;
 
     private PersistingComponentStateSubscription _subscription;
@@ -173,18 +174,25 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_themeUpdatePending)
+        if (_isDisposed || !_themeUpdatePending)
         {
             return;
         }
 
         try
         {
-            _themeModule ??= await JSRuntime.InvokeAsync<IJSObjectReference>(
+            var module = _themeModule ?? await JSRuntime.InvokeAsync<IJSObjectReference>(
                 "import",
                 "./Components/RandomGamePicker.razor.js");
 
-            await _themeModule.InvokeVoidAsync("updateTheme", ".game-page-wrapper", _background);
+            // An awaited import can complete after the component has left the render tree.
+            if (_isDisposed)
+            {
+                await DisposeThemeModuleAsync(module);
+                return;
+            }
+            _themeModule = module;
+            await module.InvokeVoidAsync("updateTheme", ".game-page-wrapper", _background);
         }
         catch (Exception ex)
         {
@@ -368,8 +376,28 @@
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        if (_isDisposed) return;
+        _isDisposed = true;
         _subscription.Dispose();
+        var module = _themeModule;
+        _themeModule = null;
+        if (module is not null)
+        {
+            await DisposeThemeModuleAsync(module);
+        }
+    }
+
+    private static async ValueTask DisposeThemeModuleAsync(IJSObjectReference module)
+    {
+        try
+        {
+            await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Server-side interactive circuits may already be closed during disposal.
+        }
     }
 }
