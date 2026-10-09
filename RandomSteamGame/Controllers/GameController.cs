@@ -7,6 +7,7 @@
 
 using ErrorOr;
 using JoyfulReaperLib.MissionControl;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -83,9 +84,10 @@ public class GameController : ApiController
 
     /// <summary>
     /// Exports the list of owned games for a specific Steam ID as CSV.
-    /// GET /api/steam/{steamId}/library/export.csv
+    /// POST /api/steam/{steamId}/library/export.csv
     /// </summary>
-    [HttpGet("{steamId:long}/library/export.csv")]
+    [HttpPost("{steamId:long}/library/export.csv")]
+    [RequireAntiforgeryToken]
     [EnableRateLimiting("library_export_limiter")]
     [Produces("text/csv")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -221,6 +223,22 @@ public class GameController : ApiController
             csvBytes,
             "text/csv; charset=utf-8",
             $"steam-library-{steamId}.csv");
+    }
+
+    [HttpGet("{steamId:long}/library/export.csv")]
+    [HttpHead("{steamId:long}/library/export.csv")]
+    [DisableRateLimiting]
+    public IActionResult ExportLibraryMethodNotAllowed()
+    {
+        Response.Headers.Allow = "POST";
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers["CDN-Cache-Control"] = "no-store";
+        return new ContentResult
+        {
+            StatusCode = StatusCodes.Status405MethodNotAllowed,
+            ContentType = "text/plain; charset=utf-8",
+            Content = "Library export requires POST with valid antiforgery credentials."
+        };
     }
 
     /// <summary>

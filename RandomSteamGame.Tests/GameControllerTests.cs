@@ -1,5 +1,6 @@
 using ErrorOr;
 using JoyfulReaperLib.MissionControl;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -952,6 +953,9 @@ public class GameControllerTests
         Assert.Equal(
             "library_export_limiter",
             attribute.PolicyName);
+        Assert.NotNull(action.GetCustomAttribute<HttpPostAttribute>());
+        Assert.Null(action.GetCustomAttribute<HttpGetAttribute>());
+        Assert.True(action.GetCustomAttribute<RequireAntiforgeryTokenAttribute>()?.RequiresValidation);
     }
 
     [Fact]

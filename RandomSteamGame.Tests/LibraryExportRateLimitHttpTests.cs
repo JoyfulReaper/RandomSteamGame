@@ -12,6 +12,7 @@ using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json.Serialization.Metadata;
 
 namespace RandomSteamGame.Tests;
@@ -52,7 +53,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var client = application.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = false
             });
 
         var firstTask = SendExportAsync(
@@ -147,7 +149,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var client = application.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = false
             });
 
         var firstTask = SendExportAsync(
@@ -207,7 +210,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var client = application.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = false
             });
 
         const string sharedIp = "198.51.100.60";
@@ -252,7 +256,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var client = application.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = false
             });
 
         const string clientIp = "198.51.100.50";
@@ -307,7 +312,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var client = application.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = false
             });
 
         using var first =
@@ -353,7 +359,7 @@ public sealed class LibraryExportRateLimitHttpTests :
         var clock = new ManualTimeProvider();
         var provider = new BlockingExportGameProvider();
         using var application = CreateGlobalApplication(provider, clock);
-        using var client = application.CreateClient();
+        using var client = application.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
 
         var firstTask = SendExportAsync(client, "198.51.100.70");
         var secondTask = SendExportAsync(client, "198.51.100.71");
@@ -399,7 +405,7 @@ public sealed class LibraryExportRateLimitHttpTests :
     {
         var clock = new ManualTimeProvider();
         using var application = CreateGlobalApplication(new ExportGameProvider(), clock, cooldownMinutes: 7);
-        using var client = application.CreateClient();
+        using var client = application.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
         using var first = await SendExportAsync(client, "198.51.100.80");
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
 
@@ -430,7 +436,7 @@ public sealed class LibraryExportRateLimitHttpTests :
     {
         var clock = new ManualTimeProvider();
         using var application = CreateGlobalApplication(new FailingThenSuccessfulExportGameProvider(), clock);
-        using var client = application.CreateClient();
+        using var client = application.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
         using var failed = await SendExportAsync(client, "198.51.100.90");
         Assert.Equal(HttpStatusCode.InternalServerError, failed.StatusCode);
         using var retry = await SendExportAsync(client, "198.51.100.91");
@@ -484,23 +490,34 @@ public sealed class LibraryExportRateLimitHttpTests :
         public void Advance(TimeSpan duration) => _now += duration;
     }
 
-    private static Task<HttpResponseMessage> SendExportAsync(
+    private static async Task<HttpResponseMessage> SendExportAsync(
         HttpClient client,
         string forwardedFor,
         long steamId = SteamId)
     {
-        var request = new HttpRequestMessage(
-            HttpMethod.Get,
+        using var bootstrap = await client.GetAsync("/api/antiforgery/token", TestContext.Current.CancellationToken);
+        bootstrap.EnsureSuccessStatusCode();
+        var tokens = await bootstrap.Content.ReadFromJsonAsync<ExportAntiforgeryTokens>(TestContext.Current.CancellationToken);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
             $"/api/steam/{steamId}/library/export.csv");
 
         request.Headers.TryAddWithoutValidation(
             "X-Forwarded-For",
             forwardedFor);
+        request.Headers.Add(tokens!.HeaderName, tokens.RequestToken);
+        // Keep concurrent test bootstrap requests bound to their own cookie/token pair.
+        if (bootstrap.Headers.TryGetValues("Set-Cookie", out var cookies))
+        {
+            request.Headers.Add("Cookie", string.Join("; ", cookies.Select(cookie => cookie.Split(';')[0])));
+        }
 
-        return client.SendAsync(
+        return await client.SendAsync(
             request,
             TestContext.Current.CancellationToken);
     }
+
+    private sealed record ExportAntiforgeryTokens(string RequestToken, string HeaderName);
 
     private sealed class BlockingExportGameProvider : IGameProvider
     {

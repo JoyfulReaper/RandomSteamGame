@@ -6,6 +6,8 @@
  */
 
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services;
@@ -132,6 +134,25 @@ public static class MiddlewareExtensions
 
         app.UseStaticFiles();
         app.UseAntiforgery();
+
+        app.Use(async (context, next) =>
+        {
+            var endpoint = context.GetEndpoint();
+            // Antiforgery middleware records a verdict but continues the pipeline. Reject invalid
+            // exports before they acquire capacity or reach the action's cooldown reservation.
+            if (endpoint?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName == "library_export_limiter" &&
+                endpoint.Metadata.GetMetadata<IAntiforgeryMetadata>() is { RequiresValidation: true } &&
+                context.Features.Get<IAntiforgeryValidationFeature>()?.IsValid != true)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                context.Response.ContentType = "text/plain; charset=utf-8";
+                context.Response.Headers.CacheControl = "private, no-store";
+                context.Response.Headers["CDN-Cache-Control"] = "no-store";
+                await context.Response.WriteAsync("Library export verification failed. Please reload the page and try again.", context.RequestAborted);
+                return;
+            }
+            await next();
+        });
 
         app.UseRateLimiter();
 
