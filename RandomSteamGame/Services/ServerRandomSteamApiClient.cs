@@ -43,7 +43,7 @@ public sealed class ServerRandomSteamApiClient : IRandomSteamApiClient
         string? vanityUrl = null, bool unplayedOnly = false, CancellationToken cancellationToken = default,
         IReadOnlyCollection<int>? excludedGameIds = null) =>
         ExecuteAsync(() => _operations.GetRandomGameDetailsAsync(
-            provider, steamId, vanityUrl, _requestContext, unplayedOnly, excludedGameIds), cancellationToken);
+            provider, steamId, vanityUrl, _requestContext, unplayedOnly, excludedGameIds, cancellationToken), cancellationToken);
 
     public Task<ApiResult<long>> ResolveVanityUrlAsync(string provider, string vanityUrl, CancellationToken cancellationToken = default) =>
         ExecuteAsync(() => _operations.ResolveVanityAsync(provider, vanityUrl), cancellationToken);

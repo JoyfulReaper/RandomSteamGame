@@ -57,7 +57,7 @@ public sealed class NetworkDeploymentTests
             new HtmlSanitizerService(settings), NullLogger<SteamProvider>.Instance, settings);
 
         // Both API calls and initial render state originate from this response mapping.
-        var result = await provider.GetRandomGameDetailsAsync(76561197960287930L);
+        var result = await provider.GetRandomGameDetailsAsync(76561197960287930L, ct: TestContext.Current.CancellationToken);
 
         Assert.False(result.IsError);
         Assert.Equal("Test Game", result.Value.Name);

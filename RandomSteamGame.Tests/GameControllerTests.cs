@@ -24,6 +24,20 @@ namespace RandomSteamGame.Tests;
 public class GameControllerTests
 {
     [Fact]
+    public async Task GetRandomGameDetails_PassesRequestCancellationToProvider()
+    {
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var provider = new FakeGameProvider();
+        var controller = CreateController(provider: provider);
+        controller.HttpContext.RequestAborted = caller.Token;
+
+        var result = await controller.GetRandomGameDetails("steam", 76561197960287930L, null);
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(caller.Token, provider.LastPickCancellationToken);
+    }
+
+    [Fact]
     public async Task ExportLibrary_Cooldown_PublishesLibraryExportRejectedEvent()
     {
         const long steamId = 76561197960287930L;
@@ -1029,15 +1043,17 @@ public class GameControllerTests
             return Task.FromResult<ErrorOr<OwnedGamesResponse>>(_library with { SteamId = userId });
         }
 
-        public Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false)
+        public Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false,
+            CancellationToken ct = default)
         {
             GetRandomGameDetailsCallCount++;
             return Task.FromResult(_randomGameResult);
         }
 
         public Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false,
-            IReadOnlyCollection<int>? excludedGameIds = null)
+            IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default)
         {
+            LastPickCancellationToken = ct;
             GetRandomGameDetailsCallCount++;
             if (_randomGameResult.IsError)
             {
@@ -1056,6 +1072,8 @@ public class GameControllerTests
                 _libraryGameCount,
                 new GamePickTimings(0, 1, 1)));
         }
+
+        public CancellationToken LastPickCancellationToken { get; private set; }
 
         public Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)
         {

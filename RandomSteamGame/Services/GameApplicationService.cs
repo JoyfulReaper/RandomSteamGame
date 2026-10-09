@@ -75,7 +75,8 @@ public sealed class GameApplicationService(
         string? vanityUrl,
         GameRequestContext requestContext,
         bool unplayedOnly = false,
-        IReadOnlyCollection<int>? excludedGameIds = null)
+        IReadOnlyCollection<int>? excludedGameIds = null,
+        CancellationToken ct = default)
     {
         var occurredAt = DateTimeOffset.UtcNow;
         var correlationId = Guid.NewGuid().ToString("N");
@@ -136,7 +137,8 @@ public sealed class GameApplicationService(
             return targetId.Errors;
         }
 
-        var result = await service.GetRandomGamePickAsync(targetId.Value, unplayedOnly, excludedGameIds ?? requestContext.ExcludedGameIds);
+        var result = await service.GetRandomGamePickAsync(
+            targetId.Value, unplayedOnly, excludedGameIds ?? requestContext.ExcludedGameIds, ct);
         if (!result.Succeeded)
         {
             await PublishGamePickEventAsync(

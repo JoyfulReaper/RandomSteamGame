@@ -789,10 +789,11 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
         public string ProviderKey => "steam";
         public Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId) =>
             Task.FromResult<ErrorOr<OwnedGamesResponse>>(Errors.Steam.SteamApiFailed);
-        public Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false) =>
+        public Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false,
+            CancellationToken ct = default) =>
             Task.FromResult<ErrorOr<GameDetails>>(Errors.Steam.SteamApiFailed);
         public Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false,
-            IReadOnlyCollection<int>? excludedGameIds = null) =>
+            IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default) =>
             Task.FromResult(RandomGamePickAttempt.Failure([Errors.Steam.SteamApiFailed]));
         public Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier) =>
             Task.FromResult<ErrorOr<long>>(Errors.Steam.VanityResolutionFailed);

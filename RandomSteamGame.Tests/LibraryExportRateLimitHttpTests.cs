@@ -578,7 +578,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<ErrorOr<GameDetails>>
             GetRandomGameDetailsAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
@@ -587,7 +588,7 @@ public sealed class LibraryExportRateLimitHttpTests :
             GetRandomGamePickAsync(
                 long userId,
                 bool unplayedOnly = false,
-                IReadOnlyCollection<int>? excludedGameIds = null)
+                IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
@@ -645,7 +646,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<ErrorOr<GameDetails>>
             GetRandomGameDetailsAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
@@ -654,7 +656,7 @@ public sealed class LibraryExportRateLimitHttpTests :
             GetRandomGamePickAsync(
                 long userId,
                 bool unplayedOnly = false,
-                IReadOnlyCollection<int>? excludedGameIds = null)
+                IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
@@ -702,7 +704,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<ErrorOr<GameDetails>>
             GetRandomGameDetailsAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
@@ -711,7 +714,7 @@ public sealed class LibraryExportRateLimitHttpTests :
             GetRandomGamePickAsync(
                 long userId,
                 bool unplayedOnly = false,
-                IReadOnlyCollection<int>? excludedGameIds = null)
+                IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }

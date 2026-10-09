@@ -248,7 +248,7 @@ public class GameController : ApiController
         [FromQuery] bool unplayedOnly = false)
     {
         var result = await _gameOperations.GetRandomGameDetailsAsync(
-            provider, userId, vanityUrl, GameRequestContext.From(HttpContext), unplayedOnly);
+            provider, userId, vanityUrl, GameRequestContext.From(HttpContext), unplayedOnly, ct: HttpContext.RequestAborted);
         return result.Match(Ok, Problem);
     }
 

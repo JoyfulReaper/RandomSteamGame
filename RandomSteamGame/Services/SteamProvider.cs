@@ -74,15 +74,16 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
     public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)
         => await FetchOwnedGamesAsync(userId);
 
-    public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false)
+    public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false,
+        CancellationToken ct = default)
     {
-        var result = await FetchRandomGamePickAsync(userId, unplayedOnly);
+        var result = await FetchRandomGamePickAsync(userId, unplayedOnly, ct: ct);
         return result.Succeeded ? result.Game! : result.Errors.ToList();
     }
 
     public async Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false,
-        IReadOnlyCollection<int>? excludedGameIds = null)
-        => await FetchRandomGamePickAsync(userId, unplayedOnly, excludedGameIds);
+        IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default)
+        => await FetchRandomGamePickAsync(userId, unplayedOnly, excludedGameIds, ct);
 
     public async Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)
         => await FetchSteamIdFromVanityAsync(identifier);
@@ -138,14 +139,19 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
     }
 
     public async Task<RandomGamePickAttempt> FetchRandomGamePickAsync(long steamId, bool unplayedOnly = false,
-        IReadOnlyCollection<int>? excludedGameIds = null)
+        IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         var libraryLoadStopwatch = Stopwatch.StartNew();
         OwnedGamesResult ownedGamesResult;
 
         try
         {
-            ownedGamesResult = await _steamClient.GetOwnedGamesWithCacheInfo(steamId);
+            ownedGamesResult = await _steamClient.GetOwnedGamesWithCacheInfo(steamId, ct: ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -175,7 +181,7 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         }
 
         var selectionStopwatch = Stopwatch.StartNew();
-        var selectionResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly, excludedGameIds);
+        var selectionResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly, excludedGameIds, ct);
         selectionStopwatch.Stop();
 
         if (!selectionResult.Succeeded)
@@ -234,8 +240,10 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
     private async Task<SelectionAttempt> GetRandomGameDataAsync(
         SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames,
         bool unplayedOnly,
-        IReadOnlyCollection<int>? excludedGameIds)
+        IReadOnlyCollection<int>? excludedGameIds,
+        CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var exclusions = excludedGameIds is null ? GetExcludedGameIds() : excludedGameIds.ToHashSet();
         var shuffledGameIds = GameSelectionHelper.GetSelectableGameIds(
             ownedGames.Games,
@@ -260,7 +268,23 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
                 break;
             }
 
-            var appData = await _steamStoreClient.GetAppData(selectedAppId);
+            ct.ThrowIfCancellationRequested();
+            AppData? appData;
+            try
+            {
+                appData = await _steamStoreClient.GetAppData(selectedAppId, ct: ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                // A failed dependency call is distinct from an unavailable candidate (null).
+                _logger.LogWarning(exception, "Failed to load Steam Store data for AppId {AppId}.", selectedAppId);
+                return SelectionAttempt.Failure([Errors.Steam.SteamApiFailed], shuffledGameIds.Count);
+            }
+            ct.ThrowIfCancellationRequested();
             attempts++;
 
             if (appData != null)

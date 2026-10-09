@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using RandomSteamGame.Client.Services;
+using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Events;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
@@ -24,6 +25,7 @@ using Store = SteamApiClient.Contracts.SteamStoreApi;
 
 namespace RandomSteamGame.Tests;
 
+[Collection(nameof(ServerBrowserExecutionTests))]
 public class ServerBrowserExecutionTests
 {
     private const long SteamId = 76561197960287930L;
@@ -61,6 +63,57 @@ public class ServerBrowserExecutionTests
         Assert.Single(telemetry.Picks);
         // Persisted prerender data remains available for InteractiveAuto hydration.
         Assert.Contains("Blazor-WebAssembly-Component-State:", html);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StoreDependencyFailure_ReturnsControlledResultForHttpAndServerCalls(bool serverCall)
+    {
+        using var root = new SeoWebApplicationFactory();
+        var store = new StubStoreClient(_ => Task.FromException<Store.AppData?>(new HttpRequestException("Store unavailable.")));
+        using var application = CreateApplication(root, new StubSteamClient(10, 20), store, new RejectOutgoingHttpHandler());
+
+        if (serverCall)
+        {
+            using var scope = application.Services.CreateScope();
+            var server = scope.ServiceProvider.GetRequiredService<IRandomSteamApiClient>();
+            var result = await server.GetRandomGameDetailsAsync("steam", SteamId, cancellationToken: TestContext.Current.CancellationToken);
+            Assert.False(result.IsSuccess);
+            Assert.Equal(HttpStatusCode.InternalServerError, result.StatusCode);
+            Assert.Equal(Errors.Steam.SteamApiFailed.Description, result.Problem!.Detail);
+        }
+        else
+        {
+            using var browser = application.CreateClient();
+            using var response = await browser.GetAsync($"/api/steam/random-game/details?userId={SteamId}", TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+            var problem = await response.Content.ReadFromJsonAsync<ApiProblem>(TestContext.Current.CancellationToken);
+            Assert.Equal(Errors.Steam.SteamApiFailed.Description, problem!.Detail);
+        }
+
+        Assert.Single(store.RequestedAppIds);
+    }
+
+    [Fact]
+    public async Task ServerPicker_ForwardsCallerCancellationToStoreAndPropagatesIt()
+    {
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        using var root = new SeoWebApplicationFactory();
+        var store = new StubStoreClient(ct =>
+        {
+            Assert.Equal(caller.Token, ct);
+            caller.Cancel();
+            return Task.FromCanceled<Store.AppData?>(ct);
+        });
+        using var application = CreateApplication(root, new StubSteamClient(10, 20), store, new RejectOutgoingHttpHandler());
+        using var scope = application.Services.CreateScope();
+        var server = scope.ServiceProvider.GetRequiredService<IRandomSteamApiClient>();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            server.GetRandomGameDetailsAsync("steam", SteamId, cancellationToken: caller.Token));
+
+        Assert.Single(store.RequestedAppIds);
     }
 
     [Fact]
@@ -265,12 +318,16 @@ public class ServerBrowserExecutionTests
         }
     }
 
-    private sealed class StubStoreClient : ISteamStoreClient
+    private sealed class StubStoreClient(Func<CancellationToken, Task<Store.AppData?>>? getAppData = null) : ISteamStoreClient
     {
         public List<int> RequestedAppIds { get; } = [];
         public Task<Store.AppData?> GetAppData(int appId, IEnumerable<string>? tags = null, CancellationToken ct = default)
         {
             RequestedAppIds.Add(appId);
+            if (getAppData is not null)
+            {
+                return getAppData(ct);
+            }
             return Task.FromResult(JsonSerializer.Deserialize<Store.AppData>(JsonSerializer.Serialize(new
             {
                 type = "game", name = $"Game{appId}", steam_appid = appId,
@@ -314,3 +371,7 @@ public class ServerBrowserExecutionTests
         }
     }
 }
+
+// These hosts initialize/clean up the same startup SQLite file as other HTTP fixtures.
+[CollectionDefinition(nameof(ServerBrowserExecutionTests), DisableParallelization = true)]
+public sealed class ServerBrowserExecutionCollection;
