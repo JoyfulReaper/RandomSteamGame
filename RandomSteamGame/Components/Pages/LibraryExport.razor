@@ -1,6 +1,9 @@
 ﻿@page "/library-export"
 
 @inject CanonicalUrlService CanonicalUrls
+@using Microsoft.Extensions.Options
+@using RandomSteamGame.Options
+@inject IOptions<LibraryExportOptions> ExportSettings
 
 <PageTitle>@Title</PageTitle>
 
@@ -31,7 +34,7 @@
                     and Steam Deck compatibility.
                 </p>
 
-                <LibraryExportForm @rendermode="InteractiveAuto" />
+                <LibraryExportForm RateLimitDescription="@ExportSettings.Value.RateLimitDescription" @rendermode="InteractiveAuto" />
             </div>
 
             <div class="home-info-card mt-4">
@@ -49,8 +52,15 @@
                 </ul>
 
                 <p class="text-muted small mb-0">
-                    Exports are limited to one per IP address every
-                    72 hours to protect Steam API capacity.
+                    @if (ExportSettings.Value.RateLimitMode == LibraryExportRateLimitMode.Global)
+                    {
+                        @ExportSettings.Value.RateLimitDescription
+                    }
+                    else
+                    {
+                        <text>Exports are limited to one per IP address every
+                        72 hours to protect Steam API capacity.</text>
+                    }
                     Need more frequent exports?
                     <a href="/support">Contact me.</a>
                 </p>

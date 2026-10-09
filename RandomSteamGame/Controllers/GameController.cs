@@ -44,6 +44,8 @@ public class GameController : ApiController
     private readonly ILogger<GameController> _logger;
     private readonly IVisitorIdProvider _visitorIdProvider;
     private readonly ILibraryExportCooldownTracker _libraryExportCooldownTracker;
+    private readonly LibraryExportOptions _libraryExportOptions;
+    private readonly GlobalLibraryExportCooldownTracker _globalExportCooldown;
 
     public GameController(
         GameProviderFactory factory,
@@ -54,7 +56,9 @@ public class GameController : ApiController
         IVisitorIdProvider visitorIdProvider,
         ILibraryExportCooldownTracker libraryExportCooldownTracker,
         IOptions<ApplicationOptions> applicationOptions,
-        ILogger<GameController> logger)
+        ILogger<GameController> logger,
+        IOptions<LibraryExportOptions> libraryExportOptions,
+        GlobalLibraryExportCooldownTracker globalExportCooldown)
     {
         _missionControlClient = missionControlClient;
         _visitorIdProvider = visitorIdProvider;
@@ -65,6 +69,8 @@ public class GameController : ApiController
         _steamLibraryExportService = steamLibraryExportService;
         _logger = logger;
         _libraryExportCooldownTracker = libraryExportCooldownTracker;
+        _libraryExportOptions = libraryExportOptions.Value;
+        _globalExportCooldown = globalExportCooldown;
     }
 
     /// <summary>
@@ -118,7 +124,10 @@ public class GameController : ApiController
         var occurredAt = DateTimeOffset.UtcNow;
         var correlationId = Guid.NewGuid().ToString("N");
         var partitionKey = LibraryExportRateLimitPartitionKey.From(HttpContext.Connection.RemoteIpAddress);
-        var retryAfter = _libraryExportCooldownTracker.GetRetryAfter(partitionKey);
+        var isGlobal = _libraryExportOptions.RateLimitMode == LibraryExportRateLimitMode.Global;
+        var retryAfter = isGlobal
+            ? _globalExportCooldown.TryStart()
+            : _libraryExportCooldownTracker.GetRetryAfter(partitionKey);
 
         if (retryAfter is not null)
         {
@@ -136,9 +145,10 @@ public class GameController : ApiController
             {
                 StatusCode = StatusCodes.Status429TooManyRequests,
                 ContentType = "text/plain; charset=utf-8",
-                Content =
-                    "Steam library CSV exports are limited to one per IP address " +
-                    "every 72 hours after a successful export."
+                Content = isGlobal
+                    ? $"Steam library CSV exports share a global cooldown. Please try again in {retryAfterSeconds} seconds."
+                    : "Steam library CSV exports are limited to one per IP address " +
+                        "every 72 hours after a successful export."
             };
         }
 
@@ -165,7 +175,10 @@ public class GameController : ApiController
 
         await TrackLibraryExportedAsync();
 
-        _libraryExportCooldownTracker.MarkSucceeded(partitionKey);
+        if (!isGlobal)
+        {
+            _libraryExportCooldownTracker.MarkSucceeded(partitionKey);
+        }
 
         var verifiedCount = 0;
         var playableCount = 0;

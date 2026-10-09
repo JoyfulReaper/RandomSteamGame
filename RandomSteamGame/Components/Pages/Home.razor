@@ -4,6 +4,7 @@
 @using Microsoft.Extensions.Options
 @using RandomSteamGame.Options
 @inject IOptions<ApplicationOptions> ApplicationSettings
+@inject IOptions<LibraryExportOptions> ExportSettings
 @inject IAppStatsService AppStatsService
 @inject IHttpContextAccessor HttpContextAccessor
 @inject ILogger<Home> Logger
@@ -192,8 +193,16 @@
                         <p>
                             Yes. You can export your public Steam library as CSV with game
                             names, App IDs, playtime, last-played dates, and Steam Deck
-                            compatibility. Exports are limited to one per IP address every
-                            72 hours.
+                            compatibility.
+                            @if (ExportSettings.Value.RateLimitMode == LibraryExportRateLimitMode.Global)
+                            {
+                                @ExportSettings.Value.RateLimitDescription
+                            }
+                            else
+                            {
+                                <text>Exports are limited to one per IP address every
+                                72 hours.</text>
+                            }
                         </p>
                     </div>
                 </div>

@@ -152,7 +152,13 @@ Important operational settings include:
 | `DataProtection:KeysPath` | Optional persistent Data Protection key-ring location |
 | `Steam:ConnectionString` | SQLite connection string for Steam response caching |
 | `Steam:Cache:*` | Cache durations for libraries, app details, vanity results, and Deck compatibility |
-| `Steam:RateLimiting:*` | General Steam API request limit; CSV export has a separate one-per-IP/72-hour policy |
+| `Steam:RateLimiting:*` | General Steam API request limit; CSV export has a separate policy |
+| `Steam:LibraryExport:RateLimitMode` | `PerIp` (default) or `Global`; independent of network mode |
+| `Steam:LibraryExport:GlobalConcurrency` | Maximum active exports across all IPs in PerIp mode (default 2); Global mode always allows only one |
+| `Steam:LibraryExport:GlobalCooldownMinutes` | Global-mode cooldown from acceptance, including failed attempts (default 20; range 1–43200 minutes) |
+| `Ingress:EnableForwardedHeaders` | Optional override; `null` trusts configured proxy addresses in Public and ignores forwarding in AltNet |
+| `Ingress:EnableCloudflareVisitorHeader` | Optional override; `null` enables trusted Cloudflare scheme metadata in Public and disables it in AltNet; requires forwarding enabled |
+| `Ingress:TrustedProxies` | Exact immediate-peer IP addresses allowed to supply forwarding headers; defaults to `127.0.0.1` and `::1` |
 | `Cors:AllowedOrigins` | Browser origins permitted to call the API |
 | `MissionControl:*` | Optional deployment and game-pick telemetry configuration |
 | `Telemetry:VisitorHashKey` | Optional key used to pseudonymize visitor identifiers for telemetry |
@@ -180,8 +186,49 @@ the current network instead and omits public beta links even if probing is enabl
 crawling and advertises its configured sitemap with the existing four page URLs.
 AltNet uses `Disallow: /` without advertising a sitemap; its sitemap remains
 available using the configured origin. Robots directives are advisory, not access
-control. Cookies, proxy headers, and rate limiting still require separate deployment
-consideration.
+control.
+
+### Cookies, ingress, and library exports
+
+Public production keeps Secure antiforgery and server-written Steam identity
+cookies; Public development keeps its existing request-dependent antiforgery
+policy. AltNet derives both cookie security and the effective request scheme from
+`Application:CanonicalOrigin`, so an intentional HTTP origin works behind an HTTP
+tunnel without Secure cookies, while an HTTPS origin retains them even when the
+backend listener uses HTTP. Antiforgery validation, HttpOnly on antiforgery cookies,
+SameSite=Lax, host-only scope, and cookie lifetimes remain unchanged. Browser-written
+Steam identity, exclusions, and cache-reset cookies already use the browser's actual
+protocol. Visitor telemetry uses a keyed IP hash, not a visitor cookie.
+
+AltNet ignores `X-Forwarded-For`, `X-Forwarded-Proto`, and `CF-Visitor` by default,
+including from loopback. Public keeps trusted loopback proxy/Cloudflare support.
+To enable forwarding on an ingress that supplies reliable client addresses, set
+`Ingress__EnableForwardedHeaders=true` and configure `Ingress:TrustedProxies` with
+its exact IP addresses. That ingress must strip visitor-supplied forwarding headers
+and write its own values; address trust alone cannot distinguish headers passed
+through by a tunnel. Cloudflare metadata has a separate opt-in for AltNet. Only one
+forwarding hop is consumed; untrusted peers cannot change the effective client IP.
+AltNet's effective scheme always comes from its configured origin.
+
+For an ingress that presents every visitor as the same local address, configure:
+
+```ini
+Steam__LibraryExport__RateLimitMode=Global
+Steam__LibraryExport__GlobalCooldownMinutes=20
+```
+
+Global mode allows one active export request, rejects additional requests with
+HTTP 429, and atomically reserves the shared cooldown after provider/Steam ID
+validation and before Steam work starts. Completion does not restart the cooldown;
+failures consume it. Rejections return readable error text and Retry-After seconds
+(rounded up). Capacity rejections before the cooldown reservation or after its
+expiry suggest a five-second retry; availability still depends on completion.
+State is local to this process and resets on restart. PerIp mode preserves the
+72-hour cooldown after a successful export, one active request per IP, and the
+configurable global capacity. Export policy hints follow the selected policy.
+
+JavaScript cookie tests can be run with
+`node --test RandomSteamGame.Tests/cookieHelper.test.mjs` in addition to the .NET suite.
 
 ## Docker
 

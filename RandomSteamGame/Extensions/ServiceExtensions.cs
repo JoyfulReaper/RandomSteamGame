@@ -8,6 +8,7 @@
 using JoyfulReaperLib.MissionControl;
 using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
@@ -60,12 +61,18 @@ public static class ServiceExtensions
         services.AddOptions<LibraryExportOptions>()
             .Bind(config.GetSection(LibraryExportOptions.SectionName))
             .ValidateDataAnnotations()
+            .Validate(options => Enum.IsDefined(options.RateLimitMode), "Steam:LibraryExport:RateLimitMode must be PerIp or Global.")
             .ValidateOnStart();
 
         services.AddOptions<ApplicationOptions>()
             .Bind(config.GetSection(ApplicationOptions.SectionName))
             .Validate(options => Enum.IsDefined(options.NetworkMode), "Application:NetworkMode must be Public or AltNet.")
             .Validate(options => CanonicalUrlService.TryGetOrigin(options, out _), CanonicalUrlService.OriginValidationMessage)
+            .ValidateOnStart();
+        services.AddOptions<IngressOptions>()
+            .Bind(config.GetSection(IngressOptions.SectionName))
+            .Validate(options => options.TrustedProxies is null || options.TrustedProxies.All(proxy => System.Net.IPAddress.TryParse(proxy, out _)),
+                "Ingress:TrustedProxies must contain only IP addresses.")
             .ValidateOnStart();
         services.Configure<TelemetryOptions>(config.GetSection(TelemetryOptions.SectionName));
         services.AddSingleton<IVisitorIdProvider, VisitorIdProvider>();
@@ -91,6 +98,9 @@ public static class ServiceExtensions
         services.AddHttpClient<RandomSteamApiClient>();
         services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
         services.AddSingleton<CanonicalUrlService>();
+        services.AddSingleton<DeploymentCookiePolicy>();
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<GlobalLibraryExportCooldownTracker>();
 
         services.AddMissionControlClient(
             config.GetSection(MissionControlClientOptions.SectionName));
@@ -100,12 +110,11 @@ public static class ServiceExtensions
         {
             options.Cookie.Name = ".RandomSteamGame.Antiforgery.v2";
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = env.IsDevelopment()
-                ? CookieSecurePolicy.SameAsRequest
-                : CookieSecurePolicy.Always;
             options.Cookie.SameSite = SameSiteMode.Lax;
             options.Cookie.Path = "/";
         });
+        services.AddOptions<AntiforgeryOptions>().Configure<DeploymentCookiePolicy>(
+            (options, policy) => options.Cookie.SecurePolicy = policy.GetAntiforgerySecurePolicy(env));
 
         ValidateSteamApiKey(steamOptions);
 
@@ -316,7 +325,7 @@ public static class ServiceExtensions
                                     factory: _ => new ConcurrencyLimiterOptions
                                     {
                                         PermitLimit =
-                                            libraryExportOptions.Value.GlobalConcurrency,
+                                            libraryExportOptions.Value.EffectiveGlobalConcurrency,
                                         QueueLimit = 0,
                                         QueueProcessingOrder =
                                             QueueProcessingOrder.OldestFirst
@@ -344,6 +353,11 @@ public static class ServiceExtensions
                         "library_export_limiter",
                         httpContext =>
                         {
+                            if (libraryExportOptions.Value.RateLimitMode == LibraryExportRateLimitMode.Global)
+                            {
+                                return RateLimitPartition.GetNoLimiter("library-export-global-policy");
+                            }
+
                             var partitionKey =
                                 LibraryExportRateLimitPartitionKey.From(
                                     httpContext.Connection.RemoteIpAddress);
@@ -392,6 +406,16 @@ public static class ServiceExtensions
                             var missionControlClient = httpContext.RequestServices
                                 .GetRequiredService<IMissionControlClient>();
 
+                            long? retryAfterSeconds = null;
+                            if (libraryExportOptions.Value.RateLimitMode == LibraryExportRateLimitMode.Global)
+                            {
+                                var remaining = httpContext.RequestServices.GetRequiredService<GlobalLibraryExportCooldownTracker>().GetRetryAfter();
+                                retryAfterSeconds = remaining is null ? 5 : Math.Max(1, (long)Math.Ceiling(remaining.Value.TotalSeconds));
+                                httpContext.Response.Headers.RetryAfter = retryAfterSeconds.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                httpContext.Response.Headers.CacheControl = "private, no-store";
+                                httpContext.Response.Headers["CDN-Cache-Control"] = "no-store";
+                            }
+
                             _ = missionControlClient.TryPublishAsync(
                                 eventType: RandomSteamGameEventTypes.LibraryExportRejected,
                                 payload: new LibraryExportRejectedEvent(
@@ -399,7 +423,7 @@ public static class ServiceExtensions
                                     Provider: provider,
                                     IngressNetwork: IngressNetworkClassifier.FromHost(httpContext.Request.Host.Host),
                                     Reason: LibraryExportRejectionReason.Capacity,
-                                    RetryAfterSeconds: null,
+                                    RetryAfterSeconds: retryAfterSeconds,
                                     CommitSha: string.IsNullOrWhiteSpace(
                                         applicationOptions.CommitSha)
                                         ? null

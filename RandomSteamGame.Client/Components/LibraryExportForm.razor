@@ -65,10 +65,13 @@
 </EditForm>
 
 <p class="text-muted small text-center mt-3 mb-0">
-    One export per IP address every 72 hours.
+    @RateLimitDescription
 </p>
 
 @code {
+    [Parameter]
+    public string RateLimitDescription { get; set; } = "One export per IP address every 72 hours.";
+
     private readonly SteamPickerFormModel _model = new();
 
     private bool _isBusy;

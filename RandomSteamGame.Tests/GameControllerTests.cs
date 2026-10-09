@@ -892,7 +892,10 @@ public class GameControllerTests
             libraryExportCooldownTracker ?? new FakeLibraryExportCooldownTracker(),
             Microsoft.Extensions.Options.Options.Create(
                 applicationOptions ?? new ApplicationOptions()),
-            NullLogger<GameController>.Instance);
+            NullLogger<GameController>.Instance,
+            Microsoft.Extensions.Options.Options.Create(new LibraryExportOptions()),
+            new GlobalLibraryExportCooldownTracker(
+                Microsoft.Extensions.Options.Options.Create(new LibraryExportOptions()), TimeProvider.System));
 
         controller.ControllerContext = new ControllerContext
         {

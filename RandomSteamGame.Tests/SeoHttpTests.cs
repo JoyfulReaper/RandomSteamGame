@@ -3,6 +3,7 @@ using AngleSharp.Dom;
 using JoyfulReaperLib.Caching.Sqlite;
 using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -675,6 +676,8 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
+            // TestServer has no TCP peer. Model the existing trusted loopback ingress explicitly.
+            services.AddSingleton<IStartupFilter, LoopbackPeerStartupFilter>();
             services.PostConfigure<SqliteDistributedCacheOptions>(options =>
             {
                 options.ConnectionString = "Data Source=steam-cache.db;Pooling=False";
@@ -749,6 +752,19 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
 
         public Task IncrementLibrariesExportedAsync() =>
             Task.CompletedTask;
+    }
+
+    private sealed class LoopbackPeerStartupFilter : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, continuation) =>
+            {
+                context.Connection.RemoteIpAddress ??= IPAddress.Loopback;
+                return continuation();
+            });
+            next(app);
+        };
     }
 
     private sealed class StubBetaAvailabilityService : IBetaAvailabilityService
