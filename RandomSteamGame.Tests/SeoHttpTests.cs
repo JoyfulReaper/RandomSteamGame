@@ -128,11 +128,12 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(expectBeta ? 1 : 0, betaService.CallCount);
         Assert.Equal(expectBeta && mode == NetworkMode.Public, document.QuerySelector(".home-beta-banner") is not null);
+        AssertFooterNetworkLinks(document);
         if (mode == NetworkMode.AltNet)
         {
             Assert.Contains("Community mesh deployment", document.Body?.TextContent);
             Assert.DoesNotContain("Game background images are loaded from clearnet", document.Body?.TextContent);
-            Assert.DoesNotContain("randomsteam.kgivler.com", document.DocumentElement.OuterHtml);
+            AssertNoPublicHostOutsideFooter(document);
             Assert.DoesNotContain("randombeta.kgivler.com", document.DocumentElement.OuterHtml);
         }
         else
@@ -147,7 +148,7 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 
     [Theory]
     [MemberData(nameof(IndexablePageCases))]
-    public async Task AltNet_IndexablePagesUseConfiguredOriginAndDoNotExposePublicHost(
+    public async Task AltNet_IndexablePagesUseConfiguredOriginAndDoNotExposePublicHostOutsideFooter(
         string path, string expectedTitle, string publicCanonicalUrl, string expectedH1)
     {
         using var factory = CreateAltNetFactory();
@@ -165,9 +166,9 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Equal(expectedH1, document.QuerySelector("h1")?.TextContent.Trim());
         Assert.Equal(expectedCanonicalUrl, GetAttribute(document, "link[rel='canonical']", "href"));
         Assert.Equal(expectedCanonicalUrl, GetAttribute(document, "meta[property='og:url']", "content"));
-        Assert.DoesNotContain("randomsteam.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+        AssertNoPublicHostOutsideFooter(document);
         Assert.DoesNotContain("randombeta.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Community mesh", document.QuerySelector($"a[href='{AltNetOrigin}/']")?.TextContent);
+        AssertFooterNetworkLinks(document);
         Assert.NotNull(document.QuerySelector("a[href='https://github.com/JoyfulReaper/RandomSteamGame']"));
 
         if (path == "/")
@@ -192,14 +193,14 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(AltNetOrigin + path, GetAttribute(document, "link[rel='canonical']", "href"));
         Assert.Equal("noindex, follow", GetRobotsHeader(response));
-        Assert.DoesNotContain("randomsteam.kgivler.com", document.DocumentElement.OuterHtml, StringComparison.OrdinalIgnoreCase);
+        AssertNoPublicHostOutsideFooter(document);
     }
 
     [Theory]
     [InlineData("/not-found", HttpStatusCode.NotFound)]
     [InlineData("/definitely-not-a-public-route", HttpStatusCode.NotFound)]
     [InlineData("/Error", HttpStatusCode.InternalServerError)]
-    public async Task AltNet_ErrorPagesDoNotExposePublicHost(string path, HttpStatusCode expectedStatus)
+    public async Task AltNet_ErrorPagesDoNotExposePublicHostOutsideFooter(string path, HttpStatusCode expectedStatus)
     {
         using var factory = CreateAltNetFactory();
         using var client = factory.CreateClient();
@@ -209,10 +210,12 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 
         Assert.Equal(expectedStatus, response.StatusCode);
         Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
-        Assert.DoesNotContain("randomsteam.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+        AssertNoPublicHostOutsideFooter(document);
         Assert.DoesNotContain("randombeta.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
         if (expectedStatus == HttpStatusCode.NotFound)
         {
+            AssertFooterNetworkLinks(document);
             Assert.Contains($"curl -I {AltNetOrigin}/requested_route", html);
         }
     }
@@ -235,7 +238,7 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Null(document.QuerySelector(".home-beta-note"));
         Assert.Equal(AltNetOrigin, GetAttribute(document, "link[rel='canonical']", "href"));
-        Assert.DoesNotContain("randomsteam.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+        AssertNoPublicHostOutsideFooter(document);
         Assert.DoesNotContain("randombeta.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -622,6 +625,32 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 
         public Task IncrementLibrariesExportedAsync() =>
             Task.CompletedTask;
+    }
+
+    private static void AssertFooterNetworkLinks(IDocument document)
+    {
+        var links = Assert.IsAssignableFrom<IElement>(document.QuerySelector("footer.global-footer .global-footer-links"));
+        Assert.Contains("Also available on:", links.TextContent);
+        Assert.DoesNotContain("Current network:", links.TextContent);
+        Assert.Equal(
+            new[]
+            {
+                ("Clearnet", "https://randomsteam.kgivler.com/"),
+                ("Yggdrasil", "https://steam.ygg.kgivler.com/"),
+                ("DN42", "https://randomsteam.dn42/"),
+                ("I2P (experimental)", "http://vdjmun2zeeqdk7lymwe6qht2msioyq2y6ywpjduchqye3nodfbmq.b32.i2p")
+            },
+            links.QuerySelectorAll("a").Take(4).Select(link => (link.TextContent.Trim(), Assert.IsType<string>(link.GetAttribute("href")))));
+    }
+
+    private static void AssertNoPublicHostOutsideFooter(IDocument document)
+    {
+        var html = document.DocumentElement.OuterHtml;
+        if (document.QuerySelector("footer.global-footer") is { } footer)
+        {
+            html = html.Replace(footer.OuterHtml, string.Empty, StringComparison.Ordinal);
+        }
+        Assert.DoesNotContain("randomsteam.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<IDocument> ParseHtmlAsync(
