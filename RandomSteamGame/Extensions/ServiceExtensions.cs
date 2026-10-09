@@ -56,7 +56,6 @@ public static class ServiceExtensions
 
         var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
         EnsureAppStatsSchema(connectionString);
-        var steamOptions = GetSteamOptions(config);
 
         services.AddOptions<LibraryExportOptions>()
             .Bind(config.GetSection(LibraryExportOptions.SectionName))
@@ -92,7 +91,7 @@ public static class ServiceExtensions
         services.AddSteamServices(config);
         services.AddApplicationCors(config, env);
 
-        services.AddSteamRateLimiting(steamOptions.RateLimiting);
+        services.AddSteamRateLimiting();
 
         services.AddApplicationHealthChecks();
         services.AddMemoryCache();
@@ -117,8 +116,6 @@ public static class ServiceExtensions
         });
         services.AddOptions<AntiforgeryOptions>().Configure<DeploymentCookiePolicy>(
             (options, policy) => options.Cookie.SecurePolicy = policy.GetAntiforgerySecurePolicy(env));
-
-        ValidateSteamApiKey(steamOptions);
 
         return services;
     }
@@ -292,12 +289,11 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddSteamRateLimiting(
-        this IServiceCollection services,
-        RateLimitingOptions rateLimiting)
+    private static IServiceCollection AddSteamRateLimiting(this IServiceCollection services)
     {
         services.AddRateLimiter();
-        services.AddSingleton(_ => new SteamApiRequestLimiter(rateLimiting));
+        services.AddSingleton(provider => new SteamApiRequestLimiter(
+            provider.GetRequiredService<IOptions<SteamClientApiOptions>>().Value.RateLimiting));
 
         services
             .AddOptions<Microsoft.AspNetCore.RateLimiting.RateLimiterOptions>()
@@ -479,21 +475,6 @@ public static class ServiceExtensions
         alterCommand.ExecuteNonQuery();
     }
 
-    private static SteamClientApiOptions GetSteamOptions(IConfiguration config)
-    {
-        return config.GetSection("Steam").Get<SteamClientApiOptions>()
-            ?? throw new InvalidOperationException("Steam configuration is missing.");
-    }
-
-    private static void ValidateSteamApiKey(SteamClientApiOptions steamOptions)
-    {
-        if (string.IsNullOrWhiteSpace(steamOptions.ApiKey) ||
-            steamOptions.ApiKey == "STEAM_API_KEY" ||
-            steamOptions.ApiKey.Length < 32)
-        {
-            throw new InvalidOperationException("CRITICAL: Invalid Steam API Key.");
-        }
-    }
 }
 
 internal sealed record DataProtectionSettings(string ApplicationName, string KeysPath);

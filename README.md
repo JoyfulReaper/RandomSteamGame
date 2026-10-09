@@ -149,6 +149,8 @@ The only secret required for normal local use is the Steam Web API key:
 
 The tracked [`RandomSteamGame/appsettings.json`](RandomSteamGame/appsettings.json) also contains non-secret settings for caching, rate limiting, allowed origins, canonical hosts, Data Protection, and optional Mission Control telemetry.
 
+Steam options are validated at startup. `Steam:ConnectionString` must be nonblank; validation does not open the cache database. All six `Steam:Cache` policies must be explicitly configured with `AbsoluteMinutes` from 1 through 525600 (one year). `Steam:RateLimiting` must specify `PermitLimit` from 1 through 1000000 and `WindowSeconds` from 1 through 86400 (one day). These generous bounds reject obvious mistakes while accommodating the shipped 43200-minute caches and future rate-limit tuning. Invalid settings are rejected with their configuration paths, without clamping or substituting defaults.
+
 Important operational settings include:
 
 | Configuration key | Purpose |

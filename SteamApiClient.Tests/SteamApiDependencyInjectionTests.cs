@@ -39,6 +39,7 @@ public class SteamApiDependencyInjectionTests
                 ["Steam:ConnectionString"] = "Data Source=steam_cache.db",
                 ["Steam:Cache:OwnedGames:AbsoluteMinutes"] = "60",
                 ["Steam:Cache:AppDetails:AbsoluteMinutes"] = "60",
+                ["Steam:Cache:AppDetailsNotFound:AbsoluteMinutes"] = "15",
                 ["Steam:Cache:VanitySuccess:AbsoluteMinutes"] = "120",
                 ["Steam:Cache:VanityNotFound:AbsoluteMinutes"] = "15",
                 ["Steam:RateLimiting:PermitLimit"] = "20",
