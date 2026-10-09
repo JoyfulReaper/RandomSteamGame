@@ -787,7 +787,7 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
     private sealed class UnavailableGameProvider : IGameProvider
     {
         public string ProviderKey => "steam";
-        public Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId) =>
+        public Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId, CancellationToken ct = default) =>
             Task.FromResult<ErrorOr<OwnedGamesResponse>>(Errors.Steam.SteamApiFailed);
         public Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false,
             CancellationToken ct = default) =>
@@ -795,8 +795,8 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
         public Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false,
             IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default) =>
             Task.FromResult(RandomGamePickAttempt.Failure([Errors.Steam.SteamApiFailed]));
-        public Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier) =>
+        public Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier, CancellationToken ct = default) =>
             Task.FromResult<ErrorOr<long>>(Errors.Steam.VanityResolutionFailed);
-        public Task InvalidateOwnedGamesCacheAsync(long userId) => Task.CompletedTask;
+        public Task InvalidateOwnedGamesCacheAsync(long userId, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

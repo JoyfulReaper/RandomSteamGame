@@ -71,8 +71,8 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         }
     }
 
-    public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId)
-        => await FetchOwnedGamesAsync(userId);
+    public async Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId, CancellationToken ct = default)
+        => await FetchOwnedGamesAsync(userId, ct);
 
     public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false,
         CancellationToken ct = default)
@@ -85,15 +85,21 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default)
         => await FetchRandomGamePickAsync(userId, unplayedOnly, excludedGameIds, ct);
 
-    public async Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)
-        => await FetchSteamIdFromVanityAsync(identifier);
+    public async Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier, CancellationToken ct = default)
+        => await FetchSteamIdFromVanityAsync(identifier, ct);
 
-    public async Task<ErrorOr<OwnedGamesResponse>> FetchOwnedGamesAsync(long steamId)
+    public async Task<ErrorOr<OwnedGamesResponse>> FetchOwnedGamesAsync(long steamId, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames;
         try
         {
-            ownedGames = await _steamClient.GetOwnedGames(steamId);
+            ownedGames = await _steamClient.GetOwnedGames(steamId, ct: ct);
+            ct.ThrowIfCancellationRequested();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -109,16 +115,18 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         return MapToOwnedGamesResponse(steamId, ownedGames);
     }
 
-    public async Task InvalidateOwnedGamesCacheAsync(long steamId)
+    public async Task InvalidateOwnedGamesCacheAsync(long steamId, CancellationToken ct = default)
     {
-        await _steamClient.InvalidateOwnedGamesCacheAsync(steamId);
+        await _steamClient.InvalidateOwnedGamesCacheAsync(steamId, ct);
     }
 
-    public async Task<ErrorOr<long>> FetchSteamIdFromVanityAsync(string vanityUrl)
+    public async Task<ErrorOr<long>> FetchSteamIdFromVanityAsync(string vanityUrl, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         try
         {
-            var steamId = await _steamClient.GetSteamIdFromVanityUrl(vanityUrl);
+            var steamId = await _steamClient.GetSteamIdFromVanityUrl(vanityUrl, ct);
+            ct.ThrowIfCancellationRequested();
             if (steamId == 0)
             {
                 _logger.LogWarning("Steam API returned no match for vanity URL.");
@@ -126,6 +134,10 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
             }
 
             return steamId;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (ArgumentException)
         {

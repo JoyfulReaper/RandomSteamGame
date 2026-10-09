@@ -9,6 +9,6 @@ namespace RandomSteamGame.Services.Interfaces;
 
 public interface IOwnedGamesCacheResetTracker
 {
-    Task<DateTimeOffset?> GetNextAvailableAtAsync(long steamId);
-    Task MarkResetAsync(long steamId);
+    Task<DateTimeOffset?> GetNextAvailableAtAsync(long steamId, CancellationToken ct = default);
+    Task MarkResetAsync(long steamId, CancellationToken ct = default);
 }

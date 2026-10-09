@@ -25,11 +25,11 @@ public sealed class ServerRandomSteamApiClient : IRandomSteamApiClient
     }
 
     public Task<ApiResult<OwnedGamesResponse>> GetOwnedGamesAsync(string provider, long steamId, CancellationToken cancellationToken = default) =>
-        ExecuteAsync(() => _operations.GetLibrary(provider, steamId), cancellationToken);
+        ExecuteAsync(() => _operations.GetLibrary(provider, steamId, cancellationToken), cancellationToken);
 
     public async Task<ApiResult<bool>> InvalidateOwnedGamesCacheAsync(string provider, long steamId, CancellationToken cancellationToken = default)
     {
-        var result = await ExecuteAsync(() => _operations.RefreshLibraryAsync(provider, steamId), cancellationToken);
+        var result = await ExecuteAsync(() => _operations.RefreshLibraryAsync(provider, steamId, cancellationToken), cancellationToken);
         if (!result.IsSuccess)
         {
             return ApiResult<bool>.Failure(result.StatusCode, result.Problem, result.ErrorMessage);
@@ -46,7 +46,7 @@ public sealed class ServerRandomSteamApiClient : IRandomSteamApiClient
             provider, steamId, vanityUrl, _requestContext, unplayedOnly, excludedGameIds, cancellationToken), cancellationToken);
 
     public Task<ApiResult<long>> ResolveVanityUrlAsync(string provider, string vanityUrl, CancellationToken cancellationToken = default) =>
-        ExecuteAsync(() => _operations.ResolveVanityAsync(provider, vanityUrl), cancellationToken);
+        ExecuteAsync(() => _operations.ResolveVanityAsync(provider, vanityUrl, cancellationToken), cancellationToken);
 
     public Task<ApiResult<AppStatsResponse>> GetStatsAsync(CancellationToken cancellationToken = default) =>
         ExecuteAsync<AppStatsResponse>(async () => await _stats.GetStatsAsync(), cancellationToken);

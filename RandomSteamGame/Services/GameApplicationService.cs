@@ -33,7 +33,7 @@ public sealed class GameApplicationService(
     private readonly ApplicationOptions _applicationOptions = applicationOptions.Value;
     private readonly ILogger<GameApplicationService> _logger = logger;
 
-    public async Task<ErrorOr<OwnedGamesResponse>> GetLibrary(string provider, long steamId)
+    public async Task<ErrorOr<OwnedGamesResponse>> GetLibrary(string provider, long steamId, CancellationToken ct = default)
     {
         if (!TryGetProvider(provider, out var service))
         {
@@ -45,11 +45,11 @@ public sealed class GameApplicationService(
             return Errors.Steam.InvalidSteamId;
         }
 
-        var result = await service.GetOwnedGamesAsync(steamId);
+        var result = await service.GetOwnedGamesAsync(steamId, ct);
         return result;
     }
 
-    public async Task<ErrorOr<LibraryRefreshResult>> RefreshLibraryAsync(string provider, long userId)
+    public async Task<ErrorOr<LibraryRefreshResult>> RefreshLibraryAsync(string provider, long userId, CancellationToken ct = default)
     {
         if (!TryGetProvider(provider, out var service))
         {
@@ -59,13 +59,13 @@ public sealed class GameApplicationService(
         {
             return Errors.Steam.InvalidSteamId;
         }
-        var nextAvailableAt = await _ownedGamesCacheResetTracker.GetNextAvailableAtAsync(userId);
+        var nextAvailableAt = await _ownedGamesCacheResetTracker.GetNextAvailableAtAsync(userId, ct);
         if (nextAvailableAt is not null)
         {
             return new LibraryRefreshResult(nextAvailableAt);
         }
-        await service.InvalidateOwnedGamesCacheAsync(userId);
-        await _ownedGamesCacheResetTracker.MarkResetAsync(userId);
+        await service.InvalidateOwnedGamesCacheAsync(userId, ct);
+        await _ownedGamesCacheResetTracker.MarkResetAsync(userId, ct);
         return new LibraryRefreshResult(null);
     }
 
@@ -118,7 +118,7 @@ public sealed class GameApplicationService(
         }
 
         var identifierStopwatch = Stopwatch.StartNew();
-        var targetId = await ResolveIdentifier(service, userId, vanityUrl);
+        var targetId = await ResolveIdentifier(service, userId, vanityUrl, ct);
         identifierStopwatch.Stop();
         if (targetId.IsError)
         {
@@ -234,7 +234,7 @@ public sealed class GameApplicationService(
         }
     }
 
-    public async Task<ErrorOr<long>> ResolveVanityAsync(string provider, string vanityUrl)
+    public async Task<ErrorOr<long>> ResolveVanityAsync(string provider, string vanityUrl, CancellationToken ct = default)
     {
         if (!TryGetProvider(provider, out var service))
         {
@@ -246,7 +246,7 @@ public sealed class GameApplicationService(
             return Errors.Steam.InvalidVanityUrl;
         }
 
-        var result = await service.ResolveIdentifierAsync(vanityUrl);
+        var result = await service.ResolveIdentifierAsync(vanityUrl, ct);
         return result;
     }
 
@@ -298,11 +298,12 @@ public sealed class GameApplicationService(
     private static async Task<ErrorOr<long>> ResolveIdentifier(
         IGameProvider service,
         long? userId,
-        string? vanityUrl)
+        string? vanityUrl,
+        CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(vanityUrl))
         {
-            return await service.ResolveIdentifierAsync(vanityUrl);
+            return await service.ResolveIdentifierAsync(vanityUrl, ct);
         }
 
         if (userId.HasValue)

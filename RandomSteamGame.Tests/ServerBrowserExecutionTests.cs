@@ -31,6 +31,47 @@ public class ServerBrowserExecutionTests
     private const long SteamId = 76561197960287930L;
 
     [Theory]
+    [InlineData("library")]
+    [InlineData("vanity")]
+    [InlineData("random-vanity")]
+    [InlineData("refresh")]
+    public async Task ServerMethods_ForwardCallerCancellationToSteam(string operation)
+    {
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        using var root = new SeoWebApplicationFactory();
+        var calls = new List<string>();
+        var steam = new StubSteamClient(10)
+        {
+            OnOperation = (name, ct) =>
+            {
+                Assert.Equal(caller.Token, ct);
+                calls.Add(name);
+                caller.Cancel();
+                ct.ThrowIfCancellationRequested();
+            }
+        };
+        var store = new StubStoreClient();
+        using var application = CreateApplication(root, steam, store, new RejectOutgoingHttpHandler());
+        using var scope = application.Services.CreateScope();
+        var server = scope.ServiceProvider.GetRequiredService<IRandomSteamApiClient>();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            switch (operation)
+            {
+                case "library": await server.GetOwnedGamesAsync("steam", SteamId, caller.Token); break;
+                case "vanity": await server.ResolveVanityUrlAsync("steam", "some_vanity", caller.Token); break;
+                case "random-vanity": await server.GetRandomGameDetailsAsync("steam", vanityUrl: "some_vanity", cancellationToken: caller.Token); break;
+                case "refresh": await server.InvalidateOwnedGamesCacheAsync("steam", SteamId, caller.Token); break;
+                default: throw new ArgumentOutOfRangeException(nameof(operation));
+            }
+        });
+
+        Assert.Equal(operation == "random-vanity" ? "vanity" : operation, Assert.Single(calls));
+        Assert.Empty(store.RequestedAppIds);
+    }
+
+    [Theory]
     [InlineData("http://attacker.invalid:8899", "Public")]
     [InlineData("https://unreachable-public.invalid", "Public")]
     [InlineData("http://unreachable.b32.i2p", "AltNet")]
@@ -297,23 +338,30 @@ public class ServerBrowserExecutionTests
     {
         public int LibraryCalls { get; private set; }
         public int InvalidationCalls { get; private set; }
+        public Action<string, CancellationToken>? OnOperation { get; init; }
         public Task<Sdk.OwnedGames> GetOwnedGames(long steamId, bool includeAppInfo = true,
             bool includePlayedFreeGames = true, CancellationToken ct = default)
         {
             LibraryCalls++;
+            OnOperation?.Invoke("library", ct);
             return Task.FromResult(new Sdk.OwnedGames(appIds.Length,
                 appIds.Select(id => new Sdk.Game(id, $"Game{id}", 0, null, 0, 0, 0, 0, 0)).ToList()));
         }
         public async Task<OwnedGamesResult> GetOwnedGamesWithCacheInfo(long steamId, bool includeAppInfo = true,
             bool includePlayedFreeGames = true, CancellationToken ct = default) =>
             new(await GetOwnedGames(steamId, includeAppInfo, includePlayedFreeGames, ct), OwnedGamesCacheInfo.Unknown);
-        public Task<long> GetSteamIdFromVanityUrl(string vanityUrl, CancellationToken ct = default) => Task.FromResult(SteamId);
+        public Task<long> GetSteamIdFromVanityUrl(string vanityUrl, CancellationToken ct = default)
+        {
+            OnOperation?.Invoke("vanity", ct);
+            return Task.FromResult(SteamId);
+        }
         public Task<IReadOnlyDictionary<int, Sdk.SteamDeckCompatibilityCategory>> GetSteamDeckCompatibilityAsync(
             IEnumerable<int> appIds, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyDictionary<int, Sdk.SteamDeckCompatibilityCategory>>(new Dictionary<int, Sdk.SteamDeckCompatibilityCategory>());
-        public Task InvalidateOwnedGamesCacheAsync(long steamId)
+        public Task InvalidateOwnedGamesCacheAsync(long steamId, CancellationToken ct = default)
         {
             InvalidationCalls++;
+            OnOperation?.Invoke("refresh", ct);
             return Task.CompletedTask;
         }
     }

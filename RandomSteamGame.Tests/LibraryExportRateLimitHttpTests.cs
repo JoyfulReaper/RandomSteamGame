@@ -531,7 +531,7 @@ public sealed class LibraryExportRateLimitHttpTests :
         }
 
         public async Task<ErrorOr<OwnedGamesResponse>>
-            GetOwnedGamesAsync(long userId)
+            GetOwnedGamesAsync(long userId, CancellationToken ct = default)
         {
             var callCount = Interlocked.Increment(ref _callCount);
 
@@ -594,12 +594,12 @@ public sealed class LibraryExportRateLimitHttpTests :
         }
 
         public Task<ErrorOr<long>>
-            ResolveIdentifierAsync(string identifier)
+            ResolveIdentifierAsync(string identifier, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
 
-        public Task InvalidateOwnedGamesCacheAsync(long userId)
+        public Task InvalidateOwnedGamesCacheAsync(long userId, CancellationToken ct = default)
         {
             return Task.CompletedTask;
         }
@@ -613,7 +613,7 @@ public sealed class LibraryExportRateLimitHttpTests :
         public string ProviderKey => "steam";
 
         public Task<ErrorOr<OwnedGamesResponse>>
-            GetOwnedGamesAsync(long userId)
+            GetOwnedGamesAsync(long userId, CancellationToken ct = default)
         {
             if (Interlocked.Increment(
                     ref _ownedGamesCallCount) == 1)
@@ -662,12 +662,12 @@ public sealed class LibraryExportRateLimitHttpTests :
         }
 
         public Task<ErrorOr<long>>
-            ResolveIdentifierAsync(string identifier)
+            ResolveIdentifierAsync(string identifier, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
 
-        public Task InvalidateOwnedGamesCacheAsync(long userId)
+        public Task InvalidateOwnedGamesCacheAsync(long userId, CancellationToken ct = default)
         {
             return Task.CompletedTask;
         }
@@ -678,7 +678,7 @@ public sealed class LibraryExportRateLimitHttpTests :
         public string ProviderKey => "steam";
 
         public Task<ErrorOr<OwnedGamesResponse>>
-            GetOwnedGamesAsync(long userId)
+            GetOwnedGamesAsync(long userId, CancellationToken ct = default)
         {
             OwnedGamesResponse library =
                 new(
@@ -720,12 +720,12 @@ public sealed class LibraryExportRateLimitHttpTests :
         }
 
         public Task<ErrorOr<long>>
-            ResolveIdentifierAsync(string identifier)
+            ResolveIdentifierAsync(string identifier, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
 
-        public Task InvalidateOwnedGamesCacheAsync(long userId)
+        public Task InvalidateOwnedGamesCacheAsync(long userId, CancellationToken ct = default)
         {
             return Task.CompletedTask;
         }

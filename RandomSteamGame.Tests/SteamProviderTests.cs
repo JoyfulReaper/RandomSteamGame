@@ -20,6 +20,95 @@ public class SteamProviderTests
     private const long SteamId = 76561197960287930L;
     private static readonly OwnedGamesCacheInfo CacheInfo = new(OwnedGamesCacheStatus.Hit, 42);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OwnedLibraryAndVanity_CallerCancellationPropagates(bool vanity)
+    {
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        Task<T> Cancel<T>(CancellationToken ct)
+        {
+            Assert.Equal(caller.Token, ct);
+            caller.Cancel();
+            return Task.FromCanceled<T>(ct);
+        }
+        var steam = new StubSteamClient
+        {
+            LoadOwnedLibrary = ct => Cancel<OwnedGames>(ct),
+            ResolveVanity = ct => Cancel<long>(ct)
+        };
+        var store = new StubStoreClient((appId, _) => Task.FromResult<AppData?>(CreateAppData(appId)));
+        var provider = CreateProvider(store, steam: steam);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            if (vanity)
+            {
+                await provider.ResolveIdentifierAsync("some_vanity", caller.Token);
+            }
+            else
+            {
+                await provider.GetOwnedGamesAsync(SteamId, caller.Token);
+            }
+        });
+        Assert.Empty(store.RequestedAppIds);
+    }
+
+    [Theory]
+    [InlineData(false, "transport")]
+    [InlineData(true, "transport")]
+    [InlineData(false, "resilience-timeout")]
+    [InlineData(true, "resilience-timeout")]
+    [InlineData(false, "http-timeout")]
+    [InlineData(true, "http-timeout")]
+    public async Task OwnedLibraryAndVanity_UpstreamFailureRetainsControlledResult(bool vanity, string failure)
+    {
+        Exception exception = failure switch
+        {
+            "transport" => new HttpRequestException(),
+            "resilience-timeout" => new TimeoutRejectedException(),
+            "http-timeout" => new TaskCanceledException(),
+            _ => throw new ArgumentOutOfRangeException(nameof(failure))
+        };
+        var steam = new StubSteamClient
+        {
+            LoadOwnedLibrary = _ => Task.FromException<OwnedGames>(exception),
+            ResolveVanity = _ => Task.FromException<long>(exception)
+        };
+        var provider = CreateProvider(new StubStoreClient((_, _) => throw new InvalidOperationException()), steam: steam);
+        var ct = TestContext.Current.CancellationToken;
+
+        if (vanity)
+        {
+            var result = await provider.ResolveIdentifierAsync("some_vanity", ct);
+            Assert.Equal(Errors.Steam.VanityResolutionFailed, result.FirstError);
+        }
+        else
+        {
+            var result = await provider.GetOwnedGamesAsync(SteamId, ct);
+            Assert.Equal(Errors.Steam.SteamApiFailed, result.FirstError);
+        }
+    }
+
+    [Fact]
+    public async Task Invalidation_ForwardsCallerCancellation()
+    {
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var steam = new StubSteamClient
+        {
+            Invalidate = ct =>
+            {
+                Assert.Equal(caller.Token, ct);
+                caller.Cancel();
+                return Task.FromCanceled(ct);
+            }
+        };
+        var provider = CreateProvider(new StubStoreClient((_, _) => throw new InvalidOperationException()), steam: steam);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            provider.InvalidateOwnedGamesCacheAsync(SteamId, caller.Token));
+    }
+
     [Fact]
     public async Task StoreUnavailableCandidate_TriesAnotherCandidateSuccessfully()
     {
@@ -209,16 +298,21 @@ public class SteamProviderTests
         private static readonly OwnedGames Library = new(2, [CreateGame(), CreateGame() with { AppId = 20 }]);
         public Func<CancellationToken, Task<OwnedGamesResult>> LoadLibrary { get; init; } =
             _ => Task.FromResult(new OwnedGamesResult(Library, CacheInfo));
+        public Func<CancellationToken, Task<OwnedGames>> LoadOwnedLibrary { get; init; } =
+            _ => Task.FromResult(Library);
+        public Func<CancellationToken, Task<long>> ResolveVanity { get; init; } =
+            _ => Task.FromResult(SteamId);
+        public Func<CancellationToken, Task> Invalidate { get; init; } = _ => Task.CompletedTask;
 
         public Task<OwnedGames> GetOwnedGames(long steamId, bool includeAppInfo = true,
-            bool includePlayedFreeGames = true, CancellationToken ct = default) => Task.FromResult(Library);
+            bool includePlayedFreeGames = true, CancellationToken ct = default) => LoadOwnedLibrary(ct);
         public Task<OwnedGamesResult> GetOwnedGamesWithCacheInfo(long steamId, bool includeAppInfo = true,
             bool includePlayedFreeGames = true, CancellationToken ct = default) => LoadLibrary(ct);
-        public Task<long> GetSteamIdFromVanityUrl(string vanityUrl, CancellationToken ct = default) => Task.FromResult(SteamId);
+        public Task<long> GetSteamIdFromVanityUrl(string vanityUrl, CancellationToken ct = default) => ResolveVanity(ct);
         public Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>> GetSteamDeckCompatibilityAsync(
             IEnumerable<int> appIds, CancellationToken ct = default) =>
             Task.FromResult<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>(new Dictionary<int, SteamDeckCompatibilityCategory>());
-        public Task InvalidateOwnedGamesCacheAsync(long steamId) => Task.CompletedTask;
+        public Task InvalidateOwnedGamesCacheAsync(long steamId, CancellationToken ct = default) => Invalidate(ct);
     }
 
     private sealed class RecordingLogger : ILogger<SteamProvider>

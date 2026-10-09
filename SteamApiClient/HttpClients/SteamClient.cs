@@ -195,9 +195,9 @@ public class SteamClient : ISteamClient
         return steamId;
     }
 
-    public async Task InvalidateOwnedGamesCacheAsync(long userId)
+    public async Task InvalidateOwnedGamesCacheAsync(long userId, CancellationToken ct = default)
     {
-        await _cache.InvalidateByTagAsync($"steam_user_{userId}");
+        await _cache.InvalidateByTagAsync($"steam_user_{userId}", ct);
     }
 
     public async Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>> GetSteamDeckCompatibilityAsync(

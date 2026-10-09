@@ -77,7 +77,7 @@ public class GameController : ApiController
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(OwnedGamesResponse))]
     public async Task<IActionResult> GetLibrary(string provider, long steamId)
     {
-        var result = await _gameOperations.GetLibrary(provider, steamId);
+        var result = await _gameOperations.GetLibrary(provider, steamId, HttpContext.RequestAborted);
         return result.Match(Ok, Problem);
     }
 
@@ -141,7 +141,10 @@ public class GameController : ApiController
 
         var stopwatch = Stopwatch.StartNew();
 
-        var result = await service.GetOwnedGamesAsync(steamId);
+        var ct = HttpContext.RequestAborted;
+        ct.ThrowIfCancellationRequested();
+        var result = await service.GetOwnedGamesAsync(steamId, ct);
+        ct.ThrowIfCancellationRequested();
         if (result.IsError)
         {
             return Problem(result.Errors);
@@ -154,13 +157,16 @@ public class GameController : ApiController
         {
             deckCompatibility = await deckProvider.GetSteamDeckCompatibilityAsync(
                 result.Value.Games.Select(game => game.AppId),
-                HttpContext.RequestAborted);
+                ct);
         }
 
+        ct.ThrowIfCancellationRequested();
         var csvBytes = _steamLibraryExportService.Export(result.Value, deckCompatibility);
 
+        ct.ThrowIfCancellationRequested();
         await TrackLibraryExportedAsync();
 
+        ct.ThrowIfCancellationRequested();
         if (!isGlobal)
         {
             _libraryExportCooldownTracker.MarkSucceeded(partitionKey);
@@ -225,7 +231,7 @@ public class GameController : ApiController
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RefreshLibrary(string provider, long userId)
     {
-        var result = await _gameOperations.RefreshLibraryAsync(provider, userId);
+        var result = await _gameOperations.RefreshLibraryAsync(provider, userId, HttpContext.RequestAborted);
         if (result.IsError)
         {
             return Problem(result.Errors);
@@ -336,7 +342,7 @@ public class GameController : ApiController
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(long))]
     public async Task<IActionResult> ResolveVanity(string provider, string vanityUrl)
     {
-        var result = await _gameOperations.ResolveVanityAsync(provider, vanityUrl);
+        var result = await _gameOperations.ResolveVanityAsync(provider, vanityUrl, HttpContext.RequestAborted);
         return result.Match(value => Ok(value), Problem);
     }
 

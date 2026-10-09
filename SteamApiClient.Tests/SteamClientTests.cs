@@ -255,6 +255,35 @@ public class SteamClientTests
             StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InvalidateOwnedGamesCacheAsync_PassesCancellationToCache(bool canceled)
+    {
+        const long steamId = 76561197960287930L;
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        if (canceled)
+        {
+            caller.Cancel();
+        }
+        var cache = Substitute.For<ICacheService>();
+        cache.InvalidateByTagAsync($"steam_user_{steamId}", caller.Token)
+            .Returns(canceled ? Task.FromCanceled(caller.Token) : Task.CompletedTask);
+        using var http = new HttpClient();
+        var client = new SteamClient(http, _options, cache, NullLogger<SteamClient>.Instance);
+
+        if (canceled)
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                client.InvalidateOwnedGamesCacheAsync(steamId, caller.Token));
+        }
+        else
+        {
+            await client.InvalidateOwnedGamesCacheAsync(steamId, caller.Token);
+        }
+        await cache.Received(1).InvalidateByTagAsync($"steam_user_{steamId}", caller.Token);
+    }
+
     #region GetOwnedGames Tests
 
     [Fact]

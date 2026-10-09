@@ -31,9 +31,9 @@ public sealed class OwnedGamesCacheResetTracker : IOwnedGamesCacheResetTracker
         _dateTimeProvider = dateTimeProvider;
     }
 
-    public async Task<DateTimeOffset?> GetNextAvailableAtAsync(long steamId)
+    public async Task<DateTimeOffset?> GetNextAvailableAtAsync(long steamId, CancellationToken ct = default)
     {
-        DateTimeOffset? lastReset = await _cache.GetAsync<DateTimeOffset?>(GetCacheKey(steamId));
+        DateTimeOffset? lastReset = await _cache.GetAsync<DateTimeOffset?>(GetCacheKey(steamId), ct);
 
         if (lastReset is null)
         {
@@ -43,13 +43,14 @@ public sealed class OwnedGamesCacheResetTracker : IOwnedGamesCacheResetTracker
         return lastReset.Value.Add(OwnedGamesCacheResetCooldown);
     }
 
-    public async Task MarkResetAsync(long steamId)
+    public async Task MarkResetAsync(long steamId, CancellationToken ct = default)
     {
         var now = new DateTimeOffset(_dateTimeProvider.UtcNow);
         await _cache.SetAsync(
             GetCacheKey(steamId),
             now,
-            OwnedGamesCacheResetPolicy);
+            OwnedGamesCacheResetPolicy,
+            ct: ct);
     }
 
     private static string GetCacheKey(long steamId)

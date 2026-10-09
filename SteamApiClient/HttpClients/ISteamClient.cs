@@ -32,5 +32,5 @@ public interface ISteamClient
         IEnumerable<int> appIds,
         CancellationToken ct = default);
 
-    Task InvalidateOwnedGamesCacheAsync(long steamId);
+    Task InvalidateOwnedGamesCacheAsync(long steamId, CancellationToken ct = default);
 }

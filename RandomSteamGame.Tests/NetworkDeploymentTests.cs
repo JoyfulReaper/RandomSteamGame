@@ -177,7 +177,7 @@ public sealed class NetworkDeploymentTests
         public Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>> GetSteamDeckCompatibilityAsync(
             IEnumerable<int> appIds, CancellationToken ct = default) => throw new NotSupportedException();
 
-        public Task InvalidateOwnedGamesCacheAsync(long steamId) => throw new NotSupportedException();
+        public Task InvalidateOwnedGamesCacheAsync(long steamId, CancellationToken ct = default) => throw new NotSupportedException();
     }
 
     private sealed class StubSteamStoreClient : ISteamStoreClient
