@@ -15,10 +15,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 // ==========================================
 // CORE NETWORKING
 // ==========================================
-builder.Services.AddHttpClient<RandomSteamApiClient>(client =>
-{
-    client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
-});
+builder.Services.AddRandomSteamBrowserApiClient(builder.HostEnvironment.BaseAddress);
 
 builder.Services.AddScoped<BrowserSteamIdentityStore>();
 builder.Services.AddScoped<IBrowserSteamIdentityStore>(sp => sp.GetRequiredService<BrowserSteamIdentityStore>());

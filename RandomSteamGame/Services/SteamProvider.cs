@@ -80,8 +80,9 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         return result.Succeeded ? result.Game! : result.Errors.ToList();
     }
 
-    public async Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false)
-        => await FetchRandomGamePickAsync(userId, unplayedOnly);
+    public async Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false,
+        IReadOnlyCollection<int>? excludedGameIds = null)
+        => await FetchRandomGamePickAsync(userId, unplayedOnly, excludedGameIds);
 
     public async Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier)
         => await FetchSteamIdFromVanityAsync(identifier);
@@ -136,7 +137,8 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         }
     }
 
-    public async Task<RandomGamePickAttempt> FetchRandomGamePickAsync(long steamId, bool unplayedOnly = false)
+    public async Task<RandomGamePickAttempt> FetchRandomGamePickAsync(long steamId, bool unplayedOnly = false,
+        IReadOnlyCollection<int>? excludedGameIds = null)
     {
         var libraryLoadStopwatch = Stopwatch.StartNew();
         OwnedGamesResult ownedGamesResult;
@@ -173,7 +175,7 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         }
 
         var selectionStopwatch = Stopwatch.StartNew();
-        var selectionResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly);
+        var selectionResult = await GetRandomGameDataAsync(ownedGames, unplayedOnly, excludedGameIds);
         selectionStopwatch.Stop();
 
         if (!selectionResult.Succeeded)
@@ -231,12 +233,13 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
 
     private async Task<SelectionAttempt> GetRandomGameDataAsync(
         SteamApiClient.Contracts.SteamApi.OwnedGames ownedGames,
-        bool unplayedOnly)
+        bool unplayedOnly,
+        IReadOnlyCollection<int>? excludedGameIds)
     {
-        var excludedGameIds = GetExcludedGameIds();
+        var exclusions = excludedGameIds is null ? GetExcludedGameIds() : excludedGameIds.ToHashSet();
         var shuffledGameIds = GameSelectionHelper.GetSelectableGameIds(
             ownedGames.Games,
-            excludedGameIds,
+            exclusions,
             game => game.AppId,
             game => !unplayedOnly || IsUnplayed(game));
 
@@ -277,17 +280,7 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
     {
         var cookieValue = _httpContextAccessor.HttpContext?.Request.Cookies["ExcludedGameIds"];
 
-        if (string.IsNullOrWhiteSpace(cookieValue))
-        {
-            return [];
-        }
-
-        return cookieValue
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(value => int.TryParse(value, out var appId) ? appId : (int?)null)
-            .Where(appId => appId.HasValue)
-            .Select(appId => appId!.Value)
-            .ToHashSet();
+        return GameSelectionHelper.ParseExcludedGameIds(cookieValue);
     }
 
     internal static bool IsUnplayed(SteamApiClient.Contracts.SteamApi.Game game)

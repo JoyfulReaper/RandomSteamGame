@@ -882,16 +882,22 @@ public class GameControllerTests
         string? remoteIpAddress = null,
         ILibraryExportCooldownTracker? libraryExportCooldownTracker = null)
     {
+        var factory = new GameProviderFactory([provider ?? new FakeGameProvider()]);
+        var stats = appStatsService ?? new FakeAppStatsService();
+        var missionControl = missionControlClient ?? new RecordingMissionControlClient();
+        var visitorIds = new StubVisitorIdProvider();
+        var options = Microsoft.Extensions.Options.Options.Create(applicationOptions ?? new ApplicationOptions());
+        var operations = new GameApplicationService(factory, new FakeOwnedGamesCacheResetTracker(),
+            stats, missionControl, visitorIds, options, NullLogger<GameApplicationService>.Instance);
         var controller = new GameController(
-            new GameProviderFactory([provider ?? new FakeGameProvider()]),
-            new FakeOwnedGamesCacheResetTracker(),
-            appStatsService ?? new FakeAppStatsService(),
+            factory,
+            operations,
+            stats,
             new SteamLibraryExportService(),
-            missionControlClient ?? new RecordingMissionControlClient(),
-            new StubVisitorIdProvider(),
+            missionControl,
+            visitorIds,
             libraryExportCooldownTracker ?? new FakeLibraryExportCooldownTracker(),
-            Microsoft.Extensions.Options.Options.Create(
-                applicationOptions ?? new ApplicationOptions()),
+            options,
             NullLogger<GameController>.Instance,
             Microsoft.Extensions.Options.Options.Create(new LibraryExportOptions()),
             new GlobalLibraryExportCooldownTracker(
@@ -1029,7 +1035,8 @@ public class GameControllerTests
             return Task.FromResult(_randomGameResult);
         }
 
-        public Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false)
+        public Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false,
+            IReadOnlyCollection<int>? excludedGameIds = null)
         {
             GetRandomGameDetailsCallCount++;
             if (_randomGameResult.IsError)

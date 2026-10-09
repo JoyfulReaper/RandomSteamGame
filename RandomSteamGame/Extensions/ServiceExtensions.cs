@@ -95,7 +95,8 @@ public static class ServiceExtensions
 
         services.AddApplicationHealthChecks();
         services.AddMemoryCache();
-        services.AddHttpClient<RandomSteamApiClient>();
+        services.AddScoped<GameApplicationService>();
+        services.AddScoped<IRandomSteamApiClient, ServerRandomSteamApiClient>();
         services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
         services.AddSingleton<CanonicalUrlService>();
         services.AddSingleton<DeploymentCookiePolicy>();
@@ -295,11 +296,12 @@ public static class ServiceExtensions
         RateLimitingOptions rateLimiting)
     {
         services.AddRateLimiter();
+        services.AddSingleton(_ => new SteamApiRequestLimiter(rateLimiting));
 
         services
             .AddOptions<Microsoft.AspNetCore.RateLimiting.RateLimiterOptions>()
-            .Configure<Microsoft.Extensions.Options.IOptions<LibraryExportOptions>>(
-                (options, libraryExportOptions) =>
+            .Configure<Microsoft.Extensions.Options.IOptions<LibraryExportOptions>, SteamApiRequestLimiter>(
+                (options, libraryExportOptions, apiLimiter) =>
                 {
                     options.GlobalLimiter =
                         PartitionedRateLimiter.Create<HttpContext, string>(
@@ -332,22 +334,8 @@ public static class ServiceExtensions
                                     });
                             });
 
-                    options.AddFixedWindowLimiter(
-                        "steam_api_limiter",
-                        limiterOptions =>
-                        {
-                            limiterOptions.Window =
-                                TimeSpan.FromSeconds(
-                                    rateLimiting.WindowSeconds);
-
-                            limiterOptions.PermitLimit =
-                                rateLimiting.PermitLimit;
-
-                            limiterOptions.QueueLimit = 0;
-
-                            limiterOptions.QueueProcessingOrder =
-                                QueueProcessingOrder.OldestFirst;
-                        });
+                    options.AddPolicy("steam_api_limiter", _ =>
+                        RateLimitPartition.Get("steam-api", _ => apiLimiter));
 
                     options.AddPolicy(
                         "library_export_limiter",

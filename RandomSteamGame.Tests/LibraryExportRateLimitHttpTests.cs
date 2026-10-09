@@ -586,7 +586,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<RandomGamePickAttempt>
             GetRandomGamePickAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                IReadOnlyCollection<int>? excludedGameIds = null)
         {
             throw new NotSupportedException();
         }
@@ -652,7 +653,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<RandomGamePickAttempt>
             GetRandomGamePickAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                IReadOnlyCollection<int>? excludedGameIds = null)
         {
             throw new NotSupportedException();
         }
@@ -708,7 +710,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<RandomGamePickAttempt>
             GetRandomGamePickAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                IReadOnlyCollection<int>? excludedGameIds = null)
         {
             throw new NotSupportedException();
         }

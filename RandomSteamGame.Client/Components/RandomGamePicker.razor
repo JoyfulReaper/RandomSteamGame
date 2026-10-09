@@ -2,7 +2,7 @@
 
 @inject PersistentComponentState ApplicationState
 @inject ILogger<RandomGamePicker> Logger
-@inject RandomSteamApiClient ApiClient
+@inject IRandomSteamApiClient ApiClient
 @inject IBrowserSteamIdentityStore BrowserIdentityStore
 @inject IJSRuntime JSRuntime
 
@@ -227,10 +227,14 @@
 
         try
         {
+            var excludedGameIds = RendererInfo.IsInteractive
+                ? await BrowserIdentityStore.GetExcludedGameIdsAsync()
+                : null;
             var result = await ApiClient.GetRandomGameDetailsAsync(
                 Provider,
                 steamId: SteamId,
-                unplayedOnly: UnplayedOnly);
+                unplayedOnly: UnplayedOnly,
+                excludedGameIds: excludedGameIds);
 
             if (!result.IsSuccess)
             {

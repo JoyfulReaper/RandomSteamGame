@@ -1,5 +1,6 @@
 using AngleSharp;
 using AngleSharp.Dom;
+using ErrorOr;
 using JoyfulReaperLib.Caching.Sqlite;
 using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Hosting;
@@ -13,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using RandomSteamGame.Client.Services;
+using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
@@ -685,7 +687,7 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
             });
 
             services.RemoveAll<IGameProvider>();
-            services.AddScoped<IGameProvider, SteamProvider>();
+            services.AddScoped<IGameProvider, UnavailableGameProvider>();
 
             services.RemoveAll<IAppStatsService>();
             services.AddScoped<IAppStatsService, StubAppStatsService>();
@@ -696,8 +698,6 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
             services.RemoveAll<IMissionControlClient>();
             services.AddSingleton<IMissionControlClient, StubMissionControlClient>();
 
-            services.AddHttpClient<RandomSteamApiClient>()
-                .ConfigurePrimaryHttpMessageHandler(() => new StubHttpMessageHandler());
         });
     }
 
@@ -784,17 +784,18 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
             CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 
-    private sealed class StubHttpMessageHandler : HttpMessageHandler
+    private sealed class UnavailableGameProvider : IGameProvider
     {
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
-            {
-                Content = JsonContent.Create(new
-                {
-                    title = "Unavailable during SEO integration tests",
-                    status = StatusCodes.Status503ServiceUnavailable
-                })
-            });
+        public string ProviderKey => "steam";
+        public Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId) =>
+            Task.FromResult<ErrorOr<OwnedGamesResponse>>(Errors.Steam.SteamApiFailed);
+        public Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false) =>
+            Task.FromResult<ErrorOr<GameDetails>>(Errors.Steam.SteamApiFailed);
+        public Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false,
+            IReadOnlyCollection<int>? excludedGameIds = null) =>
+            Task.FromResult(RandomGamePickAttempt.Failure([Errors.Steam.SteamApiFailed]));
+        public Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier) =>
+            Task.FromResult<ErrorOr<long>>(Errors.Steam.VanityResolutionFailed);
+        public Task InvalidateOwnedGamesCacheAsync(long userId) => Task.CompletedTask;
     }
 }

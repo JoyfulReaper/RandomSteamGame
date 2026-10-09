@@ -2,6 +2,14 @@ namespace RandomSteamGame.Services;
 
 public static class GameSelectionHelper
 {
+    public static HashSet<int> ParseExcludedGameIds(string? cookieValue) =>
+        string.IsNullOrWhiteSpace(cookieValue) ? [] : cookieValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(value => int.TryParse(value, out var appId) ? appId : (int?)null)
+            .Where(appId => appId.HasValue)
+            .Select(appId => appId!.Value)
+            .ToHashSet();
+
     public static List<int> GetSelectableGameIds<TGame>(
         IEnumerable<TGame> ownedGames,
         ISet<int> excludedAppIds,
