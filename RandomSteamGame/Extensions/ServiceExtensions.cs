@@ -97,7 +97,7 @@ public static class ServiceExtensions
         services.AddMemoryCache();
         services.AddScoped<GameApplicationService>();
         services.AddScoped<IRandomSteamApiClient, ServerRandomSteamApiClient>();
-        services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
+        services.AddSingleton<IBetaAvailabilityService, BetaAvailabilityService>();
         services.AddSingleton<CanonicalUrlService>();
         services.AddSingleton<DeploymentCookiePolicy>();
         services.AddSingleton(TimeProvider.System);
