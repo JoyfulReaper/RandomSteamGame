@@ -1,5 +1,9 @@
 ﻿@inherits LayoutComponentBase
 
+@using Microsoft.Extensions.Options
+@using RandomSteamGame.Options
+@inject IOptions<ApplicationOptions> ApplicationSettings
+
 <div class="page-wrapper">
     <header class="global-header">
         <NavMenu />
@@ -43,8 +47,16 @@
             </div>
 
             <div class="global-footer-note">
-                Game background images are loaded from clearnet resources and may
-                not be available on an isolated Yggdrasil or DN42 connection.
+                @if (ApplicationSettings.Value.RemoteBrowserAssetsAllowed)
+                {
+                    <text>Game background images are loaded from clearnet resources and may
+                    not be available on an isolated Yggdrasil or DN42 connection.</text>
+                }
+                else
+                {
+                    <text>Remote game artwork and embedded images are disabled for this
+                    @ApplicationSettings.Value.NetworkDisplayName deployment.</text>
+                }
             </div>
 
             <div class="global-footer-links mt-1">

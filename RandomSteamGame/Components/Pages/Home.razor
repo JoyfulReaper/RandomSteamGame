@@ -1,6 +1,9 @@
 @page "/"
 
 @inject IBetaAvailabilityService BetaAvailabilityService
+@using Microsoft.Extensions.Options
+@using RandomSteamGame.Options
+@inject IOptions<ApplicationOptions> ApplicationSettings
 @inject IAppStatsService AppStatsService
 @inject IHttpContextAccessor HttpContextAccessor
 @inject ILogger<Home> Logger
@@ -19,7 +22,7 @@
 <div class="container mt-5 home-shell">
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
-            @if (_isBetaSite)
+            @if (ApplicationSettings.Value.BetaProbeEnabled && _isBetaSite)
             {
                 <div class="home-beta-note-wrap mb-4">
                     <div class="home-beta-note" role="note">
@@ -35,7 +38,7 @@
                     </div>
                 </div>
             }
-            else if (_betaAvailable)
+            else if (ApplicationSettings.Value.BetaProbeEnabled && _betaAvailable)
             {
                 <div class="home-beta-banner-wrap mb-4">
                     <div class="home-beta-banner">
@@ -248,7 +251,7 @@
 
         await LoadAppStatsAsync();
 
-        if (!_isBetaSite)
+        if (ApplicationSettings.Value.BetaProbeEnabled && !_isBetaSite)
         {
             _betaAvailable = await BetaAvailabilityService.IsBetaAvailableAsync();
         }

@@ -143,6 +143,10 @@ Important operational settings include:
 
 | Configuration key | Purpose |
 | --- | --- |
+| `Application:NetworkMode` | `Public` (default) or `AltNet`; controls defaults for remote Steam browser assets and beta probing |
+| `Application:NetworkName` | Optional display name such as `I2P`, `Yggdrasil`, or `DN42`; does not select capabilities |
+| `Application:AllowRemoteBrowserAssets` | Optional override; `null` allows Steam browser assets in Public and disables them in AltNet |
+| `Application:EnableBetaProbe` | Optional override; `null` enables beta probing/banner in Public and disables them in AltNet |
 | `Application:CanonicalOrigin` | Production origin used for canonical and social metadata |
 | `Application:BetaHost` | Host that receives `X-Robots-Tag: noindex, nofollow` |
 | `DataProtection:KeysPath` | Optional persistent Data Protection key-ring location |
@@ -154,6 +158,16 @@ Important operational settings include:
 | `Telemetry:VisitorHashKey` | Optional key used to pseudonymize visitor identifiers for telemetry |
 
 When `DataProtection:KeysPath` is empty, development and non-Windows deployments use `.keys/data-protection` beneath the application content root. Production Windows deployments use a machine-level application-data directory.
+
+For example, set `Application__NetworkMode=AltNet` and `Application__NetworkName=I2P`
+to omit Steam header artwork from game responses, restrict Steam descriptions to
+text, formatting, and clickable links, and disable the beta probe/banner. Changing
+the display name does not change these capabilities. The optional boolean overrides
+can enable either capability independently for a deployment that supports it.
+Restricted descriptions omit all embedded images and inline styles; clickable links
+can still lead to external sites. Steam API access remains server-side. Canonical
+metadata, robots/sitemap, cookies, proxy headers, and rate limiting still require
+separate deployment consideration.
 
 ## Docker
 

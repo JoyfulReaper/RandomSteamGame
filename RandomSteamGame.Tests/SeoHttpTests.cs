@@ -10,7 +10,9 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using RandomSteamGame.Client.Services;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
@@ -88,6 +90,62 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Equal(expectedTitle, GetAttribute(document, "meta[name='twitter:title']", "content"));
         Assert.Equal(description, GetAttribute(document, "meta[name='twitter:description']", "content"));
         Assert.Equal(expectedH1, document.QuerySelector("h1")?.TextContent.Trim());
+    }
+
+    [Theory]
+    [InlineData(NetworkMode.Public, null, true)]
+    [InlineData(NetworkMode.AltNet, null, false)]
+    [InlineData(NetworkMode.Public, false, false)]
+    [InlineData(NetworkMode.AltNet, true, true)]
+    public async Task Home_NetworkSettingsControlBetaProbeBannerAndArtworkNote(
+        NetworkMode mode, bool? enableBetaProbe, bool expectBeta)
+    {
+        var betaService = new AvailableBetaService();
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.Configure<ApplicationOptions>(options =>
+                {
+                    options.NetworkMode = mode;
+                    options.NetworkName = "Community mesh";
+                    options.EnableBetaProbe = enableBetaProbe;
+                });
+                services.RemoveAll<IBetaAvailabilityService>();
+                services.AddSingleton<IBetaAvailabilityService>(betaService);
+            });
+        });
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await client.GetAsync("/", cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expectBeta ? 1 : 0, betaService.CallCount);
+        Assert.Equal(expectBeta, document.QuerySelector(".home-beta-banner") is not null);
+        if (mode == NetworkMode.AltNet)
+        {
+            Assert.Contains("Community mesh deployment", document.Body?.TextContent);
+            Assert.DoesNotContain("Game background images are loaded from clearnet", document.Body?.TextContent);
+        }
+        else
+        {
+            Assert.Contains("Game background images are loaded from clearnet", document.Body?.TextContent);
+        }
+
+        Assert.Equal(CanonicalOrigin, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.Equal(CanonicalOrigin, GetAttribute(document, "meta[property='og:url']", "content"));
+    }
+
+    private sealed class AvailableBetaService : IBetaAvailabilityService
+    {
+        public int CallCount { get; private set; }
+
+        public Task<bool> IsBetaAvailableAsync(CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.FromResult(true);
+        }
     }
 
     [Fact]

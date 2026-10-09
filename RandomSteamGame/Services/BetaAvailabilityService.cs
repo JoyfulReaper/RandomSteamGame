@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services.Interfaces;
 
 namespace RandomSteamGame.Services;
@@ -12,19 +14,27 @@ public sealed class BetaAvailabilityService : IBetaAvailabilityService
     private readonly IMemoryCache _cache;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<BetaAvailabilityService> _logger;
+    private readonly ApplicationOptions _applicationOptions;
 
     public BetaAvailabilityService(
         IMemoryCache cache,
         IHttpClientFactory httpClientFactory,
-        ILogger<BetaAvailabilityService> logger)
+        ILogger<BetaAvailabilityService> logger,
+        IOptions<ApplicationOptions> applicationOptions)
     {
         _cache = cache;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _applicationOptions = applicationOptions.Value;
     }
 
     public Task<bool> IsBetaAvailableAsync(CancellationToken cancellationToken = default)
     {
+        if (!_applicationOptions.BetaProbeEnabled)
+        {
+            return Task.FromResult(false);
+        }
+
         return _cache.GetOrCreateAsync("beta-picker-availability", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = CacheDuration;

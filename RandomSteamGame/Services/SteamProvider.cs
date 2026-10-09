@@ -6,7 +6,9 @@
  */
 
 using ErrorOr;
+using Microsoft.Extensions.Options;
 using RandomSteamGame.Common.Errors;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using RandomSteamGame.Shared.Services;
@@ -24,6 +26,7 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IHtmlSanitizerService _htmlSanitizer;
     private readonly ILogger<SteamProvider> _logger;
+    private readonly ApplicationOptions _applicationOptions;
 
     private const int MAX_ATTEMPTS = 4; // TODO make configurable in appsettings
 
@@ -34,13 +37,15 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         ISteamStoreClient steamStoreClient,
         IHttpContextAccessor httpContextAccessor,
         IHtmlSanitizerService htmlSanitizerService,
-        ILogger<SteamProvider> logger)
+        ILogger<SteamProvider> logger,
+        IOptions<ApplicationOptions> applicationOptions)
     {
         _htmlSanitizer = htmlSanitizerService;
         _steamClient = steamClient;
         _steamStoreClient = steamStoreClient;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _applicationOptions = applicationOptions.Value;
     }
 
     public async Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>
@@ -204,7 +209,7 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
             Id = appData.SteamAppId,
             Name = appData.Name,
             Description = _htmlSanitizer.Sanitize(appData.AboutTheGame),
-            HeaderImage = appData.HeaderImage,
+            HeaderImage = _applicationOptions.RemoteBrowserAssetsAllowed ? appData.HeaderImage : string.Empty,
             PlaytimeForever = matchingGame.PlaytimeForever,
             PlaytimeWindowsForever = matchingGame.PlaytimeWindowsForever,
             PlaytimeMacForever = matchingGame.PlaytimeMacForever,

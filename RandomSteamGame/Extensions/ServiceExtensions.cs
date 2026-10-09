@@ -62,7 +62,10 @@ public static class ServiceExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.Configure<ApplicationOptions>(config.GetSection(ApplicationOptions.SectionName));
+        services.AddOptions<ApplicationOptions>()
+            .Bind(config.GetSection(ApplicationOptions.SectionName))
+            .Validate(options => Enum.IsDefined(options.NetworkMode), "Application:NetworkMode must be Public or AltNet.")
+            .ValidateOnStart();
         services.Configure<TelemetryOptions>(config.GetSection(TelemetryOptions.SectionName));
         services.AddSingleton<IVisitorIdProvider, VisitorIdProvider>();
 
