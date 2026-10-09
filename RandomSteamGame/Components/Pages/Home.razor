@@ -22,7 +22,7 @@
 <div class="container mt-5 home-shell">
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
-            @if (ApplicationSettings.Value.BetaProbeEnabled && _isBetaSite)
+            @if (ShowPublicBetaLinks && _isBetaSite)
             {
                 <div class="home-beta-note-wrap mb-4">
                     <div class="home-beta-note" role="note">
@@ -38,7 +38,7 @@
                     </div>
                 </div>
             }
-            else if (ApplicationSettings.Value.BetaProbeEnabled && _betaAvailable)
+            else if (ShowPublicBetaLinks && _betaAvailable)
             {
                 <div class="home-beta-banner-wrap mb-4">
                     <div class="home-beta-banner">
@@ -217,6 +217,8 @@
     private const string Description = "Paste your Steam ID or vanity URL to pick a random game from your public Steam library, filter to unplayed games, and choose again in seconds.";
 
     private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl();
+    private bool ShowPublicBetaLinks =>
+        ApplicationSettings.Value.NetworkMode == NetworkMode.Public && ApplicationSettings.Value.BetaProbeEnabled;
     private string StructuredDataJson => System.Text.Json.JsonSerializer.Serialize(
         new Dictionary<string, object>
         {

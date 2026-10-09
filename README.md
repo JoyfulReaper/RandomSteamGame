@@ -146,8 +146,8 @@ Important operational settings include:
 | `Application:NetworkMode` | `Public` (default) or `AltNet`; controls defaults for remote Steam browser assets and beta probing |
 | `Application:NetworkName` | Optional display name such as `I2P`, `Yggdrasil`, or `DN42`; does not select capabilities |
 | `Application:AllowRemoteBrowserAssets` | Optional override; `null` allows Steam browser assets in Public and disables them in AltNet |
-| `Application:EnableBetaProbe` | Optional override; `null` enables beta probing/banner in Public and disables them in AltNet |
-| `Application:CanonicalOrigin` | Production origin used for canonical and social metadata |
+| `Application:EnableBetaProbe` | Optional override; `null` enables beta probing in Public and disables it in AltNet; public beta links are shown only in Public |
+| `Application:CanonicalOrigin` | Externally visible origin for canonical/social metadata and sitemap URLs; unset Public uses the existing production HTTPS origin; required in AltNet, where HTTP or HTTPS is accepted |
 | `Application:BetaHost` | Host that receives `X-Robots-Tag: noindex, nofollow` |
 | `DataProtection:KeysPath` | Optional persistent Data Protection key-ring location |
 | `Steam:ConnectionString` | SQLite connection string for Steam response caching |
@@ -159,15 +159,29 @@ Important operational settings include:
 
 When `DataProtection:KeysPath` is empty, development and non-Windows deployments use `.keys/data-protection` beneath the application content root. Production Windows deployments use a machine-level application-data directory.
 
-For example, set `Application__NetworkMode=AltNet` and `Application__NetworkName=I2P`
+For example, set `Application__NetworkMode=AltNet`, `Application__NetworkName=I2P`,
+and `Application__CanonicalOrigin=http://example.b32.i2p`
 to omit Steam header artwork from game responses, restrict Steam descriptions to
 text, formatting, and clickable links, and disable the beta probe/banner. Changing
 the display name does not change these capabilities. The optional boolean overrides
 can enable either capability independently for a deployment that supports it.
 Restricted descriptions omit all embedded images and inline styles; clickable links
-can still lead to external sites. Steam API access remains server-side. Canonical
-metadata, robots/sitemap, cookies, proxy headers, and rate limiting still require
-separate deployment consideration.
+can still lead to external sites. Steam API access remains server-side.
+
+The origin must contain only an HTTP(S) scheme, host, and optional port, without
+credentials, a path (other than `/`), query, or fragment. Public requires HTTPS;
+AltNet requires an explicit origin and accepts intentional HTTP origins. Incoming
+Host headers do not select the canonical origin. The same origin is used for
+canonical links, OpenGraph, JSON-LD application URLs, sitemap URLs, and the AltNet
+footer/404 example. Public keeps its existing network and beta links; AltNet shows
+the current network instead and omits public beta links even if probing is enabled.
+
+`/robots.txt` and `/sitemap.xml` are generated from configuration. Public allows
+crawling and advertises its configured sitemap with the existing four page URLs.
+AltNet uses `Disallow: /` without advertising a sitemap; its sitemap remains
+available using the configured origin. Robots directives are advisory, not access
+control. Cookies, proxy headers, and rate limiting still require separate deployment
+consideration.
 
 ## Docker
 

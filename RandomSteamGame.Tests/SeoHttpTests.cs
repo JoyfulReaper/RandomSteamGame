@@ -27,6 +27,7 @@ namespace RandomSteamGame.Tests;
 public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 {
     private const string CanonicalOrigin = "https://randomsteam.kgivler.com";
+    private const string AltNetOrigin = "http://example.b32.i2p";
     private const string HomeTitle = "Random Steam Game Picker – Pick From Your Library";
 
     public static TheoryData<string, string, string, string> IndexablePageCases => new()
@@ -110,6 +111,7 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
                     options.NetworkMode = mode;
                     options.NetworkName = "Community mesh";
                     options.EnableBetaProbe = enableBetaProbe;
+                    options.CanonicalOrigin = mode == NetworkMode.AltNet ? AltNetOrigin : CanonicalOrigin;
                 });
                 services.RemoveAll<IBetaAvailabilityService>();
                 services.AddSingleton<IBetaAvailabilityService>(betaService);
@@ -122,19 +124,177 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(expectBeta ? 1 : 0, betaService.CallCount);
-        Assert.Equal(expectBeta, document.QuerySelector(".home-beta-banner") is not null);
+        Assert.Equal(expectBeta && mode == NetworkMode.Public, document.QuerySelector(".home-beta-banner") is not null);
         if (mode == NetworkMode.AltNet)
         {
             Assert.Contains("Community mesh deployment", document.Body?.TextContent);
             Assert.DoesNotContain("Game background images are loaded from clearnet", document.Body?.TextContent);
+            Assert.DoesNotContain("randomsteam.kgivler.com", document.DocumentElement.OuterHtml);
+            Assert.DoesNotContain("randombeta.kgivler.com", document.DocumentElement.OuterHtml);
         }
         else
         {
             Assert.Contains("Game background images are loaded from clearnet", document.Body?.TextContent);
         }
 
-        Assert.Equal(CanonicalOrigin, GetAttribute(document, "link[rel='canonical']", "href"));
-        Assert.Equal(CanonicalOrigin, GetAttribute(document, "meta[property='og:url']", "content"));
+        var expectedOrigin = mode == NetworkMode.AltNet ? AltNetOrigin : CanonicalOrigin;
+        Assert.Equal(expectedOrigin, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.Equal(expectedOrigin, GetAttribute(document, "meta[property='og:url']", "content"));
+    }
+
+    [Theory]
+    [MemberData(nameof(IndexablePageCases))]
+    public async Task AltNet_IndexablePagesUseConfiguredOriginAndDoNotExposePublicHost(
+        string path, string expectedTitle, string publicCanonicalUrl, string expectedH1)
+    {
+        using var factory = CreateAltNetFactory();
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Host = "evil.example";
+        using var response = await client.SendAsync(request, cancellationToken);
+        var html = await response.Content.ReadAsStringAsync(cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+        var expectedCanonicalUrl = publicCanonicalUrl.Replace(CanonicalOrigin, AltNetOrigin, StringComparison.Ordinal);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expectedTitle, document.Title);
+        Assert.Equal(expectedH1, document.QuerySelector("h1")?.TextContent.Trim());
+        Assert.Equal(expectedCanonicalUrl, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.Equal(expectedCanonicalUrl, GetAttribute(document, "meta[property='og:url']", "content"));
+        Assert.DoesNotContain("randomsteam.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("randombeta.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Community mesh", document.QuerySelector($"a[href='{AltNetOrigin}/']")?.TextContent);
+        Assert.NotNull(document.QuerySelector("a[href='https://github.com/JoyfulReaper/RandomSteamGame']"));
+
+        if (path == "/")
+        {
+            var script = Assert.IsAssignableFrom<IElement>(document.QuerySelector("script[type='application/ld+json']"));
+            using var structuredData = JsonDocument.Parse(script.TextContent);
+            Assert.Equal(AltNetOrigin, structuredData.RootElement.GetProperty("url").GetString());
+            Assert.Equal("https://schema.org", structuredData.RootElement.GetProperty("@context").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task AltNet_RandomGameUsesConfiguredCanonicalOrigin()
+    {
+        using var factory = CreateAltNetFactory();
+        using var client = factory.CreateClient();
+        const string path = "/random-game/steam/76561197960287930";
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await client.GetAsync(path, cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(AltNetOrigin + path, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.Equal("noindex, follow", GetRobotsHeader(response));
+        Assert.DoesNotContain("randomsteam.kgivler.com", document.DocumentElement.OuterHtml, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("/not-found", HttpStatusCode.NotFound)]
+    [InlineData("/definitely-not-a-public-route", HttpStatusCode.NotFound)]
+    [InlineData("/Error", HttpStatusCode.InternalServerError)]
+    public async Task AltNet_ErrorPagesDoNotExposePublicHost(string path, HttpStatusCode expectedStatus)
+    {
+        using var factory = CreateAltNetFactory();
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await client.GetAsync(path, cancellationToken);
+        var html = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        Assert.Equal(expectedStatus, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+        Assert.DoesNotContain("randomsteam.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("randombeta.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+        if (expectedStatus == HttpStatusCode.NotFound)
+        {
+            Assert.Contains($"curl -I {AltNetOrigin}/requested_route", html);
+        }
+    }
+
+    [Fact]
+    public async Task AltNet_BetaHostDoesNotRenderPublicBetaNoticeEvenWhenProbeEnabled()
+    {
+        using var altNetFactory = CreateAltNetFactory();
+        using var factory = altNetFactory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+                services.Configure<ApplicationOptions>(options => options.EnableBetaProbe = true)));
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/");
+        request.Headers.Host = "randombeta.kgivler.com";
+        using var response = await client.SendAsync(request, cancellationToken);
+        var html = await response.Content.ReadAsStringAsync(cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(document.QuerySelector(".home-beta-note"));
+        Assert.Equal(AltNetOrigin, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.DoesNotContain("randomsteam.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("randombeta.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AltNet_RobotsDisallowsCrawlingWithoutAdvertisingSitemap()
+    {
+        using var factory = CreateAltNetFactory();
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await client.GetAsync("/robots.txt", cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/plain", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("User-agent: *\nDisallow: /\n", content);
+        Assert.DoesNotContain("Sitemap:", content);
+        Assert.DoesNotContain("randomsteam.kgivler.com", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AltNet_SitemapUsesOnlyConfiguredOrigin()
+    {
+        using var factory = CreateAltNetFactory();
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/sitemap.xml");
+        request.Headers.Host = "evil.example";
+        using var response = await client.SendAsync(request, cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var sitemap = XDocument.Parse(content);
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/xml", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(new[] { AltNetOrigin + "/", AltNetOrigin + "/support", AltNetOrigin + "/contributors", AltNetOrigin + "/library-export" },
+            sitemap.Descendants(ns + "loc").Select(element => element.Value));
+        Assert.DoesNotContain("randomsteam.kgivler.com", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private WebApplicationFactory<Program> CreateAltNetFactory() =>
+        _factory.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Application:NetworkMode"] = "AltNet",
+                ["Application:NetworkName"] = "Community mesh",
+                ["Application:CanonicalOrigin"] = AltNetOrigin
+            })));
+
+    [Fact]
+    public void AltNet_MissingOriginFailsOptionsValidation()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Application:NetworkMode"] = "AltNet",
+                    ["Application:CanonicalOrigin"] = null
+                })));
+
+        var exception = Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        Assert.Contains("Application:CanonicalOrigin", exception.Message);
+        Assert.Contains("AltNet requires an explicit HTTP or HTTPS origin", exception.Message);
     }
 
     private sealed class AvailableBetaService : IBetaAvailabilityService

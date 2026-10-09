@@ -22,7 +22,8 @@ public sealed class ApplicationOptions
     public string NetworkDisplayName =>
         string.IsNullOrWhiteSpace(NetworkName) ? NetworkMode.ToString() : NetworkName.Trim();
 
-    public string CanonicalOrigin { get; set; } = "https://randomsteam.kgivler.com";
+    // Public uses the existing production origin when unset; AltNet requires an explicit origin.
+    public string? CanonicalOrigin { get; set; }
 
     public string BetaHost { get; set; } = "randombeta.kgivler.com";
 

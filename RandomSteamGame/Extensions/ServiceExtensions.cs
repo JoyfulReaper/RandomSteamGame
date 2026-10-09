@@ -65,6 +65,7 @@ public static class ServiceExtensions
         services.AddOptions<ApplicationOptions>()
             .Bind(config.GetSection(ApplicationOptions.SectionName))
             .Validate(options => Enum.IsDefined(options.NetworkMode), "Application:NetworkMode must be Public or AltNet.")
+            .Validate(options => CanonicalUrlService.TryGetOrigin(options, out _), CanonicalUrlService.OriginValidationMessage)
             .ValidateOnStart();
         services.Configure<TelemetryOptions>(config.GetSection(TelemetryOptions.SectionName));
         services.AddSingleton<IVisitorIdProvider, VisitorIdProvider>();

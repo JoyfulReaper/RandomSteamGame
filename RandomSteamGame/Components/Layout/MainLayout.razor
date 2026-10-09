@@ -3,6 +3,7 @@
 @using Microsoft.Extensions.Options
 @using RandomSteamGame.Options
 @inject IOptions<ApplicationOptions> ApplicationSettings
+@inject CanonicalUrlService CanonicalUrls
 
 <div class="page-wrapper">
     <header class="global-header">
@@ -16,26 +17,36 @@
     <footer class="global-footer">
         <div class="container text-center">
             <div class="global-footer-links">
-                <span>Also available on:</span>
+                @if (ApplicationSettings.Value.NetworkMode == NetworkMode.AltNet)
+                {
+                    <span>Current network:</span>
+                    <a href="@(CanonicalUrls.GetCanonicalUrl() + "/")" rel="noopener noreferrer">
+                        @ApplicationSettings.Value.NetworkDisplayName
+                    </a>
+                }
+                else
+                {
+                    <span>Also available on:</span>
 
-                <a href="https://randomsteam.kgivler.com/"
-                   rel="noopener noreferrer">
-                    Clearnet
-                </a>
+                    <a href="https://randomsteam.kgivler.com/"
+                       rel="noopener noreferrer">
+                        Clearnet
+                    </a>
 
-                <span>·</span>
+                    <span>·</span>
 
-                <a href="https://steam.ygg.kgivler.com/"
-                   rel="noopener noreferrer">
-                    Yggdrasil
-                </a>
+                    <a href="https://steam.ygg.kgivler.com/"
+                       rel="noopener noreferrer">
+                        Yggdrasil
+                    </a>
 
-                <span>·</span>
+                    <span>·</span>
 
-                <a href="https://randomsteam.dn42/"
-                   rel="noopener noreferrer">
-                    DN42
-                </a>
+                    <a href="https://randomsteam.dn42/"
+                       rel="noopener noreferrer">
+                        DN42
+                    </a>
+                }
 
                 <span class="global-footer-divider">|</span>
 
