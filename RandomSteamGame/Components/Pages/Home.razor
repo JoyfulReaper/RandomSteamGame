@@ -277,8 +277,19 @@
 
         var ingressNetwork = IngressNetworkClassifier.FromHost(httpContext?.Request.Host.Host);
 
-        _appStats = string.IsNullOrWhiteSpace(ip)
-            ? await AppStatsService.GetStatsAsync()
-            : await AppStatsService.RecordHitAsync(ip, userAgent, ingressNetwork);
+        var recordHit = !string.IsNullOrWhiteSpace(ip);
+        try
+        {
+            _appStats = recordHit
+                ? await AppStatsService.RecordHitAsync(ip!, userAgent, ingressNetwork)
+                : await AppStatsService.GetStatsAsync();
+        }
+        catch (Exception exception)
+        {
+            _appStats = null;
+            Logger.LogWarning(exception,
+                "Failed to load homepage statistics during {StatsOperation}.",
+                recordHit ? "hit recording" : "stats retrieval");
+        }
     }
 }

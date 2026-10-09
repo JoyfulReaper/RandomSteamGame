@@ -7,12 +7,15 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
+using RandomSteamGame.Components.Pages;
 using RandomSteamGame.Client.Services;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Options;
@@ -584,8 +587,7 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
             builder.UseEnvironment("Production");
             builder.ConfigureTestServices(services =>
             {
-                services.RemoveAll<IAppStatsService>();
-                services.AddScoped<IAppStatsService, ThrowingAppStatsService>();
+                services.AddControllers().AddApplicationPart(typeof(SeoTestFailureController).Assembly);
             });
         });
         using var client = productionFactory.CreateClient(new WebApplicationFactoryClientOptions
@@ -594,7 +596,7 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         });
         var cancellationToken = TestContext.Current.CancellationToken;
 
-        using var response = await client.GetAsync("/", cancellationToken);
+        using var response = await client.GetAsync("/test-only/seo-failure", cancellationToken);
         var document = await ParseHtmlAsync(response, cancellationToken);
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
@@ -607,18 +609,116 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
             GetAttribute(document, "meta[name='description']", "content")));
     }
 
-    private sealed class ThrowingAppStatsService : IAppStatsService
+    [Theory]
+    [InlineData(true, true, 0)]
+    [InlineData(false, true, 0)]
+    [InlineData(true, false, 0)]
+    [InlineData(false, false, 42)]
+    public async Task Home_StatsLoadingDoesNotGateContentMetadataOrBetaProbe(
+        bool recordHit, bool failStats, long count)
     {
+        var statsService = new TestAppStatsService(failStats, new(count, count + 1, count + 2, count + 3));
+        var betaService = new AvailableBetaService();
+        var logger = new HomeTestLogger();
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Production");
+            builder.ConfigureTestServices(services =>
+            {
+                services.Configure<ApplicationOptions>(options => options.EnableBetaProbe = true);
+                services.RemoveAll<IAppStatsService>();
+                services.AddSingleton<IAppStatsService>(statsService);
+                services.RemoveAll<IBetaAvailabilityService>();
+                services.AddSingleton<IBetaAvailabilityService>(betaService);
+                services.AddSingleton<ILogger<Home>>(logger);
+                if (!recordHit)
+                {
+                    services.AddSingleton<IStartupFilter, ClearPeerStartupFilter>();
+                }
+            });
+        });
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Random Steam Game Picker", document.QuerySelector("h1")?.TextContent.Trim());
+        Assert.NotNull(document.QuerySelector(".picker-form-loading"));
+        Assert.Contains("How it works", document.Body?.TextContent);
+        Assert.Equal(HomeTitle, document.Title);
+        Assert.Equal(CanonicalOrigin, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.Equal(CanonicalOrigin, GetAttribute(document, "meta[property='og:url']", "content"));
+        Assert.False(string.IsNullOrWhiteSpace(GetAttribute(document, "meta[name='description']", "content")));
+        using var structuredData = JsonDocument.Parse(document.QuerySelector("script[type='application/ld+json']")!.TextContent);
+        Assert.Equal(CanonicalOrigin, structuredData.RootElement.GetProperty("url").GetString());
+        Assert.Equal(1, betaService.CallCount);
+        Assert.NotNull(document.QuerySelector(".home-beta-banner"));
+        Assert.Equal(recordHit ? 1 : 0, statsService.RecordCalls);
+        Assert.Equal(recordHit ? 0 : 1, statsService.GetCalls);
+
+        if (failStats)
+        {
+            Assert.Contains("Stats temporarily unavailable.", document.Body?.TextContent);
+            Assert.DoesNotContain("Total Hits:", document.Body?.TextContent);
+            var entry = Assert.Single(logger.Entries);
+            Assert.Equal(LogLevel.Warning, entry.Level);
+            Assert.Same(statsService.Failure, entry.Exception);
+            Assert.Contains(recordHit ? "hit recording" : "stats retrieval", entry.Message);
+        }
+        else
+        {
+            Assert.DoesNotContain("Stats temporarily unavailable.", document.Body?.TextContent);
+            Assert.Contains($"Total Hits: {count}", document.Body?.TextContent);
+            Assert.Contains($"Unique Visitors: {count + 1}", document.Body?.TextContent);
+            Assert.Contains($"Random Games Generated: {count + 2}", document.Body?.TextContent);
+            Assert.Contains($"Libraries Exported: {count + 3}", document.Body?.TextContent);
+            Assert.Empty(logger.Entries);
+        }
+    }
+
+    private sealed class ClearPeerStartupFilter : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, continuation) =>
+            {
+                context.Connection.RemoteIpAddress = null;
+                return continuation();
+            });
+            next(app);
+        };
+    }
+
+    private sealed class HomeTestLogger : ILogger<Home>
+    {
+        public List<(LogLevel Level, Exception? Exception, string Message)> Entries { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, exception, formatter(state, exception)));
+    }
+
+    private sealed class TestAppStatsService(bool fail, AppStatsResponse stats) : IAppStatsService
+    {
+        public Exception Failure { get; } = new SqliteException("Test stats persistence failure.", 10);
+        public int RecordCalls { get; private set; }
+        public int GetCalls { get; private set; }
+
         public Task<AppStatsResponse> RecordHitAsync(
             string ip,
             string? userAgent = null,
-            string ingressNetwork = IngressNetworkClassifier.Unknown) =>
-            throw new InvalidOperationException(
-                "Intentional production pipeline SEO test failure.");
+            string ingressNetwork = IngressNetworkClassifier.Unknown)
+        {
+            RecordCalls++;
+            return fail ? Task.FromException<AppStatsResponse>(Failure) : Task.FromResult(stats);
+        }
 
-        public Task<AppStatsResponse> GetStatsAsync() =>
-            throw new InvalidOperationException(
-                "Intentional production pipeline SEO test failure.");
+        public Task<AppStatsResponse> GetStatsAsync()
+        {
+            GetCalls++;
+            return fail ? Task.FromException<AppStatsResponse>(Failure) : Task.FromResult(stats);
+        }
 
         public Task IncrementRandomGamesGeneratedAsync() =>
             Task.CompletedTask;
@@ -674,6 +774,13 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.True(response.Headers.TryGetValues("X-Robots-Tag", out var values));
         return Assert.Single(values);
     }
+}
+
+// Discovered only by the production exception-handler test's application part.
+public sealed class SeoTestFailureController : ControllerBase
+{
+    [HttpGet("/test-only/seo-failure")]
+    public IActionResult Fail() => throw new InvalidOperationException("Intentional production pipeline SEO test failure.");
 }
 
 public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>

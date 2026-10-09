@@ -1,16 +1,18 @@
-<p>
-    Total Hits: @TotalHits |
-    Unique Visitors: @UniqueVisitors |
-    Random Games Generated: @RandomGamesGenerated |
-    Libraries Exported: @LibrariesExported
-</p>
+@if (Stats is { } stats)
+{
+    <p>
+        Total Hits: @stats.TotalHits |
+        Unique Visitors: @stats.UniqueVisitors |
+        Random Games Generated: @stats.RandomGamesGenerated |
+        Libraries Exported: @stats.LibrariesExported
+    </p>
+}
+else
+{
+    <p>Stats temporarily unavailable.</p>
+}
 
 @code {
     [Parameter]
     public AppStatsResponse? Stats { get; set; }
-
-    private long TotalHits => Stats?.TotalHits ?? 0;
-    private long UniqueVisitors => Stats?.UniqueVisitors ?? 0;
-    private long RandomGamesGenerated => Stats?.RandomGamesGenerated ?? 0;
-    private long LibrariesExported => Stats?.LibrariesExported ?? 0;
 }
