@@ -25,6 +25,18 @@ internal class CacheService : ICacheService
         _logger = logger;
     }
 
+    public async Task<T> CoalesceAsync<T>(string key, Func<CancellationToken, Task<T>> factory, CancellationToken ct = default)
+    {
+        // Retain HybridCache's stampede protection and combined cancellation, without storing
+        // a shared result that would blur success/not-found policies or cache transient failures.
+        var options = new HybridCacheEntryOptions
+        {
+            Flags = HybridCacheEntryFlags.DisableLocalCache | HybridCacheEntryFlags.DisableDistributedCache
+        };
+        return await _cache.GetOrCreateAsync<T>(key, token => new ValueTask<T>(factory(token)),
+            options, cancellationToken: ct);
+    }
+
     public async Task<T> GetOrCreateAsync<T>(
             string key,
             Func<CancellationToken, Task<T>> factory,

@@ -125,6 +125,12 @@ public class SteamClient : ISteamClient
         CancellationToken ct = default)
     {
         var normalizedVanity = SteamVanityUrlHelper.Normalize(vanityUrl);
+        return await _cache.CoalesceAsync($"vanity:v2:fill:{normalizedVanity}",
+            token => ResolveVanityAsync(normalizedVanity, token), ct);
+    }
+
+    private async Task<long> ResolveVanityAsync(string normalizedVanity, CancellationToken ct)
+    {
         var successCacheKey = SteamVanityUrlHelper.BuildCacheKey(normalizedVanity);
         var notFoundCacheKey = SteamVanityUrlHelper.BuildNotFoundCacheKey(normalizedVanity);
         var tags = new[] { SteamVanityUrlHelper.BuildCacheKey(normalizedVanity), "vanity_urls" };

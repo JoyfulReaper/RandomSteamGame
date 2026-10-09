@@ -50,8 +50,12 @@ public class SteamStoreClient : ISteamStoreClient
     }
 
     public async Task<AppData?> GetAppData(int appId, IEnumerable<string>? tags = null, CancellationToken ct = default)
+        => await _cache.CoalesceAsync($"app:fill:{appId}", token => FetchAppDataAsync(appId, tags, token), ct);
+
+    private async Task<AppData?> FetchAppDataAsync(int appId, IEnumerable<string>? tags, CancellationToken ct)
     {
         var cacheKey = $"app:{appId}";
+        var notFoundCacheKey = $"app:v1:notfound:{appId}";
 
         var entryTags = tags?.ToList() ?? new List<string>();
         entryTags.Add("app_details");
@@ -61,6 +65,11 @@ public class SteamStoreClient : ISteamStoreClient
         if (cachedResult is not null)
         {
             return cachedResult.Data;
+        }
+
+        if (await _cache.GetAsync<bool?>(notFoundCacheKey, ct) == true)
+        {
+            return null;
         }
 
         using var response = await _httpClient.GetAsync(
@@ -89,6 +98,13 @@ public class SteamStoreClient : ISteamStoreClient
         }
 
         var responseData = JsonSerializer.Deserialize<AppDetailsResponse>(root, _jsonOptions);
+        if (responseData is not null && root.TryGetProperty("success", out var success) &&
+            success.ValueKind == JsonValueKind.False)
+        {
+            await _cache.SetAsync(notFoundCacheKey, true, _steamOptions.Cache.AppDetailsNotFound, entryTags, ct);
+            return null;
+        }
+
         if (responseData?.Success != true || responseData.AppData is null)
         {
             return null;
