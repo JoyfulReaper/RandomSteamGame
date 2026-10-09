@@ -125,6 +125,12 @@ public class SteamClient : ISteamClient
         CancellationToken ct = default)
     {
         var normalizedVanity = SteamVanityUrlHelper.Normalize(vanityUrl);
+        return await _cache.CoalesceAsync($"vanity:v2:fill:{normalizedVanity}",
+            token => ResolveVanityAsync(normalizedVanity, token), ct);
+    }
+
+    private async Task<long> ResolveVanityAsync(string normalizedVanity, CancellationToken ct)
+    {
         var successCacheKey = SteamVanityUrlHelper.BuildCacheKey(normalizedVanity);
         var notFoundCacheKey = SteamVanityUrlHelper.BuildNotFoundCacheKey(normalizedVanity);
         var tags = new[] { SteamVanityUrlHelper.BuildCacheKey(normalizedVanity), "vanity_urls" };
@@ -176,7 +182,7 @@ public class SteamClient : ISteamClient
         if (r.Success == STEAM_VANITY_NO_MATCH)
         {
             // _logger.LogInformation("Vanity URL not found.");
-            await _cache.SetAsync(notFoundCacheKey, true, _steamOptions.Cache.VanityNotFound, tags, ct);
+            await _cache.SetAsync<bool?>(notFoundCacheKey, true, _steamOptions.Cache.VanityNotFound, tags, ct);
             return 0L;
         }
 
@@ -191,13 +197,13 @@ public class SteamClient : ISteamClient
         }
 
         var steamId = long.Parse(r.SteamId!);
-        await _cache.SetAsync(successCacheKey, steamId, _steamOptions.Cache.VanitySuccess, tags, ct);
+        await _cache.SetAsync<long?>(successCacheKey, steamId, _steamOptions.Cache.VanitySuccess, tags, ct);
         return steamId;
     }
 
-    public async Task InvalidateOwnedGamesCacheAsync(long userId)
+    public async Task InvalidateOwnedGamesCacheAsync(long userId, CancellationToken ct = default)
     {
-        await _cache.InvalidateByTagAsync($"steam_user_{userId}");
+        await _cache.InvalidateByTagAsync($"steam_user_{userId}", ct);
     }
 
     public async Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>> GetSteamDeckCompatibilityAsync(

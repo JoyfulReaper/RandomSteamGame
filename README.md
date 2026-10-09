@@ -66,8 +66,18 @@ Steam must be able to access the profile's game details. The saved Steam identit
    | `game` | Steam game name |
    | `id` | Steam App ID |
    | `hours` | Total recorded playtime in decimal hours |
+   | `hours_2_weeks` | Recent playtime in decimal hours; `0` when Steam reports none |
+   | `hours_windows` | Windows playtime in decimal hours |
+   | `hours_mac` | macOS playtime in decimal hours |
+   | `hours_linux` | Linux playtime in decimal hours |
    | `last_played` | UTC timestamp in `yyyy-MM-ddTHH:mm:ssZ` format, or blank when Steam reports no meaningful date |
    | `steam_deck` | `verified`, `playable`, `unsupported`, or `unknown` |
+   | `steam_store_url` | Steam Store URL derived from App ID: `https://store.steampowered.com/app/{appId}/` |
+
+All playtime columns use invariant decimal hours with up to two decimal places, including
+`0` for zero minutes. These additional fields use the owned-library response and require
+no additional Steam requests. Store metadata such as developer, genres, and pricing is
+deferred until a bounded, batched, cached design is available.
 
 If Deck compatibility cannot be retrieved for a game, the export uses `unknown` rather than failing the whole download. Exports are limited to one request per IP address every 72 hours to protect Steam API capacity.
 
@@ -139,21 +149,98 @@ The only secret required for normal local use is the Steam Web API key:
 
 The tracked [`RandomSteamGame/appsettings.json`](RandomSteamGame/appsettings.json) also contains non-secret settings for caching, rate limiting, allowed origins, canonical hosts, Data Protection, and optional Mission Control telemetry.
 
+Steam options are validated at startup. `Steam:ConnectionString` must be nonblank; validation does not open the cache database. All six `Steam:Cache` policies must be explicitly configured with `AbsoluteMinutes` from 1 through 525600 (one year). `Steam:RateLimiting` must specify `PermitLimit` from 1 through 1000000 and `WindowSeconds` from 1 through 86400 (one day). These generous bounds reject obvious mistakes while accommodating the shipped 43200-minute caches and future rate-limit tuning. Invalid settings are rejected with their configuration paths, without clamping or substituting defaults.
+
 Important operational settings include:
 
 | Configuration key | Purpose |
 | --- | --- |
-| `Application:CanonicalOrigin` | Production origin used for canonical and social metadata |
+| `Application:NetworkMode` | `Public` (default) or `AltNet`; controls defaults for remote Steam browser assets and beta probing |
+| `Application:NetworkName` | Optional display name such as `I2P`, `Yggdrasil`, or `DN42`; does not select capabilities |
+| `Application:AllowRemoteBrowserAssets` | Optional override; `null` allows Steam browser assets in Public and disables them in AltNet |
+| `Application:EnableBetaProbe` | Optional override; `null` enables beta probing in Public and disables it in AltNet; public beta links are shown only in Public |
+| `Application:CanonicalOrigin` | Externally visible origin for canonical/social metadata and sitemap URLs; unset Public uses the existing production HTTPS origin; required in AltNet, where HTTP or HTTPS is accepted |
 | `Application:BetaHost` | Host that receives `X-Robots-Tag: noindex, nofollow` |
 | `DataProtection:KeysPath` | Optional persistent Data Protection key-ring location |
 | `Steam:ConnectionString` | SQLite connection string for Steam response caching |
 | `Steam:Cache:*` | Cache durations for libraries, app details, vanity results, and Deck compatibility |
-| `Steam:RateLimiting:*` | General Steam API request limit; CSV export has a separate one-per-IP/72-hour policy |
+| `Steam:RateLimiting:*` | General Steam API request limit; CSV export has a separate policy |
+| `Steam:LibraryExport:RateLimitMode` | `PerIp` (default) or `Global`; independent of network mode |
+| `Steam:LibraryExport:GlobalConcurrency` | Maximum active exports across all IPs in PerIp mode (default 2); Global mode always allows only one |
+| `Steam:LibraryExport:GlobalCooldownMinutes` | Global-mode cooldown from acceptance, including failed attempts (default 20; range 1–43200 minutes) |
+| `Ingress:EnableForwardedHeaders` | Optional override; `null` trusts configured proxy addresses in Public and ignores forwarding in AltNet |
+| `Ingress:EnableCloudflareVisitorHeader` | Optional override; `null` enables trusted Cloudflare scheme metadata in Public and disables it in AltNet; requires forwarding enabled |
+| `Ingress:TrustedProxies` | Exact immediate-peer IP addresses allowed to supply forwarding headers; defaults to `127.0.0.1` and `::1` |
 | `Cors:AllowedOrigins` | Browser origins permitted to call the API |
 | `MissionControl:*` | Optional deployment and game-pick telemetry configuration |
 | `Telemetry:VisitorHashKey` | Optional key used to pseudonymize visitor identifiers for telemetry |
 
 When `DataProtection:KeysPath` is empty, development and non-Windows deployments use `.keys/data-protection` beneath the application content root. Production Windows deployments use a machine-level application-data directory.
+
+For example, set `Application__NetworkMode=AltNet`, `Application__NetworkName=I2P`,
+and `Application__CanonicalOrigin=http://example.b32.i2p`
+to omit Steam header artwork from game responses, restrict Steam descriptions to
+text, formatting, and clickable links, and disable the beta probe/banner. Changing
+the display name does not change these capabilities. The optional boolean overrides
+can enable either capability independently for a deployment that supports it.
+Restricted descriptions omit all embedded images and inline styles; clickable links
+can still lead to external sites. Steam API access remains server-side.
+
+The origin must contain only an HTTP(S) scheme, host, and optional port, without
+credentials, a path (other than `/`), query, or fragment. Public requires HTTPS;
+AltNet requires an explicit origin and accepts intentional HTTP origins. Incoming
+Host headers do not select the canonical origin. The same origin is used for
+canonical links, OpenGraph, JSON-LD application URLs, sitemap URLs, and the AltNet
+footer/404 example. Public keeps its existing network and beta links; AltNet shows
+the current network instead and omits public beta links even if probing is enabled.
+
+`/robots.txt` and `/sitemap.xml` are generated from configuration. Public allows
+crawling and advertises its configured sitemap with the existing four page URLs.
+AltNet uses `Disallow: /` without advertising a sitemap; its sitemap remains
+available using the configured origin. Robots directives are advisory, not access
+control.
+
+### Cookies, ingress, and library exports
+
+Public production keeps Secure antiforgery and server-written Steam identity
+cookies; Public development keeps its existing request-dependent antiforgery
+policy. AltNet derives both cookie security and the effective request scheme from
+`Application:CanonicalOrigin`, so an intentional HTTP origin works behind an HTTP
+tunnel without Secure cookies, while an HTTPS origin retains them even when the
+backend listener uses HTTP. Antiforgery validation, HttpOnly on antiforgery cookies,
+SameSite=Lax, host-only scope, and cookie lifetimes remain unchanged. Browser-written
+Steam identity, exclusions, and cache-reset cookies already use the browser's actual
+protocol. Visitor telemetry uses a keyed IP hash, not a visitor cookie.
+
+AltNet ignores `X-Forwarded-For`, `X-Forwarded-Proto`, and `CF-Visitor` by default,
+including from loopback. Public keeps trusted loopback proxy/Cloudflare support.
+To enable forwarding on an ingress that supplies reliable client addresses, set
+`Ingress__EnableForwardedHeaders=true` and configure `Ingress:TrustedProxies` with
+its exact IP addresses. That ingress must strip visitor-supplied forwarding headers
+and write its own values; address trust alone cannot distinguish headers passed
+through by a tunnel. Cloudflare metadata has a separate opt-in for AltNet. Only one
+forwarding hop is consumed; untrusted peers cannot change the effective client IP.
+AltNet's effective scheme always comes from its configured origin.
+
+For an ingress that presents every visitor as the same local address, configure:
+
+```ini
+Steam__LibraryExport__RateLimitMode=Global
+Steam__LibraryExport__GlobalCooldownMinutes=20
+```
+
+Global mode allows one active export request, rejects additional requests with
+HTTP 429, and atomically reserves the shared cooldown after provider/Steam ID
+validation and before Steam work starts. Completion does not restart the cooldown;
+failures consume it. Rejections return readable error text and Retry-After seconds
+(rounded up). Capacity rejections before the cooldown reservation or after its
+expiry suggest a five-second retry; availability still depends on completion.
+State is local to this process and resets on restart. PerIp mode preserves the
+72-hour cooldown after a successful export, one active request per IP, and the
+configurable global capacity. Export policy hints follow the selected policy.
+
+JavaScript cookie tests can be run with
+`node --test RandomSteamGame.Tests/cookieHelper.test.mjs` in addition to the .NET suite.
 
 ## Docker
 
@@ -173,6 +260,26 @@ The production Random Steam Game deployment runs on GreenCloud infrastructure.
 [GreenCloud VPS](https://greencloudvps.com/billing/aff.php?aff=10295)
 
 > Disclosure: This is an affiliate link. If you purchase through it, I may receive a commission at no additional cost to you.
+
+### Footer presentation
+
+The footer's hosting message is configured independently of the deployment's network mode
+through `Hosting:Message`, `Hosting:ProviderName`, `Hosting:Url`, `Hosting:AffiliateUrl`, and
+`Hosting:ShowAffiliateDisclosure`. The default keeps the GreenCloud message and disclosure.
+An affiliate URL takes precedence over the regular URL. Leave both URLs empty to display
+the provider as plain text. Disclosure appears only for an affiliate link when enabled.
+
+For a message-only deployment, for example:
+
+```ini
+Hosting__Message=Available via I2P
+Hosting__ProviderName=
+Hosting__Url=
+Hosting__AffiliateUrl=
+Hosting__ShowAffiliateDisclosure=false
+```
+
+Leave both the message and provider name empty to hide the hosting block entirely.
 
 ## Search and indexing
 

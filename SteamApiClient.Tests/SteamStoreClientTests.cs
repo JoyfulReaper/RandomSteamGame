@@ -8,6 +8,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Polly.Timeout;
 using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
@@ -29,6 +30,19 @@ public class SteamStoreClientTests
                 AppDetails = new CachePolicy { AbsoluteMinutes = 60 }
             }
         });
+    }
+
+    [Fact]
+    public async Task GetAppData_PreservesPackageGroupsFromStoreResponse()
+    {
+        var client = CreateClient("{\"400\":" + AppDetailsDeserializationTests.RealisticPayload + "}", HttpStatusCode.OK);
+        var result = await client.GetAppData(400, ct: TestContext.Current.CancellationToken);
+        Assert.NotNull(result);
+        var group = Assert.Single(result.PackageGroups!);
+        var sub = Assert.Single(group.Subs!);
+        Assert.Equal(12345, sub.PackageId);
+        Assert.Equal(1499, sub.PriceInCentsWithDiscount);
+        Assert.Null(result.PcRequirements);
     }
 
     [Fact]
@@ -108,6 +122,79 @@ public class SteamStoreClientTests
         Assert.NotNull(successfulResult);
         Assert.Equal("Portal", successfulResult.Name);
         Assert.Equal(2, handler.CallCount);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"400\":{\"success\":false}}")]
+    public async Task GetAppData_UnavailableOrMissingAppKey_ReturnsNull(string json)
+    {
+        var client = CreateClient(json, HttpStatusCode.OK);
+
+        Assert.Null(await client.GetAppData(400, ct: TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData("not JSON", typeof(JsonException))]
+    [InlineData("[]", typeof(InvalidOperationException))]
+    public async Task GetAppData_InvalidPayload_PropagatesParseFailure(string json, Type exceptionType)
+    {
+        var client = CreateClient(json, HttpStatusCode.OK);
+
+        var exception = await Record.ExceptionAsync(() =>
+            client.GetAppData(400, ct: TestContext.Current.CancellationToken));
+
+        Assert.IsAssignableFrom(exceptionType, exception);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetAppData_StandardResilienceTimeout_ThrowsTimeoutRejectedException(bool totalTimeout)
+    {
+        var handler = new WaitingHttpMessageHandler();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddHybridCache();
+        services.AddScoped<ICacheService, CacheService>();
+        services.AddSingleton(_options);
+        services.AddHttpClient<SteamStoreClient>(http =>
+                http.BaseAddress = new Uri("https://store.steampowered.com/"))
+            .ConfigurePrimaryHttpMessageHandler(() => handler)
+            .AddStandardResilienceHandler(options =>
+            {
+                // Total timeout fires during the retry delay; attempt timeout is always shorter.
+                options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(1);
+                options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(totalTimeout ? 2 : 5);
+                if (totalTimeout)
+                {
+                    options.Retry.Delay = TimeSpan.FromSeconds(5);
+                    options.Retry.UseJitter = false;
+                }
+                else
+                {
+                    options.Retry.ShouldHandle = _ => ValueTask.FromResult(false);
+                }
+            });
+        await using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var client = scope.ServiceProvider.GetRequiredService<SteamStoreClient>();
+
+        await Assert.ThrowsAsync<TimeoutRejectedException>(() =>
+            client.GetAppData(400, ct: TestContext.Current.CancellationToken));
+
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    private sealed class WaitingHttpMessageHandler : HttpMessageHandler
+    {
+        public int CallCount { get; private set; }
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            CallCount++;
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            throw new InvalidOperationException("The dependency request must be canceled by the resilience pipeline.");
+        }
     }
 
     private SteamStoreClient CreateClient(string responseContent, HttpStatusCode statusCode)

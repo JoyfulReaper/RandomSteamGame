@@ -31,6 +31,8 @@ public record CacheSettings
     [Required]
     public CachePolicy AppDetails { get; init; } = default!;
     [Required]
+    public CachePolicy AppDetailsNotFound { get; init; } = new() { AbsoluteMinutes = 15 };
+    [Required]
     public CachePolicy VanitySuccess { get; init; } = default!;
     [Required]
     public CachePolicy VanityNotFound { get; init; } = default!;

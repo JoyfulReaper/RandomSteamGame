@@ -1,5 +1,10 @@
 ﻿@inherits LayoutComponentBase
 
+@using Microsoft.Extensions.Options
+@using RandomSteamGame.Options
+@inject IOptions<ApplicationOptions> ApplicationSettings
+@inject IOptions<HostingOptions> HostingSettings
+
 <div class="page-wrapper">
     <header class="global-header">
         <NavMenu />
@@ -33,6 +38,13 @@
                     DN42
                 </a>
 
+                <span>·</span>
+
+                <a href="http://vdjmun2zeeqdk7lymwe6qht2msioyq2y6ywpjduchqye3nodfbmq.b32.i2p"
+                   rel="noopener noreferrer">
+                    I2P (experimental)
+                </a>
+
                 <span class="global-footer-divider">|</span>
 
                 <a href="https://github.com/JoyfulReaper/RandomSteamGame"
@@ -43,23 +55,47 @@
             </div>
 
             <div class="global-footer-note">
-                Game background images are loaded from clearnet resources and may
-                not be available on an isolated Yggdrasil or DN42 connection.
+                @if (ApplicationSettings.Value.RemoteBrowserAssetsAllowed)
+                {
+                    <text>Game background images are loaded from clearnet resources and may
+                    not be available on an isolated Yggdrasil or DN42 connection.</text>
+                }
+                else
+                {
+                    <text>Remote game artwork and embedded images are disabled for this
+                    @ApplicationSettings.Value.NetworkDisplayName deployment.</text>
+                }
             </div>
 
-            <div class="global-footer-links mt-1">
-                <span>Proudly hosted with</span>
+            @if (!string.IsNullOrWhiteSpace(HostingSettings.Value.Message) || !string.IsNullOrWhiteSpace(HostingSettings.Value.ProviderName))
+            {
+                <div class="global-footer-links mt-1 global-footer-hosting">
+                    <span>@HostingSettings.Value.Message</span>
 
-                <a href="https://greencloudvps.com/billing/aff.php?aff=10295"
-                   target="_blank"
-                   rel="sponsored noopener noreferrer">
-                    GreenCloud VPS
-                </a>
-            </div>
+                    @if (!string.IsNullOrWhiteSpace(HostingSettings.Value.ProviderName))
+                    {
+                        @if (!string.IsNullOrWhiteSpace(HostingSettings.Value.LinkUrl))
+                        {
+                            <a href="@HostingSettings.Value.LinkUrl"
+                               target="_blank"
+                               rel="@(HostingSettings.Value.HasAffiliateLink ? "sponsored noopener noreferrer" : "noopener noreferrer")">
+                                @HostingSettings.Value.ProviderName
+                            </a>
+                        }
+                        else
+                        {
+                            <span>@HostingSettings.Value.ProviderName</span>
+                        }
+                    }
+                </div>
+            }
 
-            <div class="global-footer-note">
-                Affiliate link — I may earn a commission if you sign up through it.
-            </div>
+            @if (HostingSettings.Value.ShowAffiliateDisclosure && HostingSettings.Value.HasAffiliateLink)
+            {
+                <div class="global-footer-note global-footer-affiliate-disclosure">
+                    Affiliate link — I may earn a commission if you sign up through it.
+                </div>
+            }
 
             <div class="global-footer-links mt-1">
                 <span>Network projects:</span>

@@ -5,21 +5,19 @@
  * Licensed under the MIT License.
  */
 
-using Microsoft.AspNetCore.Components;
 using RandomSteamGame.Shared.Contracts;
 using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace RandomSteamGame.Client.Services;
 
-public sealed class RandomSteamApiClient
+public sealed class RandomSteamApiClient : IRandomSteamApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<RandomSteamApiClient> _logger;
 
     public RandomSteamApiClient(
         HttpClient httpClient,
-        NavigationManager navigationManager,
         ILogger<RandomSteamApiClient> logger)
     {
         _httpClient = httpClient;
@@ -27,7 +25,7 @@ public sealed class RandomSteamApiClient
 
         if (_httpClient.BaseAddress is null)
         {
-            _httpClient.BaseAddress = new Uri(navigationManager.BaseUri);
+            throw new ArgumentException("An explicitly configured browser base address is required.", nameof(httpClient));
         }
     }
 
@@ -51,12 +49,15 @@ public sealed class RandomSteamApiClient
                 cancellationToken),
             cancellationToken);
 
+    // Same-origin HTTP sends the ExcludedGameIds cookie; the explicit list is
+    // consumed only by the server implementation during InteractiveServer execution.
     public Task<ApiResult<GameDetails>> GetRandomGameDetailsAsync(
         string provider,
         long? steamId = null,
         string? vanityUrl = null,
         bool unplayedOnly = false,
-        CancellationToken cancellationToken = default) =>
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<int>? excludedGameIds = null) =>
         GetFromJsonAsync<GameDetails>(
             BuildIdentifierUri(
                 provider,

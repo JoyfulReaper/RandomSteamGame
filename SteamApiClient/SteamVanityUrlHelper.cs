@@ -73,10 +73,10 @@ public static partial class SteamVanityUrlHelper
     }
 
     public static string BuildCacheKey(string normalizedVanity)
-        => $"vanity_{normalizedVanity}";
+        => $"vanity:v2:success:{normalizedVanity}";
 
     public static string BuildNotFoundCacheKey(string normalizedVanity)
-        => $"vanity_not_found_{normalizedVanity}";
+        => $"vanity:v2:notfound:{normalizedVanity}";
 
     private static bool LooksLikeSteamCommunityUrl(string input)
     {

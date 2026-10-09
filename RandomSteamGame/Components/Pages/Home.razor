@@ -1,6 +1,10 @@
 @page "/"
 
 @inject IBetaAvailabilityService BetaAvailabilityService
+@using Microsoft.Extensions.Options
+@using RandomSteamGame.Options
+@inject IOptions<ApplicationOptions> ApplicationSettings
+@inject IOptions<LibraryExportOptions> ExportSettings
 @inject IAppStatsService AppStatsService
 @inject IHttpContextAccessor HttpContextAccessor
 @inject ILogger<Home> Logger
@@ -19,7 +23,7 @@
 <div class="container mt-5 home-shell">
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
-            @if (_isBetaSite)
+            @if (ShowPublicBetaLinks && _isBetaSite)
             {
                 <div class="home-beta-note-wrap mb-4">
                     <div class="home-beta-note" role="note">
@@ -35,7 +39,7 @@
                     </div>
                 </div>
             }
-            else if (_betaAvailable)
+            else if (ShowPublicBetaLinks && _betaAvailable)
             {
                 <div class="home-beta-banner-wrap mb-4">
                     <div class="home-beta-banner">
@@ -189,8 +193,16 @@
                         <p>
                             Yes. You can export your public Steam library as CSV with game
                             names, App IDs, playtime, last-played dates, and Steam Deck
-                            compatibility. Exports are limited to one per IP address every
-                            72 hours.
+                            compatibility.
+                            @if (ExportSettings.Value.RateLimitMode == LibraryExportRateLimitMode.Global)
+                            {
+                                @ExportSettings.Value.RateLimitDescription
+                            }
+                            else
+                            {
+                                <text>Exports are limited to one per IP address every
+                                72 hours.</text>
+                            }
                         </p>
                     </div>
                 </div>
@@ -214,6 +226,8 @@
     private const string Description = "Paste your Steam ID or vanity URL to pick a random game from your public Steam library, filter to unplayed games, and choose again in seconds.";
 
     private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl();
+    private bool ShowPublicBetaLinks =>
+        ApplicationSettings.Value.NetworkMode == NetworkMode.Public && ApplicationSettings.Value.BetaProbeEnabled;
     private string StructuredDataJson => System.Text.Json.JsonSerializer.Serialize(
         new Dictionary<string, object>
         {
@@ -248,7 +262,7 @@
 
         await LoadAppStatsAsync();
 
-        if (!_isBetaSite)
+        if (ApplicationSettings.Value.BetaProbeEnabled && !_isBetaSite)
         {
             _betaAvailable = await BetaAvailabilityService.IsBetaAvailableAsync();
         }
@@ -263,8 +277,19 @@
 
         var ingressNetwork = IngressNetworkClassifier.FromHost(httpContext?.Request.Host.Host);
 
-        _appStats = string.IsNullOrWhiteSpace(ip)
-            ? await AppStatsService.GetStatsAsync()
-            : await AppStatsService.RecordHitAsync(ip, userAgent, ingressNetwork);
+        var recordHit = !string.IsNullOrWhiteSpace(ip);
+        try
+        {
+            _appStats = recordHit
+                ? await AppStatsService.RecordHitAsync(ip!, userAgent, ingressNetwork)
+                : await AppStatsService.GetStatsAsync();
+        }
+        catch (Exception exception)
+        {
+            _appStats = null;
+            Logger.LogWarning(exception,
+                "Failed to load homepage statistics during {StatsOperation}.",
+                recordHit ? "hit recording" : "stats retrieval");
+        }
     }
 }

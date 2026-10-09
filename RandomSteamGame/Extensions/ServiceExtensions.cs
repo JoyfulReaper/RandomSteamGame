@@ -8,6 +8,7 @@
 using JoyfulReaperLib.MissionControl;
 using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
@@ -55,14 +56,24 @@ public static class ServiceExtensions
 
         var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
         EnsureAppStatsSchema(connectionString);
-        var steamOptions = GetSteamOptions(config);
 
         services.AddOptions<LibraryExportOptions>()
             .Bind(config.GetSection(LibraryExportOptions.SectionName))
             .ValidateDataAnnotations()
+            .Validate(options => Enum.IsDefined(options.RateLimitMode), "Steam:LibraryExport:RateLimitMode must be PerIp or Global.")
             .ValidateOnStart();
 
-        services.Configure<ApplicationOptions>(config.GetSection(ApplicationOptions.SectionName));
+        services.AddOptions<ApplicationOptions>()
+            .Bind(config.GetSection(ApplicationOptions.SectionName))
+            .Validate(options => Enum.IsDefined(options.NetworkMode), "Application:NetworkMode must be Public or AltNet.")
+            .Validate(options => CanonicalUrlService.TryGetOrigin(options, out _), CanonicalUrlService.OriginValidationMessage)
+            .ValidateOnStart();
+        services.AddOptions<IngressOptions>()
+            .Bind(config.GetSection(IngressOptions.SectionName))
+            .Validate(options => options.TrustedProxies is null || options.TrustedProxies.All(proxy => System.Net.IPAddress.TryParse(proxy, out _)),
+                "Ingress:TrustedProxies must contain only IP addresses.")
+            .ValidateOnStart();
+        services.Configure<HostingOptions>(config.GetSection(HostingOptions.SectionName));
         services.Configure<TelemetryOptions>(config.GetSection(TelemetryOptions.SectionName));
         services.AddSingleton<IVisitorIdProvider, VisitorIdProvider>();
 
@@ -80,13 +91,17 @@ public static class ServiceExtensions
         services.AddSteamServices(config);
         services.AddApplicationCors(config, env);
 
-        services.AddSteamRateLimiting(steamOptions.RateLimiting);
+        services.AddSteamRateLimiting();
 
         services.AddApplicationHealthChecks();
         services.AddMemoryCache();
-        services.AddHttpClient<RandomSteamApiClient>();
-        services.AddScoped<IBetaAvailabilityService, BetaAvailabilityService>();
+        services.AddScoped<GameApplicationService>();
+        services.AddScoped<IRandomSteamApiClient, ServerRandomSteamApiClient>();
+        services.AddSingleton<IBetaAvailabilityService, BetaAvailabilityService>();
         services.AddSingleton<CanonicalUrlService>();
+        services.AddSingleton<DeploymentCookiePolicy>();
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<GlobalLibraryExportCooldownTracker>();
 
         services.AddMissionControlClient(
             config.GetSection(MissionControlClientOptions.SectionName));
@@ -96,14 +111,11 @@ public static class ServiceExtensions
         {
             options.Cookie.Name = ".RandomSteamGame.Antiforgery.v2";
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = env.IsDevelopment()
-                ? CookieSecurePolicy.SameAsRequest
-                : CookieSecurePolicy.Always;
             options.Cookie.SameSite = SameSiteMode.Lax;
             options.Cookie.Path = "/";
         });
-
-        ValidateSteamApiKey(steamOptions);
+        services.AddOptions<AntiforgeryOptions>().Configure<DeploymentCookiePolicy>(
+            (options, policy) => options.Cookie.SecurePolicy = policy.GetAntiforgerySecurePolicy(env));
 
         return services;
     }
@@ -219,6 +231,7 @@ public static class ServiceExtensions
 
         services.AddScoped<GameProviderFactory>();
         services.AddScoped<IOwnedGamesCacheResetTracker, OwnedGamesCacheResetTracker>();
+        services.AddSingleton<OwnedGamesRefreshAdmissionCoordinator>();
 
         return services;
     }
@@ -277,16 +290,16 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddSteamRateLimiting(
-        this IServiceCollection services,
-        RateLimitingOptions rateLimiting)
+    private static IServiceCollection AddSteamRateLimiting(this IServiceCollection services)
     {
         services.AddRateLimiter();
+        services.AddSingleton(provider => new SteamApiRequestLimiter(
+            provider.GetRequiredService<IOptions<SteamClientApiOptions>>().Value.RateLimiting));
 
         services
             .AddOptions<Microsoft.AspNetCore.RateLimiting.RateLimiterOptions>()
-            .Configure<Microsoft.Extensions.Options.IOptions<LibraryExportOptions>>(
-                (options, libraryExportOptions) =>
+            .Configure<Microsoft.Extensions.Options.IOptions<LibraryExportOptions>, SteamApiRequestLimiter>(
+                (options, libraryExportOptions, apiLimiter) =>
                 {
                     options.GlobalLimiter =
                         PartitionedRateLimiter.Create<HttpContext, string>(
@@ -312,34 +325,25 @@ public static class ServiceExtensions
                                     factory: _ => new ConcurrencyLimiterOptions
                                     {
                                         PermitLimit =
-                                            libraryExportOptions.Value.GlobalConcurrency,
+                                            libraryExportOptions.Value.EffectiveGlobalConcurrency,
                                         QueueLimit = 0,
                                         QueueProcessingOrder =
                                             QueueProcessingOrder.OldestFirst
                                     });
                             });
 
-                    options.AddFixedWindowLimiter(
-                        "steam_api_limiter",
-                        limiterOptions =>
-                        {
-                            limiterOptions.Window =
-                                TimeSpan.FromSeconds(
-                                    rateLimiting.WindowSeconds);
-
-                            limiterOptions.PermitLimit =
-                                rateLimiting.PermitLimit;
-
-                            limiterOptions.QueueLimit = 0;
-
-                            limiterOptions.QueueProcessingOrder =
-                                QueueProcessingOrder.OldestFirst;
-                        });
+                    options.AddPolicy("steam_api_limiter", _ =>
+                        RateLimitPartition.Get("steam-api", _ => apiLimiter));
 
                     options.AddPolicy(
                         "library_export_limiter",
                         httpContext =>
                         {
+                            if (libraryExportOptions.Value.RateLimitMode == LibraryExportRateLimitMode.Global)
+                            {
+                                return RateLimitPartition.GetNoLimiter("library-export-global-policy");
+                            }
+
                             var partitionKey =
                                 LibraryExportRateLimitPartitionKey.From(
                                     httpContext.Connection.RemoteIpAddress);
@@ -388,6 +392,16 @@ public static class ServiceExtensions
                             var missionControlClient = httpContext.RequestServices
                                 .GetRequiredService<IMissionControlClient>();
 
+                            long? retryAfterSeconds = null;
+                            if (libraryExportOptions.Value.RateLimitMode == LibraryExportRateLimitMode.Global)
+                            {
+                                var remaining = httpContext.RequestServices.GetRequiredService<GlobalLibraryExportCooldownTracker>().GetRetryAfter();
+                                retryAfterSeconds = remaining is null ? 5 : Math.Max(1, (long)Math.Ceiling(remaining.Value.TotalSeconds));
+                                httpContext.Response.Headers.RetryAfter = retryAfterSeconds.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                httpContext.Response.Headers.CacheControl = "private, no-store";
+                                httpContext.Response.Headers["CDN-Cache-Control"] = "no-store";
+                            }
+
                             _ = missionControlClient.TryPublishAsync(
                                 eventType: RandomSteamGameEventTypes.LibraryExportRejected,
                                 payload: new LibraryExportRejectedEvent(
@@ -395,7 +409,7 @@ public static class ServiceExtensions
                                     Provider: provider,
                                     IngressNetwork: IngressNetworkClassifier.FromHost(httpContext.Request.Host.Host),
                                     Reason: LibraryExportRejectionReason.Capacity,
-                                    RetryAfterSeconds: null,
+                                    RetryAfterSeconds: retryAfterSeconds,
                                     CommitSha: string.IsNullOrWhiteSpace(
                                         applicationOptions.CommitSha)
                                         ? null
@@ -462,21 +476,6 @@ public static class ServiceExtensions
         alterCommand.ExecuteNonQuery();
     }
 
-    private static SteamClientApiOptions GetSteamOptions(IConfiguration config)
-    {
-        return config.GetSection("Steam").Get<SteamClientApiOptions>()
-            ?? throw new InvalidOperationException("Steam configuration is missing.");
-    }
-
-    private static void ValidateSteamApiKey(SteamClientApiOptions steamOptions)
-    {
-        if (string.IsNullOrWhiteSpace(steamOptions.ApiKey) ||
-            steamOptions.ApiKey == "STEAM_API_KEY" ||
-            steamOptions.ApiKey.Length < 32)
-        {
-            throw new InvalidOperationException("CRITICAL: Invalid Steam API Key.");
-        }
-    }
 }
 
 internal sealed record DataProtectionSettings(string ApplicationName, string KeysPath);

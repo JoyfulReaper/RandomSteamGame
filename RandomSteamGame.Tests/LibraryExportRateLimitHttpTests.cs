@@ -7,10 +7,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Events;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json.Serialization.Metadata;
 
 namespace RandomSteamGame.Tests;
@@ -51,7 +53,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var client = application.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = false
             });
 
         var firstTask = SendExportAsync(
@@ -146,7 +149,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var client = application.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = false
             });
 
         var firstTask = SendExportAsync(
@@ -206,7 +210,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var client = application.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = false
             });
 
         const string sharedIp = "198.51.100.60";
@@ -251,7 +256,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var client = application.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = false
             });
 
         const string clientIp = "198.51.100.50";
@@ -306,7 +312,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var client = application.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = false
             });
 
         using var first =
@@ -346,23 +353,171 @@ public sealed class LibraryExportRateLimitHttpTests :
             differentIp.StatusCode);
     }
 
-    private static Task<HttpResponseMessage> SendExportAsync(
+    [Fact]
+    public async Task GlobalExport_SimultaneousRequestIsRejectedAndCooldownStartsAtAdmission()
+    {
+        var clock = new ManualTimeProvider();
+        var provider = new BlockingExportGameProvider();
+        using var application = CreateGlobalApplication(provider, clock);
+        using var client = application.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+
+        var firstTask = SendExportAsync(client, "198.51.100.70");
+        var secondTask = SendExportAsync(client, "198.51.100.71");
+        Task<HttpResponseMessage>? acceptedTask = null;
+        try
+        {
+            await provider.WaitUntilFirstStartedAsync();
+            var rejectedTask = await Task.WhenAny(firstTask, secondTask).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            acceptedTask = rejectedTask == firstTask ? secondTask : firstTask;
+            using var rejected = await rejectedTask;
+            Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
+            // Rejection may run before the winner reserves its cooldown; both hints are practical.
+            Assert.True(rejected.Headers.RetryAfter?.Delta is { } hint && hint > TimeSpan.Zero && hint <= TimeSpan.FromMinutes(20));
+            Assert.Equal(1, provider.CallCount);
+            Assert.Contains("capacity", await rejected.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+            using var running = await SendExportAsync(client, "198.51.100.74");
+            Assert.Equal(HttpStatusCode.TooManyRequests, running.StatusCode);
+            Assert.Equal(TimeSpan.FromMinutes(20), running.Headers.RetryAfter?.Delta);
+
+            // Expired cooldown does not free the concurrency permit while Steam work is blocked.
+            clock.Advance(TimeSpan.FromMinutes(21));
+            using var stillBusy = await SendExportAsync(client, "198.51.100.72");
+            Assert.Equal(HttpStatusCode.TooManyRequests, stillBusy.StatusCode);
+            Assert.Equal(TimeSpan.FromSeconds(5), stillBusy.Headers.RetryAfter?.Delta);
+            Assert.Equal(1, provider.CallCount);
+        }
+        finally
+        {
+            provider.Release();
+        }
+        using var accepted = await acceptedTask!;
+        Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+
+        // Completion did not restart the cooldown. It expired while generation was in progress.
+        using var next = await SendExportAsync(client, "198.51.100.73");
+        Assert.Equal(HttpStatusCode.OK, next.StatusCode);
+        Assert.Equal(2, provider.CallCount);
+    }
+
+    [Fact]
+    public async Task GlobalExport_CooldownRejectsAllVisitorsUntilConfiguredExpiry()
+    {
+        var clock = new ManualTimeProvider();
+        using var application = CreateGlobalApplication(new ExportGameProvider(), clock, cooldownMinutes: 7);
+        using var client = application.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        using var first = await SendExportAsync(client, "198.51.100.80");
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        using var second = await SendExportAsync(client, "198.51.100.81", SteamId + 1);
+        Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
+        Assert.Equal(TimeSpan.FromMinutes(7), second.Headers.RetryAfter?.Delta);
+        Assert.Contains("global cooldown", await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.True(second.Headers.CacheControl?.Private);
+        Assert.True(second.Headers.CacheControl?.NoStore);
+
+        clock.Advance(TimeSpan.FromMinutes(7) - TimeSpan.FromMilliseconds(500));
+        using var nearlyReady = await SendExportAsync(client, "198.51.100.82");
+        Assert.Equal(HttpStatusCode.TooManyRequests, nearlyReady.StatusCode);
+        Assert.Equal(TimeSpan.FromSeconds(1), nearlyReady.Headers.RetryAfter?.Delta);
+
+        clock.Advance(TimeSpan.FromMilliseconds(500));
+        using var ready = await SendExportAsync(client, "198.51.100.83");
+        Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
+
+        using var page = await client.GetAsync("/library-export", TestContext.Current.CancellationToken);
+        var html = await page.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("7-minute cooldown", html);
+        Assert.DoesNotContain("One export per IP address every 72 hours", html);
+    }
+
+    [Fact]
+    public async Task GlobalExport_FailureStillConsumesCooldown()
+    {
+        var clock = new ManualTimeProvider();
+        using var application = CreateGlobalApplication(new FailingThenSuccessfulExportGameProvider(), clock);
+        using var client = application.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        using var failed = await SendExportAsync(client, "198.51.100.90");
+        Assert.Equal(HttpStatusCode.InternalServerError, failed.StatusCode);
+        using var retry = await SendExportAsync(client, "198.51.100.91");
+        Assert.Equal(HttpStatusCode.TooManyRequests, retry.StatusCode);
+        Assert.Equal(TimeSpan.FromMinutes(20), retry.Headers.RetryAfter?.Delta);
+        clock.Advance(TimeSpan.FromMinutes(20));
+        using var ready = await SendExportAsync(client, "198.51.100.92");
+        Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
+    }
+
+    [Fact]
+    public void GlobalCooldownReservationIsAtomic()
+    {
+        var tracker = new GlobalLibraryExportCooldownTracker(
+            Microsoft.Extensions.Options.Options.Create(new LibraryExportOptions
+            {
+                RateLimitMode = LibraryExportRateLimitMode.Global
+            }), new ManualTimeProvider());
+        var results = new TimeSpan?[32];
+        Parallel.For(0, results.Length, index => results[index] = tracker.TryStart());
+        Assert.Single(results, result => result is null);
+        Assert.Equal(31, results.Count(result => result == TimeSpan.FromMinutes(20)));
+    }
+
+    private WebApplicationFactory<Program> CreateGlobalApplication(
+        IGameProvider provider, TimeProvider clock, int cooldownMinutes = 20) =>
+        _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Application:NetworkMode"] = "AltNet",
+                ["Application:CanonicalOrigin"] = "http://example.b32.i2p",
+                ["Steam:LibraryExport:RateLimitMode"] = "Global",
+                ["Steam:LibraryExport:GlobalCooldownMinutes"] = cooldownMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                // Global mode must still enforce one generation if PerIp capacity is greater than one.
+                ["Steam:LibraryExport:GlobalConcurrency"] = "32"
+            }));
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IGameProvider>();
+                services.AddSingleton(provider);
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton(clock);
+            });
+        });
+
+    private sealed class ManualTimeProvider : TimeProvider
+    {
+        private DateTimeOffset _now = new(2026, 10, 9, 0, 0, 0, TimeSpan.Zero);
+        public override DateTimeOffset GetUtcNow() => _now;
+        public void Advance(TimeSpan duration) => _now += duration;
+    }
+
+    private static async Task<HttpResponseMessage> SendExportAsync(
         HttpClient client,
         string forwardedFor,
         long steamId = SteamId)
     {
-        var request = new HttpRequestMessage(
-            HttpMethod.Get,
+        using var bootstrap = await client.GetAsync("/api/antiforgery/token", TestContext.Current.CancellationToken);
+        bootstrap.EnsureSuccessStatusCode();
+        var tokens = await bootstrap.Content.ReadFromJsonAsync<ExportAntiforgeryTokens>(TestContext.Current.CancellationToken);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
             $"/api/steam/{steamId}/library/export.csv");
 
         request.Headers.TryAddWithoutValidation(
             "X-Forwarded-For",
             forwardedFor);
+        request.Headers.Add(tokens!.HeaderName, tokens.RequestToken);
+        // Keep concurrent test bootstrap requests bound to their own cookie/token pair.
+        if (bootstrap.Headers.TryGetValues("Set-Cookie", out var cookies))
+        {
+            request.Headers.Add("Cookie", string.Join("; ", cookies.Select(cookie => cookie.Split(';')[0])));
+        }
 
-        return client.SendAsync(
+        return await client.SendAsync(
             request,
             TestContext.Current.CancellationToken);
     }
+
+    private sealed record ExportAntiforgeryTokens(string RequestToken, string HeaderName);
 
     private sealed class BlockingExportGameProvider : IGameProvider
     {
@@ -376,6 +531,7 @@ public sealed class LibraryExportRateLimitHttpTests :
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private int _callCount;
+        public int CallCount => Volatile.Read(ref _callCount);
 
         public string ProviderKey => "steam";
 
@@ -392,7 +548,7 @@ public sealed class LibraryExportRateLimitHttpTests :
         }
 
         public async Task<ErrorOr<OwnedGamesResponse>>
-            GetOwnedGamesAsync(long userId)
+            GetOwnedGamesAsync(long userId, CancellationToken ct = default)
         {
             var callCount = Interlocked.Increment(ref _callCount);
 
@@ -439,7 +595,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<ErrorOr<GameDetails>>
             GetRandomGameDetailsAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
@@ -447,18 +604,19 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<RandomGamePickAttempt>
             GetRandomGamePickAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
 
         public Task<ErrorOr<long>>
-            ResolveIdentifierAsync(string identifier)
+            ResolveIdentifierAsync(string identifier, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
 
-        public Task InvalidateOwnedGamesCacheAsync(long userId)
+        public Task InvalidateOwnedGamesCacheAsync(long userId, CancellationToken ct = default)
         {
             return Task.CompletedTask;
         }
@@ -472,7 +630,7 @@ public sealed class LibraryExportRateLimitHttpTests :
         public string ProviderKey => "steam";
 
         public Task<ErrorOr<OwnedGamesResponse>>
-            GetOwnedGamesAsync(long userId)
+            GetOwnedGamesAsync(long userId, CancellationToken ct = default)
         {
             if (Interlocked.Increment(
                     ref _ownedGamesCallCount) == 1)
@@ -505,7 +663,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<ErrorOr<GameDetails>>
             GetRandomGameDetailsAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
@@ -513,18 +672,19 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<RandomGamePickAttempt>
             GetRandomGamePickAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
 
         public Task<ErrorOr<long>>
-            ResolveIdentifierAsync(string identifier)
+            ResolveIdentifierAsync(string identifier, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
 
-        public Task InvalidateOwnedGamesCacheAsync(long userId)
+        public Task InvalidateOwnedGamesCacheAsync(long userId, CancellationToken ct = default)
         {
             return Task.CompletedTask;
         }
@@ -535,7 +695,7 @@ public sealed class LibraryExportRateLimitHttpTests :
         public string ProviderKey => "steam";
 
         public Task<ErrorOr<OwnedGamesResponse>>
-            GetOwnedGamesAsync(long userId)
+            GetOwnedGamesAsync(long userId, CancellationToken ct = default)
         {
             OwnedGamesResponse library =
                 new(
@@ -561,7 +721,8 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<ErrorOr<GameDetails>>
             GetRandomGameDetailsAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
@@ -569,18 +730,19 @@ public sealed class LibraryExportRateLimitHttpTests :
         public Task<RandomGamePickAttempt>
             GetRandomGamePickAsync(
                 long userId,
-                bool unplayedOnly = false)
+                bool unplayedOnly = false,
+                IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
 
         public Task<ErrorOr<long>>
-            ResolveIdentifierAsync(string identifier)
+            ResolveIdentifierAsync(string identifier, CancellationToken ct = default)
         {
             throw new NotSupportedException();
         }
 
-        public Task InvalidateOwnedGamesCacheAsync(long userId)
+        public Task InvalidateOwnedGamesCacheAsync(long userId, CancellationToken ct = default)
         {
             return Task.CompletedTask;
         }

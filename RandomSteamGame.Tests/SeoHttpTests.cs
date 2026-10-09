@@ -1,16 +1,24 @@
 using AngleSharp;
 using AngleSharp.Dom;
+using ErrorOr;
 using JoyfulReaperLib.Caching.Sqlite;
 using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
+using RandomSteamGame.Components.Pages;
 using RandomSteamGame.Client.Services;
+using RandomSteamGame.Common.Errors;
+using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
@@ -25,6 +33,7 @@ namespace RandomSteamGame.Tests;
 public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 {
     private const string CanonicalOrigin = "https://randomsteam.kgivler.com";
+    private const string AltNetOrigin = "http://example.b32.i2p";
     private const string HomeTitle = "Random Steam Game Picker – Pick From Your Library";
 
     public static TheoryData<string, string, string, string> IndexablePageCases => new()
@@ -88,6 +97,325 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Equal(expectedTitle, GetAttribute(document, "meta[name='twitter:title']", "content"));
         Assert.Equal(description, GetAttribute(document, "meta[name='twitter:description']", "content"));
         Assert.Equal(expectedH1, document.QuerySelector("h1")?.TextContent.Trim());
+    }
+
+    [Theory]
+    [InlineData(NetworkMode.Public, null, true)]
+    [InlineData(NetworkMode.AltNet, null, false)]
+    [InlineData(NetworkMode.Public, false, false)]
+    [InlineData(NetworkMode.AltNet, true, true)]
+    public async Task Home_NetworkSettingsControlBetaProbeBannerAndArtworkNote(
+        NetworkMode mode, bool? enableBetaProbe, bool expectBeta)
+    {
+        var betaService = new AvailableBetaService();
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.Configure<ApplicationOptions>(options =>
+                {
+                    options.NetworkMode = mode;
+                    options.NetworkName = "Community mesh";
+                    options.EnableBetaProbe = enableBetaProbe;
+                    options.CanonicalOrigin = mode == NetworkMode.AltNet ? AltNetOrigin : CanonicalOrigin;
+                });
+                services.RemoveAll<IBetaAvailabilityService>();
+                services.AddSingleton<IBetaAvailabilityService>(betaService);
+            });
+        });
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await client.GetAsync("/", cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expectBeta ? 1 : 0, betaService.CallCount);
+        Assert.Equal(expectBeta && mode == NetworkMode.Public, document.QuerySelector(".home-beta-banner") is not null);
+        AssertFooterNetworkLinks(document);
+        if (mode == NetworkMode.AltNet)
+        {
+            Assert.Contains("Community mesh deployment", document.Body?.TextContent);
+            Assert.DoesNotContain("Game background images are loaded from clearnet", document.Body?.TextContent);
+            AssertNoPublicHostOutsideFooter(document);
+            Assert.DoesNotContain("randombeta.kgivler.com", document.DocumentElement.OuterHtml);
+        }
+        else
+        {
+            Assert.Contains("Game background images are loaded from clearnet", document.Body?.TextContent);
+        }
+
+        var expectedOrigin = mode == NetworkMode.AltNet ? AltNetOrigin : CanonicalOrigin;
+        Assert.Equal(expectedOrigin, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.Equal(expectedOrigin, GetAttribute(document, "meta[property='og:url']", "content"));
+    }
+
+    [Fact]
+    public async Task Footer_PublicDefaultsPreserveHostingAndAffiliateDisclosure()
+    {
+        using var response = await _client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+        var hosting = Assert.IsAssignableFrom<IElement>(document.QuerySelector(".global-footer-hosting"));
+        Assert.Contains("Proudly hosted with", hosting.TextContent);
+        var link = Assert.Single(hosting.QuerySelectorAll("a"));
+        Assert.Equal("GreenCloud VPS", link.TextContent.Trim());
+        Assert.Equal("https://greencloudvps.com/billing/aff.php?aff=10295", link.GetAttribute("href"));
+        Assert.Equal("_blank", link.GetAttribute("target"));
+        Assert.Equal("sponsored noopener noreferrer", link.GetAttribute("rel"));
+        Assert.Equal("Affiliate link — I may earn a commission if you sign up through it.",
+            document.QuerySelector(".global-footer-affiliate-disclosure")?.TextContent.Trim());
+    }
+
+    [Theory]
+    [InlineData(NetworkMode.Public)]
+    [InlineData(NetworkMode.AltNet)]
+    public async Task Footer_HostingOverrideCanReplaceMessageWithoutProviderOrLinks(NetworkMode mode)
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Application:NetworkMode"] = mode.ToString(),
+                    ["Application:CanonicalOrigin"] = mode == NetworkMode.AltNet ? AltNetOrigin : CanonicalOrigin,
+                    ["Hosting:Message"] = "Available via I2P",
+                    ["Hosting:ProviderName"] = "",
+                    ["Hosting:Url"] = "",
+                    ["Hosting:AffiliateUrl"] = "",
+                    ["Hosting:ShowAffiliateDisclosure"] = "false"
+                })));
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var hosting = Assert.IsAssignableFrom<IElement>(document.QuerySelector(".global-footer-hosting"));
+        Assert.Equal("Available via I2P", hosting.TextContent.Trim());
+        Assert.Empty(hosting.QuerySelectorAll("a"));
+        Assert.Null(document.QuerySelector(".global-footer-affiliate-disclosure"));
+        Assert.DoesNotContain("GreenCloud", document.DocumentElement.OuterHtml);
+        AssertFooterNetworkLinks(document);
+    }
+
+    [Theory]
+    [InlineData("", "", true, null, false)]
+    [InlineData("http://hosting.example/", "", true, "http://hosting.example/", false)]
+    [InlineData("http://hosting.example/", "", false, "http://hosting.example/", false)]
+    [InlineData("http://hosting.example/", "https://affiliate.example/", false, "https://affiliate.example/", false)]
+    [InlineData("http://hosting.example/", "https://affiliate.example/", true, "https://affiliate.example/", true)]
+    [InlineData("", "https://affiliate.example/", true, "https://affiliate.example/", true)]
+    public async Task Footer_HostingLinksAndAffiliateDisclosureAreOptional(
+        string url, string affiliateUrl, bool showDisclosure, string? expectedUrl, bool expectDisclosure)
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Hosting:Message"] = "Hosted by",
+                    ["Hosting:ProviderName"] = "Community host",
+                    ["Hosting:Url"] = url,
+                    ["Hosting:AffiliateUrl"] = affiliateUrl,
+                    ["Hosting:ShowAffiliateDisclosure"] = showDisclosure.ToString()
+                })));
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+        var hosting = Assert.IsAssignableFrom<IElement>(document.QuerySelector(".global-footer-hosting"));
+        Assert.Contains("Hosted by", hosting.TextContent);
+        Assert.Contains("Community host", hosting.TextContent);
+        if (expectedUrl is null)
+        {
+            Assert.Empty(hosting.QuerySelectorAll("a"));
+        }
+        else
+        {
+            var link = Assert.Single(hosting.QuerySelectorAll("a"));
+            Assert.Equal(expectedUrl, link.GetAttribute("href"));
+            Assert.Equal("Community host", link.TextContent.Trim());
+            Assert.Equal(!string.IsNullOrWhiteSpace(affiliateUrl), link.GetAttribute("rel")!.Contains("sponsored"));
+        }
+        Assert.Equal(expectDisclosure, document.QuerySelector(".global-footer-affiliate-disclosure") is not null);
+    }
+
+    [Fact]
+    public async Task Footer_EmptyMessageAndProviderHideHostingAndDisclosure()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services => services.Configure<HostingOptions>(options =>
+            {
+                options.Message = "";
+                options.ProviderName = "";
+            })));
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+        Assert.Null(document.QuerySelector(".global-footer-hosting"));
+        Assert.Null(document.QuerySelector(".global-footer-affiliate-disclosure"));
+    }
+
+    [Theory]
+    [MemberData(nameof(IndexablePageCases))]
+    public async Task AltNet_IndexablePagesUseConfiguredOriginAndDoNotExposePublicHostOutsideFooter(
+        string path, string expectedTitle, string publicCanonicalUrl, string expectedH1)
+    {
+        using var factory = CreateAltNetFactory();
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Host = "evil.example";
+        using var response = await client.SendAsync(request, cancellationToken);
+        var html = await response.Content.ReadAsStringAsync(cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+        var expectedCanonicalUrl = publicCanonicalUrl.Replace(CanonicalOrigin, AltNetOrigin, StringComparison.Ordinal);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expectedTitle, document.Title);
+        Assert.Equal(expectedH1, document.QuerySelector("h1")?.TextContent.Trim());
+        Assert.Equal(expectedCanonicalUrl, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.Equal(expectedCanonicalUrl, GetAttribute(document, "meta[property='og:url']", "content"));
+        AssertNoPublicHostOutsideFooter(document);
+        Assert.DoesNotContain("randombeta.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+        AssertFooterNetworkLinks(document);
+        Assert.NotNull(document.QuerySelector("a[href='https://github.com/JoyfulReaper/RandomSteamGame']"));
+
+        if (path == "/")
+        {
+            var script = Assert.IsAssignableFrom<IElement>(document.QuerySelector("script[type='application/ld+json']"));
+            using var structuredData = JsonDocument.Parse(script.TextContent);
+            Assert.Equal(AltNetOrigin, structuredData.RootElement.GetProperty("url").GetString());
+            Assert.Equal("https://schema.org", structuredData.RootElement.GetProperty("@context").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task AltNet_RandomGameUsesConfiguredCanonicalOrigin()
+    {
+        using var factory = CreateAltNetFactory();
+        using var client = factory.CreateClient();
+        const string path = "/random-game/steam/76561197960287930";
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await client.GetAsync(path, cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(AltNetOrigin + path, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.Equal("noindex, follow", GetRobotsHeader(response));
+        AssertNoPublicHostOutsideFooter(document);
+    }
+
+    [Theory]
+    [InlineData("/not-found", HttpStatusCode.NotFound)]
+    [InlineData("/definitely-not-a-public-route", HttpStatusCode.NotFound)]
+    [InlineData("/Error", HttpStatusCode.InternalServerError)]
+    public async Task AltNet_ErrorPagesDoNotExposePublicHostOutsideFooter(string path, HttpStatusCode expectedStatus)
+    {
+        using var factory = CreateAltNetFactory();
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await client.GetAsync(path, cancellationToken);
+        var html = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        Assert.Equal(expectedStatus, response.StatusCode);
+        Assert.Equal("noindex, nofollow", GetRobotsHeader(response));
+        var document = await ParseHtmlAsync(response, cancellationToken);
+        AssertNoPublicHostOutsideFooter(document);
+        Assert.DoesNotContain("randombeta.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+        if (expectedStatus == HttpStatusCode.NotFound)
+        {
+            AssertFooterNetworkLinks(document);
+            Assert.Contains($"curl -I {AltNetOrigin}/requested_route", html);
+        }
+    }
+
+    [Fact]
+    public async Task AltNet_BetaHostDoesNotRenderPublicBetaNoticeEvenWhenProbeEnabled()
+    {
+        using var altNetFactory = CreateAltNetFactory();
+        using var factory = altNetFactory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+                services.Configure<ApplicationOptions>(options => options.EnableBetaProbe = true)));
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/");
+        request.Headers.Host = "randombeta.kgivler.com";
+        using var response = await client.SendAsync(request, cancellationToken);
+        var html = await response.Content.ReadAsStringAsync(cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(document.QuerySelector(".home-beta-note"));
+        Assert.Equal(AltNetOrigin, GetAttribute(document, "link[rel='canonical']", "href"));
+        AssertNoPublicHostOutsideFooter(document);
+        Assert.DoesNotContain("randombeta.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AltNet_RobotsDisallowsCrawlingWithoutAdvertisingSitemap()
+    {
+        using var factory = CreateAltNetFactory();
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await client.GetAsync("/robots.txt", cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/plain", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("User-agent: *\nDisallow: /\n", content);
+        Assert.DoesNotContain("Sitemap:", content);
+        Assert.DoesNotContain("randomsteam.kgivler.com", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AltNet_SitemapUsesOnlyConfiguredOrigin()
+    {
+        using var factory = CreateAltNetFactory();
+        using var client = factory.CreateClient();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/sitemap.xml");
+        request.Headers.Host = "evil.example";
+        using var response = await client.SendAsync(request, cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var sitemap = XDocument.Parse(content);
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/xml", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(new[] { AltNetOrigin + "/", AltNetOrigin + "/support", AltNetOrigin + "/contributors", AltNetOrigin + "/library-export" },
+            sitemap.Descendants(ns + "loc").Select(element => element.Value));
+        Assert.DoesNotContain("randomsteam.kgivler.com", content, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private WebApplicationFactory<Program> CreateAltNetFactory() =>
+        _factory.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Application:NetworkMode"] = "AltNet",
+                ["Application:NetworkName"] = "Community mesh",
+                ["Application:CanonicalOrigin"] = AltNetOrigin
+            })));
+
+    [Fact]
+    public void AltNet_MissingOriginFailsOptionsValidation()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Application:NetworkMode"] = "AltNet",
+                    ["Application:CanonicalOrigin"] = null
+                })));
+
+        var exception = Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        Assert.Contains("Application:CanonicalOrigin", exception.Message);
+        Assert.Contains("AltNet requires an explicit HTTP or HTTPS origin", exception.Message);
+    }
+
+    private sealed class AvailableBetaService : IBetaAvailabilityService
+    {
+        public int CallCount { get; private set; }
+
+        public Task<bool> IsBetaAvailableAsync(CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.FromResult(true);
+        }
     }
 
     [Fact]
@@ -360,8 +688,7 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
             builder.UseEnvironment("Production");
             builder.ConfigureTestServices(services =>
             {
-                services.RemoveAll<IAppStatsService>();
-                services.AddScoped<IAppStatsService, ThrowingAppStatsService>();
+                services.AddControllers().AddApplicationPart(typeof(SeoTestFailureController).Assembly);
             });
         });
         using var client = productionFactory.CreateClient(new WebApplicationFactoryClientOptions
@@ -370,7 +697,7 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         });
         var cancellationToken = TestContext.Current.CancellationToken;
 
-        using var response = await client.GetAsync("/", cancellationToken);
+        using var response = await client.GetAsync("/test-only/seo-failure", cancellationToken);
         var document = await ParseHtmlAsync(response, cancellationToken);
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
@@ -383,24 +710,148 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
             GetAttribute(document, "meta[name='description']", "content")));
     }
 
-    private sealed class ThrowingAppStatsService : IAppStatsService
+    [Theory]
+    [InlineData(true, true, 0)]
+    [InlineData(false, true, 0)]
+    [InlineData(true, false, 0)]
+    [InlineData(false, false, 42)]
+    public async Task Home_StatsLoadingDoesNotGateContentMetadataOrBetaProbe(
+        bool recordHit, bool failStats, long count)
     {
+        var statsService = new TestAppStatsService(failStats, new(count, count + 1, count + 2, count + 3));
+        var betaService = new AvailableBetaService();
+        var logger = new HomeTestLogger();
+        using var factory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Production");
+            builder.ConfigureTestServices(services =>
+            {
+                services.Configure<ApplicationOptions>(options => options.EnableBetaProbe = true);
+                services.RemoveAll<IAppStatsService>();
+                services.AddSingleton<IAppStatsService>(statsService);
+                services.RemoveAll<IBetaAvailabilityService>();
+                services.AddSingleton<IBetaAvailabilityService>(betaService);
+                services.AddSingleton<ILogger<Home>>(logger);
+                if (!recordHit)
+                {
+                    services.AddSingleton<IStartupFilter, ClearPeerStartupFilter>();
+                }
+            });
+        });
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Random Steam Game Picker", document.QuerySelector("h1")?.TextContent.Trim());
+        Assert.NotNull(document.QuerySelector(".picker-form-loading"));
+        Assert.Contains("How it works", document.Body?.TextContent);
+        Assert.Equal(HomeTitle, document.Title);
+        Assert.Equal(CanonicalOrigin, GetAttribute(document, "link[rel='canonical']", "href"));
+        Assert.Equal(CanonicalOrigin, GetAttribute(document, "meta[property='og:url']", "content"));
+        Assert.False(string.IsNullOrWhiteSpace(GetAttribute(document, "meta[name='description']", "content")));
+        using var structuredData = JsonDocument.Parse(document.QuerySelector("script[type='application/ld+json']")!.TextContent);
+        Assert.Equal(CanonicalOrigin, structuredData.RootElement.GetProperty("url").GetString());
+        Assert.Equal(1, betaService.CallCount);
+        Assert.NotNull(document.QuerySelector(".home-beta-banner"));
+        Assert.Equal(recordHit ? 1 : 0, statsService.RecordCalls);
+        Assert.Equal(recordHit ? 0 : 1, statsService.GetCalls);
+
+        if (failStats)
+        {
+            Assert.Contains("Stats temporarily unavailable.", document.Body?.TextContent);
+            Assert.DoesNotContain("Total Hits:", document.Body?.TextContent);
+            var entry = Assert.Single(logger.Entries);
+            Assert.Equal(LogLevel.Warning, entry.Level);
+            Assert.Same(statsService.Failure, entry.Exception);
+            Assert.Contains(recordHit ? "hit recording" : "stats retrieval", entry.Message);
+        }
+        else
+        {
+            Assert.DoesNotContain("Stats temporarily unavailable.", document.Body?.TextContent);
+            Assert.Contains($"Total Hits: {count}", document.Body?.TextContent);
+            Assert.Contains($"Unique Visitors: {count + 1}", document.Body?.TextContent);
+            Assert.Contains($"Random Games Generated: {count + 2}", document.Body?.TextContent);
+            Assert.Contains($"Libraries Exported: {count + 3}", document.Body?.TextContent);
+            Assert.Empty(logger.Entries);
+        }
+    }
+
+    private sealed class ClearPeerStartupFilter : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, continuation) =>
+            {
+                context.Connection.RemoteIpAddress = null;
+                return continuation();
+            });
+            next(app);
+        };
+    }
+
+    private sealed class HomeTestLogger : ILogger<Home>
+    {
+        public List<(LogLevel Level, Exception? Exception, string Message)> Entries { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, exception, formatter(state, exception)));
+    }
+
+    private sealed class TestAppStatsService(bool fail, AppStatsResponse stats) : IAppStatsService
+    {
+        public Exception Failure { get; } = new SqliteException("Test stats persistence failure.", 10);
+        public int RecordCalls { get; private set; }
+        public int GetCalls { get; private set; }
+
         public Task<AppStatsResponse> RecordHitAsync(
             string ip,
             string? userAgent = null,
-            string ingressNetwork = IngressNetworkClassifier.Unknown) =>
-            throw new InvalidOperationException(
-                "Intentional production pipeline SEO test failure.");
+            string ingressNetwork = IngressNetworkClassifier.Unknown)
+        {
+            RecordCalls++;
+            return fail ? Task.FromException<AppStatsResponse>(Failure) : Task.FromResult(stats);
+        }
 
-        public Task<AppStatsResponse> GetStatsAsync() =>
-            throw new InvalidOperationException(
-                "Intentional production pipeline SEO test failure.");
+        public Task<AppStatsResponse> GetStatsAsync()
+        {
+            GetCalls++;
+            return fail ? Task.FromException<AppStatsResponse>(Failure) : Task.FromResult(stats);
+        }
 
         public Task IncrementRandomGamesGeneratedAsync() =>
             Task.CompletedTask;
 
         public Task IncrementLibrariesExportedAsync() =>
             Task.CompletedTask;
+    }
+
+    private static void AssertFooterNetworkLinks(IDocument document)
+    {
+        var links = Assert.IsAssignableFrom<IElement>(document.QuerySelector("footer.global-footer .global-footer-links"));
+        Assert.Contains("Also available on:", links.TextContent);
+        Assert.DoesNotContain("Current network:", links.TextContent);
+        Assert.Equal(
+            new[]
+            {
+                ("Clearnet", "https://randomsteam.kgivler.com/"),
+                ("Yggdrasil", "https://steam.ygg.kgivler.com/"),
+                ("DN42", "https://randomsteam.dn42/"),
+                ("I2P (experimental)", "http://vdjmun2zeeqdk7lymwe6qht2msioyq2y6ywpjduchqye3nodfbmq.b32.i2p")
+            },
+            links.QuerySelectorAll("a").Take(4).Select(link => (link.TextContent.Trim(), Assert.IsType<string>(link.GetAttribute("href")))));
+    }
+
+    private static void AssertNoPublicHostOutsideFooter(IDocument document)
+    {
+        var html = document.DocumentElement.OuterHtml;
+        if (document.QuerySelector("footer.global-footer") is { } footer)
+        {
+            html = html.Replace(footer.OuterHtml, string.Empty, StringComparison.Ordinal);
+        }
+        Assert.DoesNotContain("randomsteam.kgivler.com", html, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<IDocument> ParseHtmlAsync(
@@ -424,6 +875,13 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.True(response.Headers.TryGetValues("X-Robots-Tag", out var values));
         return Assert.Single(values);
     }
+}
+
+// Discovered only by the production exception-handler test's application part.
+public sealed class SeoTestFailureController : ControllerBase
+{
+    [HttpGet("/test-only/seo-failure")]
+    public IActionResult Fail() => throw new InvalidOperationException("Intentional production pipeline SEO test failure.");
 }
 
 public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
@@ -457,6 +915,8 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
+            // TestServer has no TCP peer. Model the existing trusted loopback ingress explicitly.
+            services.AddSingleton<IStartupFilter, LoopbackPeerStartupFilter>();
             services.PostConfigure<SqliteDistributedCacheOptions>(options =>
             {
                 options.ConnectionString = "Data Source=steam-cache.db;Pooling=False";
@@ -464,7 +924,7 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
             });
 
             services.RemoveAll<IGameProvider>();
-            services.AddScoped<IGameProvider, SteamProvider>();
+            services.AddScoped<IGameProvider, UnavailableGameProvider>();
 
             services.RemoveAll<IAppStatsService>();
             services.AddScoped<IAppStatsService, StubAppStatsService>();
@@ -475,8 +935,6 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
             services.RemoveAll<IMissionControlClient>();
             services.AddSingleton<IMissionControlClient, StubMissionControlClient>();
 
-            services.AddHttpClient<RandomSteamApiClient>()
-                .ConfigurePrimaryHttpMessageHandler(() => new StubHttpMessageHandler());
         });
     }
 
@@ -533,6 +991,19 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
             Task.CompletedTask;
     }
 
+    private sealed class LoopbackPeerStartupFilter : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, continuation) =>
+            {
+                context.Connection.RemoteIpAddress ??= IPAddress.Loopback;
+                return continuation();
+            });
+            next(app);
+        };
+    }
+
     private sealed class StubBetaAvailabilityService : IBetaAvailabilityService
     {
         public Task<bool> IsBetaAvailableAsync(CancellationToken cancellationToken = default)
@@ -550,17 +1021,19 @@ public sealed class SeoWebApplicationFactory : WebApplicationFactory<Program>
             CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 
-    private sealed class StubHttpMessageHandler : HttpMessageHandler
+    private sealed class UnavailableGameProvider : IGameProvider
     {
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
-            {
-                Content = JsonContent.Create(new
-                {
-                    title = "Unavailable during SEO integration tests",
-                    status = StatusCodes.Status503ServiceUnavailable
-                })
-            });
+        public string ProviderKey => "steam";
+        public Task<ErrorOr<OwnedGamesResponse>> GetOwnedGamesAsync(long userId, CancellationToken ct = default) =>
+            Task.FromResult<ErrorOr<OwnedGamesResponse>>(Errors.Steam.SteamApiFailed);
+        public Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(long userId, bool unplayedOnly = false,
+            CancellationToken ct = default) =>
+            Task.FromResult<ErrorOr<GameDetails>>(Errors.Steam.SteamApiFailed);
+        public Task<RandomGamePickAttempt> GetRandomGamePickAsync(long userId, bool unplayedOnly = false,
+            IReadOnlyCollection<int>? excludedGameIds = null, CancellationToken ct = default) =>
+            Task.FromResult(RandomGamePickAttempt.Failure([Errors.Steam.SteamApiFailed]));
+        public Task<ErrorOr<long>> ResolveIdentifierAsync(string identifier, CancellationToken ct = default) =>
+            Task.FromResult<ErrorOr<long>>(Errors.Steam.VanityResolutionFailed);
+        public Task InvalidateOwnedGamesCacheAsync(long userId, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

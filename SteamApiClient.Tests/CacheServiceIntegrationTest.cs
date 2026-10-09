@@ -11,7 +11,7 @@ using SteamApiClient.Settings;
 
 namespace SteamApiClient.Tests;
 
-public class CacheServiceIntegrationTests
+public partial class CacheServiceIntegrationTests
 {
     private readonly ICacheService _cacheService;
 

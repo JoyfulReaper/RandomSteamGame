@@ -5,13 +5,16 @@
  * Licensed under the MIT License.
  */
 
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 
@@ -252,6 +255,35 @@ public class SteamClientTests
             StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InvalidateOwnedGamesCacheAsync_PassesCancellationToCache(bool canceled)
+    {
+        const long steamId = 76561197960287930L;
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        if (canceled)
+        {
+            caller.Cancel();
+        }
+        var cache = Substitute.For<ICacheService>();
+        cache.InvalidateByTagAsync($"steam_user_{steamId}", caller.Token)
+            .Returns(canceled ? Task.FromCanceled(caller.Token) : Task.CompletedTask);
+        using var http = new HttpClient();
+        var client = new SteamClient(http, _options, cache, NullLogger<SteamClient>.Instance);
+
+        if (canceled)
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                client.InvalidateOwnedGamesCacheAsync(steamId, caller.Token));
+        }
+        else
+        {
+            await client.InvalidateOwnedGamesCacheAsync(steamId, caller.Token);
+        }
+        await cache.Received(1).InvalidateByTagAsync($"steam_user_{steamId}", caller.Token);
+    }
+
     #region GetOwnedGames Tests
 
     [Fact]
@@ -340,6 +372,68 @@ public class SteamClientTests
     #endregion
 
     #region GetSteamIdFromVanityUrl Tests
+
+    [Theory]
+    [InlineData("not_found_foo", "foo", false)]
+    [InlineData("not_found_foo", "foo", true)]
+    [InlineData("gabelogannewell", "missing_vanity", false)]
+    public async Task GetSteamIdFromVanityUrl_SuccessAndNegativeCachesRemainIndependent(
+        string successVanity,
+        string missingVanity,
+        bool notFoundFirst)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        // HybridCache serializes L2 values, exercising the old long/bool collision.
+        var entries = new ConcurrentDictionary<string, byte[]>();
+        var distributedCache = Substitute.For<IDistributedCache>();
+        distributedCache.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(call => Task.FromResult(entries.GetValueOrDefault(call.ArgAt<string>(0))));
+        distributedCache.SetAsync(Arg.Any<string>(), Arg.Any<byte[]>(),
+                Arg.Any<DistributedCacheEntryOptions>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                entries[call.ArgAt<string>(0)] = call.ArgAt<byte[]>(1).ToArray();
+                return Task.CompletedTask;
+            });
+        services.AddSingleton(distributedCache);
+        services.AddHybridCache();
+        services.AddScoped<ICacheService, CacheService>();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var successJson = JsonSerializer.Serialize(new
+        {
+            response = new { success = 1, steamid = "76561197960287930" }
+        });
+        var notFoundJson = JsonSerializer.Serialize(new
+        {
+            response = new { success = 42, message = "No match" }
+        });
+        using var handler = new SequencedHttpMessageHandler(
+            (notFoundFirst ? notFoundJson : successJson, HttpStatusCode.OK),
+            (notFoundFirst ? successJson : notFoundJson, HttpStatusCode.OK));
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://api.steampowered.com/")
+        };
+        var client = new SteamClient(
+            httpClient, _options, scope.ServiceProvider.GetRequiredService<ICacheService>(),
+            NullLogger<SteamClient>.Instance);
+        var ct = TestContext.Current.CancellationToken;
+
+        Assert.Equal(notFoundFirst ? 0L : 76561197960287930L,
+            await client.GetSteamIdFromVanityUrl(notFoundFirst ? missingVanity : successVanity, ct));
+        Assert.Equal(notFoundFirst ? 76561197960287930L : 0L,
+            await client.GetSteamIdFromVanityUrl(notFoundFirst ? successVanity : missingVanity, ct));
+
+        Assert.NotNull(await distributedCache.GetAsync(
+            SteamVanityUrlHelper.BuildCacheKey(successVanity), ct));
+
+        Assert.Equal(76561197960287930L, await client.GetSteamIdFromVanityUrl(successVanity.ToUpperInvariant(), ct));
+        Assert.Equal(0L, await client.GetSteamIdFromVanityUrl(missingVanity.ToUpperInvariant(), ct));
+        Assert.Equal(2, handler.CallCount);
+    }
 
     [Fact]
     public async Task GetSteamIdFromVanityUrl_Success_ReturnsLongId()

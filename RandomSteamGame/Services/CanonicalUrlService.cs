@@ -1,24 +1,22 @@
 using Microsoft.Extensions.Options;
 using RandomSteamGame.Options;
+using System.Diagnostics.CodeAnalysis;
 
 namespace RandomSteamGame.Services;
 
 public sealed class CanonicalUrlService
 {
+    internal const string OriginValidationMessage =
+        "Application:CanonicalOrigin must be an origin without credentials, path, query, or fragment. Public requires HTTPS; AltNet requires an explicit HTTP or HTTPS origin.";
+
     private readonly string _canonicalOrigin;
 
     public CanonicalUrlService(IOptions<ApplicationOptions> options)
     {
         var settings = options.Value;
-        if (!Uri.TryCreate(settings.CanonicalOrigin, UriKind.Absolute, out var origin) ||
-            !string.Equals(origin.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
-            origin.AbsolutePath != "/" ||
-            !string.IsNullOrEmpty(origin.Query) ||
-            !string.IsNullOrEmpty(origin.Fragment) ||
-            !string.IsNullOrEmpty(origin.UserInfo))
+        if (!TryGetOrigin(settings, out var origin))
         {
-            throw new InvalidOperationException(
-                $"Application:{nameof(ApplicationOptions.CanonicalOrigin)} must be an HTTPS origin without a path, query, or fragment.");
+            throw new InvalidOperationException(OriginValidationMessage);
         }
 
         if (string.IsNullOrWhiteSpace(settings.BetaHost))
@@ -32,6 +30,21 @@ public sealed class CanonicalUrlService
     }
 
     public string BetaHost { get; }
+
+    internal static bool TryGetOrigin(ApplicationOptions settings, [NotNullWhen(true)] out Uri? origin)
+    {
+        var configuredOrigin = settings.CanonicalOrigin ??
+            (settings.NetworkMode == NetworkMode.Public ? "https://randomsteam.kgivler.com" : null);
+
+        return Uri.TryCreate(configuredOrigin, UriKind.Absolute, out origin) &&
+            (origin.Scheme == Uri.UriSchemeHttps ||
+                (settings.NetworkMode == NetworkMode.AltNet && origin.Scheme == Uri.UriSchemeHttp)) &&
+            !string.IsNullOrEmpty(origin.Host) &&
+            origin.AbsolutePath == "/" &&
+            string.IsNullOrEmpty(origin.Query) &&
+            string.IsNullOrEmpty(origin.Fragment) &&
+            string.IsNullOrEmpty(origin.UserInfo);
+    }
 
     public string GetCanonicalUrl(string path = "/")
     {
