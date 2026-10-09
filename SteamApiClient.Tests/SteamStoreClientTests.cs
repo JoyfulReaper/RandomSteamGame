@@ -33,6 +33,19 @@ public class SteamStoreClientTests
     }
 
     [Fact]
+    public async Task GetAppData_PreservesPackageGroupsFromStoreResponse()
+    {
+        var client = CreateClient("{\"400\":" + AppDetailsDeserializationTests.RealisticPayload + "}", HttpStatusCode.OK);
+        var result = await client.GetAppData(400, ct: TestContext.Current.CancellationToken);
+        Assert.NotNull(result);
+        var group = Assert.Single(result.PackageGroups!);
+        var sub = Assert.Single(group.Subs!);
+        Assert.Equal(12345, sub.PackageId);
+        Assert.Equal(1499, sub.PriceInCentsWithDiscount);
+        Assert.Null(result.PcRequirements);
+    }
+
+    [Fact]
     public async Task GetAppData_ValidAppId_ReturnsSuccessfulResponse()
     {
         // Arrange
