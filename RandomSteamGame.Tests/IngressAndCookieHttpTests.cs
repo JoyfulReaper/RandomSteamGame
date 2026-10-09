@@ -17,6 +17,75 @@ namespace RandomSteamGame.Tests;
 public sealed class IngressAndCookieHttpTests(SeoWebApplicationFactory factory) : IClassFixture<SeoWebApplicationFactory>
 {
     [Theory]
+    [InlineData("Public", "https://randomsteam.kgivler.com", "Production", "127.0.0.1", null, null, "https", null, "https")]
+    [InlineData("Public", "https://randomsteam.kgivler.com", "Production", "127.0.0.1", null, "true", null, "{\"scheme\":\"https\"}", "https")]
+    [InlineData("Public", "https://randomsteam.kgivler.com", "Production", "198.51.100.10", null, null, "https", "{\"scheme\":\"https\"}", "http")]
+    [InlineData("Public", "https://randomsteam.kgivler.com", "Production", "127.0.0.1", "false", null, "https", "{\"scheme\":\"https\"}", "http")]
+    [InlineData("Public", "https://randomsteam.kgivler.com", "Production", "127.0.0.1", null, null, null, "malformed", "http")]
+    [InlineData("Public", "https://randomsteam.kgivler.com", "Production", "127.0.0.1", null, "false", null, "{\"scheme\":\"https\"}", "http")]
+    [InlineData("AltNet", "http://example.b32.i2p", "Production", "127.0.0.1", "true", "true", "https", "{\"scheme\":\"https\"}", "http")]
+    [InlineData("AltNet", "http://example.b32.i2p", "Production", "198.51.100.10", "true", "true", "https", "{\"scheme\":\"https\"}", "http")]
+    [InlineData("AltNet", "https://randomsteam.dn42", "Production", "127.0.0.1", null, null, null, null, "https")]
+    [InlineData("Public", "https://randomsteam.kgivler.com", "Development", "127.0.0.1", null, null, "https", null, "https")]
+    [InlineData("AltNet", "https://randomsteam.dn42", "Development", "127.0.0.1", null, null, null, null, "https")]
+    public async Task HstsUsesTrustedEffectiveScheme(
+        string mode, string origin, string environment, string peer, string? forwarding,
+        string? cloudflare, string? forwardedScheme, string? cfVisitor, string expectedScheme)
+    {
+        using var application = CreateApplication(mode, origin, peer, environment, forwarding, cloudflare);
+        // Use HTTP on the backend and a host outside the framework's HSTS loopback exclusions.
+        using var client = application.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://ingress.example"),
+            AllowAutoRedirect = false
+        });
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/health/live");
+        if (forwardedScheme is not null)
+            request.Headers.Add("X-Forwarded-Proto", forwardedScheme);
+        if (cfVisitor is not null)
+            request.Headers.Add("CF-Visitor", cfVisitor);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expectedScheme, Assert.Single(response.Headers.GetValues("X-Test-Scheme")));
+        AssertHsts(response, environment == "Production" && expectedScheme == "https");
+    }
+
+    [Theory]
+    [InlineData("Public", "https://randomsteam.kgivler.com", "https", true)]
+    [InlineData("AltNet", "http://example.b32.i2p", "http", false)]
+    [InlineData("AltNet", "https://randomsteam.dn42", "https", true)]
+    public async Task HstsAndProductionErrorHandlingUseEffectiveScheme(
+        string mode, string origin, string expectedScheme, bool expectedHsts)
+    {
+        using var application = CreateApplication(mode, origin, "127.0.0.1", "Production", "true", "true")
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.AddControllers().AddApplicationPart(typeof(SeoTestFailureController).Assembly)));
+        using var client = application.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://ingress.example"),
+            AllowAutoRedirect = false
+        });
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/test-only/seo-failure");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(expectedScheme, Assert.Single(response.Headers.GetValues("X-Test-Scheme")));
+        Assert.Equal("noindex, nofollow", Assert.Single(response.Headers.GetValues("X-Robots-Tag")));
+        Assert.Contains("500: CORE UNSTABLE", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        AssertHsts(response, expectedHsts);
+    }
+
+    private static void AssertHsts(HttpResponseMessage response, bool expected)
+    {
+        if (expected)
+            Assert.Equal("max-age=2592000", Assert.Single(response.Headers.GetValues("Strict-Transport-Security")));
+        else
+            Assert.False(response.Headers.Contains("Strict-Transport-Security"));
+    }
+
+    [Theory]
     [InlineData("Public", "https://randomsteam.kgivler.com", "Production", true, true)]
     [InlineData("Public", "https://randomsteam.kgivler.com", "Development", false, true)]
     [InlineData("AltNet", "http://example.b32.i2p", "Production", false, false)]

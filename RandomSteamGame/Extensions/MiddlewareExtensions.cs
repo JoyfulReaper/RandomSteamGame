@@ -33,7 +33,6 @@ public static class MiddlewareExtensions
         }
         else
         {
-            app.UseHsts();
             app.UseExceptionHandler("/Error", createScopeForErrors: true);
         }
 
@@ -100,6 +99,12 @@ public static class MiddlewareExtensions
                 context.Request.Scheme = cookiePolicy.ExternalScheme;
                 return next();
             });
+        }
+
+        // HSTS must observe the trusted external scheme, including the AltNet override.
+        if (!env.IsDevelopment())
+        {
+            app.UseHsts();
         }
 
         var canonicalUrls = app.ApplicationServices.GetRequiredService<CanonicalUrlService>();
