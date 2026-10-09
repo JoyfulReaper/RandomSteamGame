@@ -111,7 +111,7 @@ public sealed class LibraryExportAntiforgeryHttpTests : IClassFixture<SeoWebAppl
         AssertNoWork(probe, application);
         using var response = await SendValidAsync(client, tokens);
         AssertSuccessfulExport(response, probe);
-        Assert.Equal("game,id,hours,last_played,steam_deck\r\nPortal,400,1.5,,verified\r\n", await response.Content.ReadAsStringAsync(Ct));
+        Assert.Equal("game,id,hours,hours_2_weeks,hours_windows,hours_mac,hours_linux,last_played,steam_deck,steam_store_url\r\nPortal,400,1.5,0.5,1,0.25,0.25,,verified,https://store.steampowered.com/app/400/\r\n", await response.Content.ReadAsStringAsync(Ct));
     }
 
     [Theory]
@@ -259,7 +259,7 @@ public sealed class LibraryExportAntiforgeryHttpTests : IClassFixture<SeoWebAppl
             Interlocked.Increment(ref LibraryCalls);
             Started.TrySetResult();
             if (Block) await Release.Task.WaitAsync(ct);
-            return new OwnedGamesResponse(userId, 1, [new Game(400, "Portal", 90, null, 0, 0, 0, 0, 0)]);
+            return new OwnedGamesResponse(userId, 1, [new Game(400, "Portal", 90, null, 60, 15, 15, 0, 30)]);
         }
         public Task<IReadOnlyDictionary<int, DeckCategory>> GetSteamDeckCompatibilityAsync(IEnumerable<int> appIds, CancellationToken ct = default)
         {

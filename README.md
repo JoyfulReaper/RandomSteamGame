@@ -66,8 +66,18 @@ Steam must be able to access the profile's game details. The saved Steam identit
    | `game` | Steam game name |
    | `id` | Steam App ID |
    | `hours` | Total recorded playtime in decimal hours |
+   | `hours_2_weeks` | Recent playtime in decimal hours; `0` when Steam reports none |
+   | `hours_windows` | Windows playtime in decimal hours |
+   | `hours_mac` | macOS playtime in decimal hours |
+   | `hours_linux` | Linux playtime in decimal hours |
    | `last_played` | UTC timestamp in `yyyy-MM-ddTHH:mm:ssZ` format, or blank when Steam reports no meaningful date |
    | `steam_deck` | `verified`, `playable`, `unsupported`, or `unknown` |
+   | `steam_store_url` | Steam Store URL derived from App ID: `https://store.steampowered.com/app/{appId}/` |
+
+All playtime columns use invariant decimal hours with up to two decimal places, including
+`0` for zero minutes. These additional fields use the owned-library response and require
+no additional Steam requests. Store metadata such as developer, genres, and pricing is
+deferred until a bounded, batched, cached design is available.
 
 If Deck compatibility cannot be retrieved for a game, the export uses `unknown` rather than failing the whole download. Exports are limited to one request per IP address every 72 hours to protect Steam API capacity.
 

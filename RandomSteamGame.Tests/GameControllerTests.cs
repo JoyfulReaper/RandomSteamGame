@@ -980,7 +980,7 @@ public class GameControllerTests
         var file = Assert.IsType<FileContentResult>(result);
         Assert.Equal("text/csv; charset=utf-8", file.ContentType);
         Assert.Equal($"steam-library-{steamId}.csv", file.FileDownloadName);
-        Assert.Equal("game,id,hours,last_played,steam_deck\r\nPortal,10,1.5,,unknown\r\n", Encoding.UTF8.GetString(file.FileContents));
+        Assert.Equal("game,id,hours,hours_2_weeks,hours_windows,hours_mac,hours_linux,last_played,steam_deck,steam_store_url\r\nPortal,10,1.5,0,0,0,0,,unknown,https://store.steampowered.com/app/10/\r\n", Encoding.UTF8.GetString(file.FileContents));
     }
 
     private static GameController CreateController(
