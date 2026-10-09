@@ -1197,16 +1197,12 @@ public class GameControllerTests
     {
         public CancellationToken LastReadCancellationToken { get; private set; }
         public CancellationToken LastWriteCancellationToken { get; private set; }
-        public Task<DateTimeOffset?> GetNextAvailableAtAsync(long steamId, CancellationToken ct = default)
+        public async Task<DateTimeOffset?> RefreshAsync(long steamId, Func<CancellationToken, Task> invalidate, CancellationToken ct = default)
         {
             LastReadCancellationToken = ct;
-            return Task.FromResult<DateTimeOffset?>(null);
-        }
-
-        public Task MarkResetAsync(long steamId, CancellationToken ct = default)
-        {
+            await invalidate(ct);
             LastWriteCancellationToken = ct;
-            return Task.CompletedTask;
+            return null;
         }
     }
 

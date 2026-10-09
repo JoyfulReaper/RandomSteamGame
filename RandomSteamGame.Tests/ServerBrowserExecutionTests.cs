@@ -264,6 +264,35 @@ public class ServerBrowserExecutionTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RefreshCooldownIsSharedByHttpAndDirectServerExecution(bool httpFirst)
+    {
+        using var root = new SeoWebApplicationFactory();
+        var steam = new StubSteamClient(10);
+        using var application = CreateApplication(root, steam, new StubStoreClient(), new RejectOutgoingHttpHandler());
+        using var scope = application.Services.CreateScope();
+        var server = scope.ServiceProvider.GetRequiredService<IRandomSteamApiClient>();
+        using var client = application.CreateClient();
+        var url = $"/api/steam/{SteamId}/library/refresh";
+        if (httpFirst)
+        {
+            using var first = await client.PostAsync(url, null, TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+            Assert.True((await server.InvalidateOwnedGamesCacheAsync("steam", SteamId, TestContext.Current.CancellationToken)).IsTooManyRequests);
+        }
+        else
+        {
+            Assert.True((await server.InvalidateOwnedGamesCacheAsync("steam", SteamId, TestContext.Current.CancellationToken)).IsSuccess);
+            using var second = await client.PostAsync(url, null, TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
+            Assert.Contains("TooManyRequests", await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        }
+        Assert.Equal(1, steam.InvalidationCalls);
+        Assert.Equal(0, application.Services.GetRequiredService<OwnedGamesRefreshAdmissionCoordinator>().ActiveKeyCount);
+    }
+
+    [Theory]
     [InlineData("http://browser.b32.i2p/")]
     [InlineData("https://browser-public.invalid/")]
     public async Task BrowserRegistration_KeepsHttpRequestsOnItsConfiguredOrigin(string origin)

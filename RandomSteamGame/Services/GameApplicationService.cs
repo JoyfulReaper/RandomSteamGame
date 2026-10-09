@@ -59,14 +59,9 @@ public sealed class GameApplicationService(
         {
             return Errors.Steam.InvalidSteamId;
         }
-        var nextAvailableAt = await _ownedGamesCacheResetTracker.GetNextAvailableAtAsync(userId, ct);
-        if (nextAvailableAt is not null)
-        {
-            return new LibraryRefreshResult(nextAvailableAt);
-        }
-        await service.InvalidateOwnedGamesCacheAsync(userId, ct);
-        await _ownedGamesCacheResetTracker.MarkResetAsync(userId, ct);
-        return new LibraryRefreshResult(null);
+        var nextAvailableAt = await _ownedGamesCacheResetTracker.RefreshAsync(
+            userId, token => service.InvalidateOwnedGamesCacheAsync(userId, token), ct);
+        return new LibraryRefreshResult(nextAvailableAt);
     }
 
     public async Task<ErrorOr<GameDetails>> GetRandomGameDetailsAsync(

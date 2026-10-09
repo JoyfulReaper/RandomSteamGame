@@ -231,6 +231,7 @@ public static class ServiceExtensions
 
         services.AddScoped<GameProviderFactory>();
         services.AddScoped<IOwnedGamesCacheResetTracker, OwnedGamesCacheResetTracker>();
+        services.AddSingleton<OwnedGamesRefreshAdmissionCoordinator>();
 
         return services;
     }
