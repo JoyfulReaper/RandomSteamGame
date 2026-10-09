@@ -3,6 +3,7 @@
 @using Microsoft.Extensions.Options
 @using RandomSteamGame.Options
 @inject IOptions<ApplicationOptions> ApplicationSettings
+@inject IOptions<HostingOptions> HostingSettings
 
 <div class="page-wrapper">
     <header class="global-header">
@@ -66,19 +67,35 @@
                 }
             </div>
 
-            <div class="global-footer-links mt-1">
-                <span>Proudly hosted with</span>
+            @if (!string.IsNullOrWhiteSpace(HostingSettings.Value.Message) || !string.IsNullOrWhiteSpace(HostingSettings.Value.ProviderName))
+            {
+                <div class="global-footer-links mt-1 global-footer-hosting">
+                    <span>@HostingSettings.Value.Message</span>
 
-                <a href="https://greencloudvps.com/billing/aff.php?aff=10295"
-                   target="_blank"
-                   rel="sponsored noopener noreferrer">
-                    GreenCloud VPS
-                </a>
-            </div>
+                    @if (!string.IsNullOrWhiteSpace(HostingSettings.Value.ProviderName))
+                    {
+                        @if (!string.IsNullOrWhiteSpace(HostingSettings.Value.LinkUrl))
+                        {
+                            <a href="@HostingSettings.Value.LinkUrl"
+                               target="_blank"
+                               rel="@(HostingSettings.Value.HasAffiliateLink ? "sponsored noopener noreferrer" : "noopener noreferrer")">
+                                @HostingSettings.Value.ProviderName
+                            </a>
+                        }
+                        else
+                        {
+                            <span>@HostingSettings.Value.ProviderName</span>
+                        }
+                    }
+                </div>
+            }
 
-            <div class="global-footer-note">
-                Affiliate link — I may earn a commission if you sign up through it.
-            </div>
+            @if (HostingSettings.Value.ShowAffiliateDisclosure && HostingSettings.Value.HasAffiliateLink)
+            {
+                <div class="global-footer-note global-footer-affiliate-disclosure">
+                    Affiliate link — I may earn a commission if you sign up through it.
+                </div>
+            }
 
             <div class="global-footer-links mt-1">
                 <span>Network projects:</span>

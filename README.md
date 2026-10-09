@@ -249,6 +249,26 @@ The production Random Steam Game deployment runs on GreenCloud infrastructure.
 
 > Disclosure: This is an affiliate link. If you purchase through it, I may receive a commission at no additional cost to you.
 
+### Footer presentation
+
+The footer's hosting message is configured independently of the deployment's network mode
+through `Hosting:Message`, `Hosting:ProviderName`, `Hosting:Url`, `Hosting:AffiliateUrl`, and
+`Hosting:ShowAffiliateDisclosure`. The default keeps the GreenCloud message and disclosure.
+An affiliate URL takes precedence over the regular URL. Leave both URLs empty to display
+the provider as plain text. Disclosure appears only for an affiliate link when enabled.
+
+For a message-only deployment, for example:
+
+```ini
+Hosting__Message=Available via I2P
+Hosting__ProviderName=
+Hosting__Url=
+Hosting__AffiliateUrl=
+Hosting__ShowAffiliateDisclosure=false
+```
+
+Leave both the message and provider name empty to hide the hosting block entirely.
+
 ## Search and indexing
 
 The home page and library-export page publish canonical URLs, descriptions, and social metadata. The application also serves `robots.txt`, `sitemap.xml`, and `WebApplication` JSON-LD. The configured beta host sends `X-Robots-Tag: noindex, nofollow`, and generated random-game result pages are excluded from indexing.

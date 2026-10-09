@@ -149,6 +149,107 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Equal(expectedOrigin, GetAttribute(document, "meta[property='og:url']", "content"));
     }
 
+    [Fact]
+    public async Task Footer_PublicDefaultsPreserveHostingAndAffiliateDisclosure()
+    {
+        using var response = await _client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+        var hosting = Assert.IsAssignableFrom<IElement>(document.QuerySelector(".global-footer-hosting"));
+        Assert.Contains("Proudly hosted with", hosting.TextContent);
+        var link = Assert.Single(hosting.QuerySelectorAll("a"));
+        Assert.Equal("GreenCloud VPS", link.TextContent.Trim());
+        Assert.Equal("https://greencloudvps.com/billing/aff.php?aff=10295", link.GetAttribute("href"));
+        Assert.Equal("_blank", link.GetAttribute("target"));
+        Assert.Equal("sponsored noopener noreferrer", link.GetAttribute("rel"));
+        Assert.Equal("Affiliate link — I may earn a commission if you sign up through it.",
+            document.QuerySelector(".global-footer-affiliate-disclosure")?.TextContent.Trim());
+    }
+
+    [Theory]
+    [InlineData(NetworkMode.Public)]
+    [InlineData(NetworkMode.AltNet)]
+    public async Task Footer_HostingOverrideCanReplaceMessageWithoutProviderOrLinks(NetworkMode mode)
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Application:NetworkMode"] = mode.ToString(),
+                    ["Application:CanonicalOrigin"] = mode == NetworkMode.AltNet ? AltNetOrigin : CanonicalOrigin,
+                    ["Hosting:Message"] = "Available via I2P",
+                    ["Hosting:ProviderName"] = "",
+                    ["Hosting:Url"] = "",
+                    ["Hosting:AffiliateUrl"] = "",
+                    ["Hosting:ShowAffiliateDisclosure"] = "false"
+                })));
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var hosting = Assert.IsAssignableFrom<IElement>(document.QuerySelector(".global-footer-hosting"));
+        Assert.Equal("Available via I2P", hosting.TextContent.Trim());
+        Assert.Empty(hosting.QuerySelectorAll("a"));
+        Assert.Null(document.QuerySelector(".global-footer-affiliate-disclosure"));
+        Assert.DoesNotContain("GreenCloud", document.DocumentElement.OuterHtml);
+        AssertFooterNetworkLinks(document);
+    }
+
+    [Theory]
+    [InlineData("", "", true, null, false)]
+    [InlineData("http://hosting.example/", "", true, "http://hosting.example/", false)]
+    [InlineData("http://hosting.example/", "", false, "http://hosting.example/", false)]
+    [InlineData("http://hosting.example/", "https://affiliate.example/", false, "https://affiliate.example/", false)]
+    [InlineData("http://hosting.example/", "https://affiliate.example/", true, "https://affiliate.example/", true)]
+    [InlineData("", "https://affiliate.example/", true, "https://affiliate.example/", true)]
+    public async Task Footer_HostingLinksAndAffiliateDisclosureAreOptional(
+        string url, string affiliateUrl, bool showDisclosure, string? expectedUrl, bool expectDisclosure)
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configuration) =>
+                configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Hosting:Message"] = "Hosted by",
+                    ["Hosting:ProviderName"] = "Community host",
+                    ["Hosting:Url"] = url,
+                    ["Hosting:AffiliateUrl"] = affiliateUrl,
+                    ["Hosting:ShowAffiliateDisclosure"] = showDisclosure.ToString()
+                })));
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+        var hosting = Assert.IsAssignableFrom<IElement>(document.QuerySelector(".global-footer-hosting"));
+        Assert.Contains("Hosted by", hosting.TextContent);
+        Assert.Contains("Community host", hosting.TextContent);
+        if (expectedUrl is null)
+        {
+            Assert.Empty(hosting.QuerySelectorAll("a"));
+        }
+        else
+        {
+            var link = Assert.Single(hosting.QuerySelectorAll("a"));
+            Assert.Equal(expectedUrl, link.GetAttribute("href"));
+            Assert.Equal("Community host", link.TextContent.Trim());
+            Assert.Equal(!string.IsNullOrWhiteSpace(affiliateUrl), link.GetAttribute("rel")!.Contains("sponsored"));
+        }
+        Assert.Equal(expectDisclosure, document.QuerySelector(".global-footer-affiliate-disclosure") is not null);
+    }
+
+    [Fact]
+    public async Task Footer_EmptyMessageAndProviderHideHostingAndDisclosure()
+    {
+        using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services => services.Configure<HostingOptions>(options =>
+            {
+                options.Message = "";
+                options.ProviderName = "";
+            })));
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+        Assert.Null(document.QuerySelector(".global-footer-hosting"));
+        Assert.Null(document.QuerySelector(".global-footer-affiliate-disclosure"));
+    }
+
     [Theory]
     [MemberData(nameof(IndexablePageCases))]
     public async Task AltNet_IndexablePagesUseConfiguredOriginAndDoNotExposePublicHostOutsideFooter(

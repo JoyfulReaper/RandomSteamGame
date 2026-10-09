@@ -74,6 +74,7 @@ public static class ServiceExtensions
             .Validate(options => options.TrustedProxies is null || options.TrustedProxies.All(proxy => System.Net.IPAddress.TryParse(proxy, out _)),
                 "Ingress:TrustedProxies must contain only IP addresses.")
             .ValidateOnStart();
+        services.Configure<HostingOptions>(config.GetSection(HostingOptions.SectionName));
         services.Configure<TelemetryOptions>(config.GetSection(TelemetryOptions.SectionName));
         services.AddSingleton<IVisitorIdProvider, VisitorIdProvider>();
 
