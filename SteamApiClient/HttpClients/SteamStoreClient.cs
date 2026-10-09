@@ -101,7 +101,7 @@ public class SteamStoreClient : ISteamStoreClient
         if (responseData is not null && root.TryGetProperty("success", out var success) &&
             success.ValueKind == JsonValueKind.False)
         {
-            await _cache.SetAsync(notFoundCacheKey, true, _steamOptions.Cache.AppDetailsNotFound, entryTags, ct);
+            await _cache.SetAsync<bool?>(notFoundCacheKey, true, _steamOptions.Cache.AppDetailsNotFound, entryTags, ct);
             return null;
         }
 

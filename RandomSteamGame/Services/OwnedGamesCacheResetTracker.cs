@@ -64,7 +64,7 @@ public sealed class OwnedGamesCacheResetTracker : IOwnedGamesCacheResetTracker
     private async Task MarkResetAsync(long steamId, CancellationToken ct)
     {
         var now = new DateTimeOffset(_dateTimeProvider.UtcNow);
-        await _cache.SetAsync(
+        await _cache.SetAsync<DateTimeOffset?>(
             GetCacheKey(steamId),
             now,
             OwnedGamesCacheResetPolicy,

@@ -47,7 +47,7 @@ internal class CacheService : ICacheService
         var options = new HybridCacheEntryOptions
         {
             Expiration = policy.Duration,
-            LocalCacheExpiration = TimeSpan.FromMinutes(5) // TODO: Make configurable through appsettings
+            LocalCacheExpiration = HybridCacheExtensions.LocalCacheExpiration
         };
 
         //_logger.LogDebug("HybridCache executing lookups for key: {Key}", key);
@@ -73,7 +73,7 @@ internal class CacheService : ICacheService
         var options = new HybridCacheEntryOptions
         {
             Expiration = policy.Duration,
-            LocalCacheExpiration = TimeSpan.FromMinutes(5) // TODO: Make configurable through appsettings
+            LocalCacheExpiration = HybridCacheExtensions.LocalCacheExpiration
         };
 
         await _cache.SetAsync(key, value, options, tags, cancellationToken: ct);
@@ -94,7 +94,7 @@ internal class CacheService : ICacheService
         var options = new HybridCacheEntryOptions
         {
             Expiration = policy.Duration,
-            LocalCacheExpiration = TimeSpan.FromMinutes(5) // TODO: Make configurable through appsettings
+            LocalCacheExpiration = HybridCacheExtensions.LocalCacheExpiration
         };
 
         var cachedValue = await _cache.GetOrCreateAsync(

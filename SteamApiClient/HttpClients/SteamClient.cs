@@ -182,7 +182,7 @@ public class SteamClient : ISteamClient
         if (r.Success == STEAM_VANITY_NO_MATCH)
         {
             // _logger.LogInformation("Vanity URL not found.");
-            await _cache.SetAsync(notFoundCacheKey, true, _steamOptions.Cache.VanityNotFound, tags, ct);
+            await _cache.SetAsync<bool?>(notFoundCacheKey, true, _steamOptions.Cache.VanityNotFound, tags, ct);
             return 0L;
         }
 
@@ -197,7 +197,7 @@ public class SteamClient : ISteamClient
         }
 
         var steamId = long.Parse(r.SteamId!);
-        await _cache.SetAsync(successCacheKey, steamId, _steamOptions.Cache.VanitySuccess, tags, ct);
+        await _cache.SetAsync<long?>(successCacheKey, steamId, _steamOptions.Cache.VanitySuccess, tags, ct);
         return steamId;
     }
 
