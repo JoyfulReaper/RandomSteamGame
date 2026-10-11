@@ -408,7 +408,7 @@ public static class ServiceExtensions
                                 payload: new LibraryExportRejectedEvent(
                                     VisitorId: visitorId,
                                     Provider: provider,
-                                    IngressNetwork: IngressNetworkClassifier.FromHost(httpContext.Request.Host.Host),
+                                    IngressNetwork: RandomSteamIngressNetwork.FromHost(httpContext.Request.Host.Host),
                                     Reason: LibraryExportRejectionReason.Capacity,
                                     RetryAfterSeconds: retryAfterSeconds,
                                     CommitSha: string.IsNullOrWhiteSpace(

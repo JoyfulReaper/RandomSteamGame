@@ -294,7 +294,7 @@ public class GameController : ApiController
                 payload: new LibraryExportRejectedEvent(
                     VisitorId: GetVisitorIdForTelemetry(),
                     Provider: provider,
-                    IngressNetwork: IngressNetworkClassifier.FromHost(HttpContext.Request.Host.Host),
+                    IngressNetwork: RandomSteamIngressNetwork.FromHost(HttpContext.Request.Host.Host),
                     Reason: reason,
                     RetryAfterSeconds: retryAfterSeconds,
                     CommitSha: string.IsNullOrWhiteSpace(_applicationOptions.CommitSha)
@@ -332,7 +332,7 @@ public class GameController : ApiController
                 payload: new LibraryExportCompletedEvent(
                     VisitorId: GetVisitorIdForTelemetry(),
                     Provider: provider,
-                    IngressNetwork: IngressNetworkClassifier.FromHost(HttpContext.Request.Host.Host),
+                    IngressNetwork: RandomSteamIngressNetwork.FromHost(HttpContext.Request.Host.Host),
                     GameCount: gameCount,
                     DurationMilliseconds: durationMilliseconds,
                     VerifiedCount: verifiedCount,

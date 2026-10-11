@@ -223,7 +223,7 @@ public sealed class GameApplicationService(
                 payload: new GamePickCompletedEvent(
                     VisitorId: GetVisitorIdForTelemetry(requestContext.VisitorIpAddress),
                     Provider: provider,
-                    IngressNetwork: IngressNetworkClassifier.FromHost(requestContext.Host),
+                    IngressNetwork: RandomSteamIngressNetwork.FromHost(requestContext.Host),
                     AppId: telemetry?.Game?.Id,
                     // Display metadata only. Use AppId for stable joins, grouping, and identity.
                     GameName: GamePickTelemetryName.Sanitize(telemetry?.Game?.Name),

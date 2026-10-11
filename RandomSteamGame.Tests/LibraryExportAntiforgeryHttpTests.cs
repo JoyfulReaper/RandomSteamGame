@@ -1,4 +1,5 @@
 using ErrorOr;
+using JoyfulReaperLib.JRNet;
 using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;

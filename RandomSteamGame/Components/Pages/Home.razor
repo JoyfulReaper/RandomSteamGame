@@ -334,7 +334,7 @@
 
         var userAgent = httpContext?.Request.Headers["User-Agent"].ToString();
 
-        var ingressNetwork = IngressNetworkClassifier.FromHost(httpContext?.Request.Host.Host);
+        var ingressNetwork = RandomSteamIngressNetwork.FromHost(httpContext?.Request.Host.Host);
 
         var recordHit = !string.IsNullOrWhiteSpace(ip);
         try
