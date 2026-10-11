@@ -89,12 +89,56 @@ public class GameControllerTests
     public async Task GetRandomGameDetails_AlreadyCancelledRequestDoesNotRecordHistory()
     {
         var history = new TestRecentPickService();
-        var controller = CreateController(recentPickService: history);
+        var stats = new FakeAppStatsService();
+        var telemetry = new RecordingMissionControlClient();
+        var controller = CreateController(appStatsService: stats,
+            missionControlClient: telemetry, recentPickService: history);
         // Model a provider that completes successfully despite request cancellation.
         controller.HttpContext.RequestAborted = new CancellationToken(canceled: true);
 
-        await controller.GetRandomGameDetails("steam", 76561197960287930L, null);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            controller.GetRandomGameDetails("steam", 76561197960287930L, null));
 
+        Assert.Equal(0, history.RecordCalls);
+        Assert.Equal(0, stats.IncrementCallCount);
+        Assert.Empty(telemetry.PublishedEvents);
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_CancellationDuringRecentPickRecordingIsPreserved()
+    {
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var history = new TestRecentPickService
+        {
+            OnRecord = caller.Cancel,
+            RecordFailure = new OperationCanceledException(caller.Token)
+        };
+        var controller = CreateController(recentPickService: history);
+        controller.HttpContext.RequestAborted = caller.Token;
+
+        var cancellation = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            controller.GetRandomGameDetails("steam", 76561197960287930L, null));
+
+        Assert.Equal(caller.Token, cancellation.CancellationToken);
+        Assert.Equal(1, history.RecordCalls);
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_CancellationAfterProviderSuccessSkipsSuccessSideEffects()
+    {
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var provider = new FakeGameProvider { OnPick = caller.Cancel };
+        var history = new TestRecentPickService();
+        var stats = new FakeAppStatsService();
+        var telemetry = new RecordingMissionControlClient();
+        var controller = CreateController(provider, stats, telemetry, recentPickService: history);
+        controller.HttpContext.RequestAborted = caller.Token;
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            controller.GetRandomGameDetails("steam", 76561197960287930L, null));
+
+        Assert.Equal(0, stats.IncrementCallCount);
+        Assert.Empty(telemetry.PublishedEvents);
         Assert.Equal(0, history.RecordCalls);
     }
 
@@ -172,6 +216,28 @@ public class GameControllerTests
         Assert.Equal(0, cooldown.MarkSucceededCallCount);
         Assert.Equal(0, stats.LibrariesExportedIncrementCallCount);
         Assert.Empty(telemetry.LibraryExportEvents);
+    }
+
+    [Fact]
+    public async Task ExportLibrary_PreCanceledRequestDoesNotStartGlobalCooldownOrLoadLibrary()
+    {
+        var exportOptions = new LibraryExportOptions
+        {
+            RateLimitMode = LibraryExportRateLimitMode.Global,
+            GlobalCooldownMinutes = 20
+        };
+        var globalCooldown = new GlobalLibraryExportCooldownTracker(
+            Microsoft.Extensions.Options.Options.Create(exportOptions), TimeProvider.System);
+        var provider = new FakeGameProvider();
+        var controller = CreateController(provider: provider,
+            libraryExportOptions: exportOptions, globalExportCooldown: globalCooldown);
+        controller.HttpContext.RequestAborted = new CancellationToken(canceled: true);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            controller.ExportLibrary("steam", 76561197960287930L));
+
+        Assert.Null(globalCooldown.GetRetryAfter());
+        Assert.Equal(0, provider.GetOwnedGamesCallCount);
     }
 
     [Fact]
@@ -1065,13 +1131,17 @@ public class GameControllerTests
         string? remoteIpAddress = null,
         ILibraryExportCooldownTracker? libraryExportCooldownTracker = null,
         FakeOwnedGamesCacheResetTracker? resetTracker = null,
-        IRecentPickService? recentPickService = null)
+        IRecentPickService? recentPickService = null,
+        LibraryExportOptions? libraryExportOptions = null,
+        GlobalLibraryExportCooldownTracker? globalExportCooldown = null)
     {
         var factory = new GameProviderFactory([provider ?? new FakeGameProvider()]);
         var stats = appStatsService ?? new FakeAppStatsService();
         var missionControl = missionControlClient ?? new RecordingMissionControlClient();
         var visitorIds = new StubVisitorIdProvider();
         var options = Microsoft.Extensions.Options.Options.Create(applicationOptions ?? new ApplicationOptions());
+        var exportOptions = Microsoft.Extensions.Options.Options.Create(
+            libraryExportOptions ?? new LibraryExportOptions());
         var operations = new GameApplicationService(factory, resetTracker ?? new FakeOwnedGamesCacheResetTracker(),
             stats, recentPickService ?? new TestRecentPickService(), missionControl, visitorIds, options, NullLogger<GameApplicationService>.Instance);
         var controller = new GameController(
@@ -1084,9 +1154,8 @@ public class GameControllerTests
             libraryExportCooldownTracker ?? new FakeLibraryExportCooldownTracker(),
             options,
             NullLogger<GameController>.Instance,
-            Microsoft.Extensions.Options.Options.Create(new LibraryExportOptions()),
-            new GlobalLibraryExportCooldownTracker(
-                Microsoft.Extensions.Options.Options.Create(new LibraryExportOptions()), TimeProvider.System));
+            exportOptions,
+            globalExportCooldown ?? new GlobalLibraryExportCooldownTracker(exportOptions, TimeProvider.System));
 
         controller.ControllerContext = new ControllerContext
         {
@@ -1177,6 +1246,7 @@ public class GameControllerTests
         public CancellationToken LastDeckCancellationToken { get; private set; }
         public Func<CancellationToken, Task<ErrorOr<OwnedGamesResponse>>>? LoadLibrary { get; init; }
         public Func<CancellationToken, Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>>? LoadDeck { get; init; }
+        public Action? OnPick { get; init; }
 
         public FakeGameProvider()
             : this(
@@ -1234,6 +1304,7 @@ public class GameControllerTests
         {
             LastPickCancellationToken = ct;
             GetRandomGameDetailsCallCount++;
+            OnPick?.Invoke();
             if (_randomGameResult.IsError)
             {
                 return Task.FromResult(RandomGamePickAttempt.Failure(

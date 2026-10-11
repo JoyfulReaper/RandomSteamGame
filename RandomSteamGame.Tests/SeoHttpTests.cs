@@ -449,11 +449,15 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
             .ToArray();
 
         Assert.Contains(
-            "Steam library CSV export",
+            "Steam library CSV export for Excel and other spreadsheet apps",
             featureList);
 
         Assert.Contains(
             "Steam Deck compatibility included in library exports",
+            featureList);
+
+        Assert.Contains(
+            "Random Steam game selection over the Finger protocol",
             featureList);
     }
 
@@ -476,6 +480,35 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         Assert.Contains("How it works", document.Body?.TextContent, StringComparison.Ordinal);
         Assert.Contains("Frequently asked questions", document.Body?.TextContent, StringComparison.Ordinal);
         Assert.NotNull(document.QuerySelector("a[href='/library-export']"));
+    }
+
+    [Fact]
+    public async Task Home_AdvertisesFingerAndSpreadsheetExportInInitialHtml()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        using var response = await _client.GetAsync("/", cancellationToken);
+        var document = await ParseHtmlAsync(response, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var fingerCard = Assert.IsAssignableFrom<IElement>(
+            document.QuerySelector(".home-finger-card"));
+        Assert.Contains("Pick a random Steam game over Finger", fingerCard.TextContent, StringComparison.Ordinal);
+        Assert.Contains("17-digit Steam ID", fingerCard.TextContent, StringComparison.Ordinal);
+        Assert.Contains("vanity URLs are not supported", fingerCard.TextContent, StringComparison.Ordinal);
+        Assert.Equal(
+            "finger <steamId>@finger.kgivler.com",
+            fingerCard.QuerySelector("code")?.TextContent.Trim());
+
+        var exportCard = Assert.IsAssignableFrom<IElement>(
+            document.QuerySelector(".home-library-export-card"));
+        Assert.Contains("CSV for Excel or another", exportCard.TextContent, StringComparison.Ordinal);
+
+        Assert.Contains("LibreOffice Calc", document.Body?.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Google Sheets", document.Body?.TextContent, StringComparison.Ordinal);
+
+        var description = GetAttribute(document, "meta[name='description']", "content");
+        Assert.Contains("export your Steam library to CSV for Excel", description, StringComparison.Ordinal);
     }
 
     [Fact]

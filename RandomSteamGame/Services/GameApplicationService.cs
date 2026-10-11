@@ -36,6 +36,8 @@ public sealed class GameApplicationService(
 
     public async Task<ErrorOr<OwnedGamesResponse>> GetLibrary(string provider, long steamId, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (!TryGetProvider(provider, out var service))
         {
             return Errors.Steam.UnsupportedProvider(provider);
@@ -47,11 +49,14 @@ public sealed class GameApplicationService(
         }
 
         var result = await service.GetOwnedGamesAsync(steamId, ct);
+        ct.ThrowIfCancellationRequested();
         return result;
     }
 
     public async Task<ErrorOr<LibraryRefreshResult>> RefreshLibraryAsync(string provider, long userId, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (!TryGetProvider(provider, out var service))
         {
             return Errors.Steam.UnsupportedProvider(provider);
@@ -62,6 +67,7 @@ public sealed class GameApplicationService(
         }
         var nextAvailableAt = await _ownedGamesCacheResetTracker.RefreshAsync(
             userId, token => service.InvalidateOwnedGamesCacheAsync(userId, token), ct);
+        ct.ThrowIfCancellationRequested();
         return new LibraryRefreshResult(nextAvailableAt);
     }
 
@@ -74,6 +80,8 @@ public sealed class GameApplicationService(
         IReadOnlyCollection<int>? excludedGameIds = null,
         CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         var occurredAt = DateTimeOffset.UtcNow;
         var correlationId = Guid.NewGuid().ToString("N");
         var stopwatch = Stopwatch.StartNew();
@@ -92,6 +100,7 @@ public sealed class GameApplicationService(
                 correlationId,
                 identifierResolutionMilliseconds: 0);
 
+            ct.ThrowIfCancellationRequested();
             return Errors.Steam.UnsupportedProvider(provider);
         }
 
@@ -110,11 +119,13 @@ public sealed class GameApplicationService(
                 correlationId,
                 identifierResolutionMilliseconds: 0);
 
+            ct.ThrowIfCancellationRequested();
             return identifierValidation.Value;
         }
 
         var identifierStopwatch = Stopwatch.StartNew();
         var targetId = await ResolveIdentifier(service, userId, vanityUrl, ct);
+        ct.ThrowIfCancellationRequested();
         identifierStopwatch.Stop();
         if (targetId.IsError)
         {
@@ -130,11 +141,13 @@ public sealed class GameApplicationService(
                 correlationId,
                 identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
 
+            ct.ThrowIfCancellationRequested();
             return targetId.Errors;
         }
 
         var result = await service.GetRandomGamePickAsync(
             targetId.Value, unplayedOnly, excludedGameIds ?? requestContext.ExcludedGameIds, ct);
+        ct.ThrowIfCancellationRequested();
         if (!result.Succeeded)
         {
             await PublishGamePickEventAsync(
@@ -149,10 +162,13 @@ public sealed class GameApplicationService(
                 correlationId,
                 identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
 
+            ct.ThrowIfCancellationRequested();
             return result.Errors.ToList();
         }
 
+        ct.ThrowIfCancellationRequested();
         await TrackRandomGameGeneratedAsync();
+        ct.ThrowIfCancellationRequested();
 
         await PublishGamePickEventAsync(
             requestContext,
@@ -165,20 +181,23 @@ public sealed class GameApplicationService(
             occurredAt,
             correlationId,
             identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
+        ct.ThrowIfCancellationRequested();
 
-        if (!ct.IsCancellationRequested)
+        try
         {
-            try
-            {
-                await recentPickService.RecordAsync(
-                    new RecentPick(result.Game!.Id, result.Game.Name, DateTimeOffset.UtcNow), ct);
-            }
-            catch (Exception exception)
-            {
-                _logger.LogWarning(exception, "Failed to record recent game pick.");
-            }
+            await recentPickService.RecordAsync(
+                new RecentPick(result.Game!.Id, result.Game.Name, DateTimeOffset.UtcNow), ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Failed to record recent game pick.");
         }
 
+        ct.ThrowIfCancellationRequested();
         return result.Game!;
     }
 
@@ -245,6 +264,8 @@ public sealed class GameApplicationService(
 
     public async Task<ErrorOr<long>> ResolveVanityAsync(string provider, string vanityUrl, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (!TryGetProvider(provider, out var service))
         {
             return Errors.Steam.UnsupportedProvider(provider);
@@ -256,6 +277,7 @@ public sealed class GameApplicationService(
         }
 
         var result = await service.ResolveIdentifierAsync(vanityUrl, ct);
+        ct.ThrowIfCancellationRequested();
         return result;
     }
 

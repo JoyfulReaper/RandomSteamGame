@@ -95,6 +95,9 @@ public class GameController : ApiController
         string provider,
         long steamId)
     {
+        var ct = HttpContext.RequestAborted;
+        ct.ThrowIfCancellationRequested();
+
         Response.Headers["Cache-Control"] = "private, no-store";
         Response.Headers["CDN-Cache-Control"] = "no-store";
 
@@ -119,6 +122,7 @@ public class GameController : ApiController
 
         if (retryAfter is not null)
         {
+            ct.ThrowIfCancellationRequested();
             var retryAfterSeconds = Math.Max(1, (long)Math.Ceiling(retryAfter.Value.TotalSeconds));
             Response.Headers.RetryAfter = retryAfterSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
@@ -143,8 +147,6 @@ public class GameController : ApiController
 
         var stopwatch = Stopwatch.StartNew();
 
-        var ct = HttpContext.RequestAborted;
-        ct.ThrowIfCancellationRequested();
         var result = await service.GetOwnedGamesAsync(steamId, ct);
         ct.ThrowIfCancellationRequested();
         if (result.IsError)
@@ -173,6 +175,7 @@ public class GameController : ApiController
         {
             _libraryExportCooldownTracker.MarkSucceeded(partitionKey);
         }
+        ct.ThrowIfCancellationRequested();
 
         var verifiedCount = 0;
         var playableCount = 0;
@@ -218,6 +221,7 @@ public class GameController : ApiController
             unknownCount,
             occurredAt,
             correlationId);
+        ct.ThrowIfCancellationRequested();
 
         return File(
             csvBytes,

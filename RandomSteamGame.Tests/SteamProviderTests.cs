@@ -110,6 +110,42 @@ public class SteamProviderTests
     }
 
     [Fact]
+    public async Task DeckCompatibility_CallerCancellationPropagates()
+    {
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var steam = new StubSteamClient
+        {
+            LoadDeckCompatibility = ct =>
+            {
+                Assert.Equal(caller.Token, ct);
+                caller.Cancel();
+                return Task.FromCanceled<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>(ct);
+            }
+        };
+        var provider = CreateProvider(
+            new StubStoreClient((_, _) => throw new InvalidOperationException()), steam: steam);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            provider.GetSteamDeckCompatibilityAsync([400], caller.Token));
+    }
+
+    [Fact]
+    public async Task DeckCompatibility_UpstreamTimeoutRemainsControlledFallback()
+    {
+        var steam = new StubSteamClient
+        {
+            LoadDeckCompatibility = _ =>
+                Task.FromException<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>(
+                    new TaskCanceledException("Upstream timeout."))
+        };
+        var provider = CreateProvider(
+            new StubStoreClient((_, _) => throw new InvalidOperationException()), steam: steam);
+
+        Assert.Empty(await provider.GetSteamDeckCompatibilityAsync(
+            [400], TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task StoreUnavailableCandidate_TriesAnotherCandidateSuccessfully()
     {
         var calls = 0;
@@ -303,6 +339,10 @@ public class SteamProviderTests
         public Func<CancellationToken, Task<long>> ResolveVanity { get; init; } =
             _ => Task.FromResult(SteamId);
         public Func<CancellationToken, Task> Invalidate { get; init; } = _ => Task.CompletedTask;
+        public Func<CancellationToken, Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>>
+            LoadDeckCompatibility { get; init; } = _ =>
+                Task.FromResult<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>(
+                    new Dictionary<int, SteamDeckCompatibilityCategory>());
 
         public Task<OwnedGames> GetOwnedGames(long steamId, bool includeAppInfo = true,
             bool includePlayedFreeGames = true, CancellationToken ct = default) => LoadOwnedLibrary(ct);
@@ -310,8 +350,7 @@ public class SteamProviderTests
             bool includePlayedFreeGames = true, CancellationToken ct = default) => LoadLibrary(ct);
         public Task<long> GetSteamIdFromVanityUrl(string vanityUrl, CancellationToken ct = default) => ResolveVanity(ct);
         public Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>> GetSteamDeckCompatibilityAsync(
-            IEnumerable<int> appIds, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>(new Dictionary<int, SteamDeckCompatibilityCategory>());
+            IEnumerable<int> appIds, CancellationToken ct = default) => LoadDeckCompatibility(ct);
         public Task InvalidateOwnedGamesCacheAsync(long steamId, CancellationToken ct = default) => Invalidate(ct);
     }
 

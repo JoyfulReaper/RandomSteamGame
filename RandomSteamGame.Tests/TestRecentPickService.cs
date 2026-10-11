@@ -8,12 +8,14 @@ internal sealed class TestRecentPickService : IRecentPickService
     public List<RecentPick> Picks { get; } = [];
     public Exception? RecordFailure { get; init; }
     public Exception? LoadFailure { get; init; }
+    public Action? OnRecord { get; init; }
     public int RecordCalls { get; private set; }
     public int? RequestedCount { get; private set; }
 
     public Task RecordAsync(RecentPick pick, CancellationToken ct = default)
     {
         RecordCalls++;
+        OnRecord?.Invoke();
         if (RecordFailure is not null)
         {
             return Task.FromException(RecordFailure);

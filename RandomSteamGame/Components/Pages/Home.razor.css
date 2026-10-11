@@ -89,6 +89,45 @@
     padding: 1.4rem;
 }
 
+.home-finger-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
+}
+
+.home-finger-copy {
+    flex: 1 1 22rem;
+}
+
+.home-finger-command-wrap {
+    flex: 1 1 20rem;
+    min-width: 0;
+}
+
+.home-finger-command-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #94a3b8;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.home-finger-command {
+    display: block;
+    max-width: 100%;
+    padding: 0.75rem 0.9rem;
+    overflow-x: auto;
+    border: 1px solid rgba(192, 132, 252, 0.24);
+    border-radius: 0.7rem;
+    background: rgba(88, 28, 135, 0.16);
+    color: #e9d5ff;
+    white-space: nowrap;
+}
+
 .home-recent-picks h2 {
     color: #f8fafc;
 }

@@ -22,6 +22,7 @@ public sealed class CacheMissCoalescingTests
     private const string VanitySuccess = "{\"response\":{\"success\":1,\"steamid\":\"76561197960287930\"}}";
     private const string VanityNotFound = "{\"response\":{\"success\":42}}";
     private const string StoreSuccess = "{\"400\":{\"success\":true,\"data\":{\"name\":\"Portal\",\"steam_appid\":400}}}";
+    private const string OwnedGamesSuccess = "{\"response\":{\"game_count\":1,\"games\":[{\"appid\":400,\"name\":\"Portal\",\"playtime_forever\":60}]}}";
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Theory]
@@ -178,6 +179,45 @@ public sealed class CacheMissCoalescingTests
         Assert.Equal(1, handler.CallCount);
         Assert.NotNull(await fixture.LookupAsync(store, "example_name", 400, Ct));
         Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task OwnedGames_CancelingOneWaiterPreservesSharedFillForAnotherCaller()
+    {
+        using var handler = new GatedHandler((_, _) => Json(OwnedGamesSuccess));
+        using var fixture = new Clients(handler);
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var canceled = fixture.Vanity.GetOwnedGames(SteamId, ct: caller.Token);
+        await handler.NextRequestAsync();
+        var live = fixture.OtherVanity.GetOwnedGames(SteamId, ct: Ct);
+
+        caller.Cancel();
+
+        var cancellation = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            canceled.WaitAsync(TimeSpan.FromSeconds(10), Ct));
+        Assert.Equal(caller.Token, cancellation.CancellationToken);
+        Assert.False(handler.Canceled.Task.IsCompleted);
+        handler.Release();
+        Assert.Equal(400, Assert.Single((await live).Games).AppId);
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task OwnedGames_CancelingOnlyWaiterCancelsUpstreamAndDoesNotCacheResult()
+    {
+        using var handler = new GatedHandler((_, _) => Json(OwnedGamesSuccess));
+        using var fixture = new Clients(handler);
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var request = fixture.Vanity.GetOwnedGames(SteamId, ct: caller.Token);
+        await handler.NextRequestAsync();
+
+        caller.Cancel();
+
+        var cancellation = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            request.WaitAsync(TimeSpan.FromSeconds(10), Ct));
+        Assert.Equal(caller.Token, cancellation.CancellationToken);
+        await handler.Canceled.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+        Assert.Empty(fixture.Entries);
     }
 
     [Theory]
@@ -373,6 +413,7 @@ public sealed class CacheMissCoalescingTests
                 {
                     AppDetails = new() { AbsoluteMinutes = 60 },
                     AppDetailsNotFound = new() { AbsoluteMinutes = negativeMinutes },
+                    OwnedGames = new() { AbsoluteMinutes = 60 },
                     VanitySuccess = new() { AbsoluteMinutes = 120 },
                     VanityNotFound = new() { AbsoluteMinutes = 15 }
                 }
