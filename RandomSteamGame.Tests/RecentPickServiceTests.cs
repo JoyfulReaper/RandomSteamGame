@@ -17,7 +17,6 @@ public sealed class RecentPickServiceTests : IDisposable
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = _databasePath,
-            Cache = SqliteCacheMode.Shared,
             Pooling = false
         }.ToString();
         using var connection = OpenConnection();

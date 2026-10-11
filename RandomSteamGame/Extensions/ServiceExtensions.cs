@@ -120,6 +120,18 @@ public static class ServiceExtensions
         return services;
     }
 
+    internal static string UseDefaultSqliteCache(string connectionString)
+    {
+        var builder = new SqliteConnectionStringBuilder(connectionString)
+        {
+            // File-backed databases do not need shared cache for separate connections.
+            // Its table locks report SQLITE_LOCKED and bypass the normal busy timeout.
+            Cache = SqliteCacheMode.Default
+        };
+
+        return builder.ToString();
+    }
+
     private static IServiceCollection AddApplicationHealthChecks(this IServiceCollection services)
     {
         services.AddHealthChecks()
@@ -238,10 +250,12 @@ public static class ServiceExtensions
 
     private static IServiceCollection AddPersistenceServices(this IServiceCollection services, string connectionString)
     {
+        var recentPickConnectionString = UseDefaultSqliteCache(connectionString);
+
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<IAppStatsService, AppStatsService>();
-        services.AddScoped<IRecentPickService>(_ => new SqliteRecentPickService(connectionString));
+        services.AddScoped<IRecentPickService>(_ => new SqliteRecentPickService(recentPickConnectionString));
         services.AddScoped<ILibraryExportCooldownTracker, LibraryExportCooldownTracker>();
         services.AddScoped<ISteamLibraryExportService, SteamLibraryExportService>();
         services.AddScoped<SqliteConnection>(_ => new SqliteConnection(connectionString));
