@@ -25,6 +25,80 @@ namespace RandomSteamGame.Tests;
 public class GameControllerTests
 {
     [Fact]
+    public async Task GetRandomGameDetails_RecordsOnlyTheSuccessfulReturnedGame()
+    {
+        var history = new TestRecentPickService();
+        var game = new GameDetails { Id = 42, Name = "Portal", PlaytimeForever = 99 };
+        var controller = CreateController(new FakeGameProvider(randomGameResult: game),
+            remoteIpAddress: "192.0.2.42", recentPickService: history);
+        var before = DateTimeOffset.UtcNow;
+
+        var result = await controller.GetRandomGameDetails("steam", null, "some_vanity");
+
+        Assert.Same(game, Assert.IsType<OkObjectResult>(result).Value);
+        var pick = Assert.Single(history.Picks);
+        Assert.Equal(game.Id, pick.AppId);
+        Assert.Equal(game.Name, pick.GameName);
+        Assert.InRange(pick.PickedAtUtc, before, DateTimeOffset.UtcNow);
+        Assert.Equal(TimeSpan.Zero, pick.PickedAtUtc.Offset);
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_RecentPickFailurePreservesSuccessStatsAndTelemetry()
+    {
+        var history = new TestRecentPickService
+        {
+            RecordFailure = new Microsoft.Data.Sqlite.SqliteException("History unavailable", 10)
+        };
+        var stats = new FakeAppStatsService();
+        var telemetry = new RecordingMissionControlClient();
+        var controller = CreateController(appStatsService: stats, missionControlClient: telemetry, recentPickService: history);
+
+        var result = await controller.GetRandomGameDetails("steam", 76561197960287930L, null);
+
+        Assert.Equal(1, Assert.IsType<GameDetails>(Assert.IsType<OkObjectResult>(result).Value).Id);
+        Assert.Equal(1, history.RecordCalls);
+        Assert.Equal(1, stats.IncrementCallCount);
+        AssertGamePickEvent(telemetry, "steam", "served", true, 1, false, "Test");
+    }
+
+    [Theory]
+    [InlineData("unsupported")]
+    [InlineData("invalid")]
+    [InlineData("vanity")]
+    [InlineData("library")]
+    [InlineData("excluded")]
+    public async Task GetRandomGameDetails_FailedPicksAreNeverRecorded(string failure)
+    {
+        var history = new TestRecentPickService();
+        var provider = new FakeGameProvider(
+            randomGameResult: failure == "excluded" ? Errors.Steam.NoSelectableGamesAfterExclusions : Errors.Steam.SteamApiFailed,
+            resolveIdentifierResult: Errors.Steam.VanityResolutionFailed);
+        var controller = CreateController(provider, recentPickService: history);
+
+        var result = await controller.GetRandomGameDetails(
+            failure == "unsupported" ? "unknown" : "steam",
+            failure == "vanity" ? null : failure == "invalid" ? 1 : 76561197960287930L,
+            failure == "vanity" ? "some_vanity" : null);
+
+        Assert.IsNotType<OkObjectResult>(result);
+        Assert.Equal(0, history.RecordCalls);
+    }
+
+    [Fact]
+    public async Task GetRandomGameDetails_AlreadyCancelledRequestDoesNotRecordHistory()
+    {
+        var history = new TestRecentPickService();
+        var controller = CreateController(recentPickService: history);
+        // Model a provider that completes successfully despite request cancellation.
+        controller.HttpContext.RequestAborted = new CancellationToken(canceled: true);
+
+        await controller.GetRandomGameDetails("steam", 76561197960287930L, null);
+
+        Assert.Equal(0, history.RecordCalls);
+    }
+
+    [Fact]
     public async Task GetLibrary_PassesRequestCancellationToProvider()
     {
         using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
@@ -990,7 +1064,8 @@ public class GameControllerTests
         ApplicationOptions? applicationOptions = null,
         string? remoteIpAddress = null,
         ILibraryExportCooldownTracker? libraryExportCooldownTracker = null,
-        FakeOwnedGamesCacheResetTracker? resetTracker = null)
+        FakeOwnedGamesCacheResetTracker? resetTracker = null,
+        IRecentPickService? recentPickService = null)
     {
         var factory = new GameProviderFactory([provider ?? new FakeGameProvider()]);
         var stats = appStatsService ?? new FakeAppStatsService();
@@ -998,7 +1073,7 @@ public class GameControllerTests
         var visitorIds = new StubVisitorIdProvider();
         var options = Microsoft.Extensions.Options.Options.Create(applicationOptions ?? new ApplicationOptions());
         var operations = new GameApplicationService(factory, resetTracker ?? new FakeOwnedGamesCacheResetTracker(),
-            stats, missionControl, visitorIds, options, NullLogger<GameApplicationService>.Instance);
+            stats, recentPickService ?? new TestRecentPickService(), missionControl, visitorIds, options, NullLogger<GameApplicationService>.Instance);
         var controller = new GameController(
             factory,
             operations,

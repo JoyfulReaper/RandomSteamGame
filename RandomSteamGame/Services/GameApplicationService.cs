@@ -18,6 +18,7 @@ public sealed class GameApplicationService(
     GameProviderFactory factory,
     IOwnedGamesCacheResetTracker ownedGamesCacheResetTracker,
     IAppStatsService appStatsService,
+    IRecentPickService recentPickService,
     IMissionControlClient missionControlClient,
     IVisitorIdProvider visitorIdProvider,
     IOptions<ApplicationOptions> applicationOptions,
@@ -164,6 +165,19 @@ public sealed class GameApplicationService(
             occurredAt,
             correlationId,
             identifierResolutionMilliseconds: identifierStopwatch.ElapsedMilliseconds);
+
+        if (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await recentPickService.RecordAsync(
+                    new RecentPick(result.Game!.Id, result.Game.Name, DateTimeOffset.UtcNow), ct);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(exception, "Failed to record recent game pick.");
+            }
+        }
 
         return result.Game!;
     }

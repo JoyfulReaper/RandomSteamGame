@@ -31,6 +31,42 @@ public class ServerBrowserExecutionTests
     private const long SteamId = 76561197960287930L;
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ServerPick_RecordsHistoryBestEffortAndHomeDoesNotFetchSteamData(bool failHistory)
+    {
+        using var root = new SeoWebApplicationFactory();
+        var steam = new StubSteamClient(20);
+        var store = new StubStoreClient();
+        var outgoing = new RejectOutgoingHttpHandler();
+        var history = new TestRecentPickService
+        {
+            RecordFailure = failHistory ? new Microsoft.Data.Sqlite.SqliteException("History unavailable", 10) : null
+        };
+        using var application = CreateApplication(root, steam, store, outgoing)
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.AddSingleton<IRecentPickService>(history)));
+        using var scope = application.Services.CreateScope();
+        var server = scope.ServiceProvider.GetRequiredService<IRandomSteamApiClient>();
+
+        var pick = await server.GetRandomGameDetailsAsync("steam", SteamId,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(pick.IsSuccess);
+        Assert.Equal(20, pick.Value!.Id);
+        Assert.Equal(1, history.RecordCalls);
+        Assert.Equal(failHistory ? 0 : 1, history.Picks.Count);
+        using var client = application.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var html = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(!failHistory, html.Contains("Recent Picks", StringComparison.Ordinal));
+        Assert.Equal(1, steam.LibraryCalls);
+        Assert.Equal(20, Assert.Single(store.RequestedAppIds));
+        Assert.Equal(0, outgoing.CallCount);
+    }
+
+    [Theory]
     [InlineData("library")]
     [InlineData("vanity")]
     [InlineData("random-vanity")]

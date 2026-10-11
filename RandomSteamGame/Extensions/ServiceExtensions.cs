@@ -54,7 +54,7 @@ public static class ServiceExtensions
             WHERE NOT EXISTS (SELECT 1 FROM AppStats WHERE Id = 1);
             """;
 
-        var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql);
+        var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql + SqliteRecentPickService.SchemaSql);
         EnsureAppStatsSchema(connectionString);
 
         services.AddOptions<LibraryExportOptions>()
@@ -241,6 +241,7 @@ public static class ServiceExtensions
         services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<IAppStatsService, AppStatsService>();
+        services.AddScoped<IRecentPickService>(_ => new SqliteRecentPickService(connectionString));
         services.AddScoped<ILibraryExportCooldownTracker, LibraryExportCooldownTracker>();
         services.AddScoped<ISteamLibraryExportService, SteamLibraryExportService>();
         services.AddScoped<SqliteConnection>(_ => new SqliteConnection(connectionString));

@@ -6,6 +6,7 @@
 @inject IOptions<ApplicationOptions> ApplicationSettings
 @inject IOptions<LibraryExportOptions> ExportSettings
 @inject IAppStatsService AppStatsService
+@inject IRecentPickService RecentPickService
 @inject IHttpContextAccessor HttpContextAccessor
 @inject ILogger<Home> Logger
 @inject CanonicalUrlService CanonicalUrls
@@ -68,6 +69,31 @@
 
                 <SteamPickerForm @rendermode="InteractiveAuto" />
             </div>
+
+            @if (_recentPicks.Count > 0)
+            {
+                <section class="home-info-card home-recent-picks mt-3" aria-labelledby="recent-picks-heading">
+                    <h2 id="recent-picks-heading" class="h5 mb-2">Recent Picks</h2>
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var pick in _recentPicks)
+                        {
+                            <li>
+                                <a href="https://store.steampowered.com/app/@(pick.AppId)/"
+                                   target="_blank" rel="noopener noreferrer" class="text-info">@pick.GameName</a>
+                                <div class="home-recent-pick-details">
+                                    <time datetime="@pick.PickedAtUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">
+                                        @pick.PickedAtUtc.ToString("MMM d, HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)
+                                    </time>
+                                    <a href="https://store.steampowered.com/app/@(pick.AppId)/"
+                                       target="_blank" rel="noopener noreferrer"
+                                       class="home-recent-pick-store-link text-info"
+                                       aria-label="View @pick.GameName on Steam">View on Steam</a>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </section>
+            }
 
             <div class="home-info-card mt-3 text-center">
                 <h2 class="h5 mb-2">Need your whole Steam library?</h2>
@@ -254,6 +280,7 @@
     private bool _betaAvailable;
     private bool _isBetaSite;
     private AppStatsResponse? _appStats;
+    private IReadOnlyList<RecentPick> _recentPicks = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -261,10 +288,24 @@
             HttpContextAccessor.HttpContext?.Request.Host.Host);
 
         await LoadAppStatsAsync();
+        await LoadRecentPicksAsync();
 
         if (ApplicationSettings.Value.BetaProbeEnabled && !_isBetaSite)
         {
             _betaAvailable = await BetaAvailabilityService.IsBetaAvailableAsync();
+        }
+    }
+
+    private async Task LoadRecentPicksAsync()
+    {
+        try
+        {
+            _recentPicks = await RecentPickService.GetRecentAsync(5);
+        }
+        catch (Exception exception)
+        {
+            _recentPicks = [];
+            Logger.LogWarning(exception, "Failed to load recent picks for homepage.");
         }
     }
 

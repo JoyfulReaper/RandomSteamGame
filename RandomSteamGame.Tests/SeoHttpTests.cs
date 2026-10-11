@@ -777,6 +777,84 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         }
     }
 
+    [Fact]
+    public async Task Home_RecentPicksRequestsFiveAndRendersEncodedNamesAndSafeStoreLinks()
+    {
+        var history = new TestRecentPickService();
+        for (var index = 1; index <= 6; index++)
+        {
+            history.Picks.Add(new RecentPick(index, $"Game {index} <script>alert('test')</script>",
+                new DateTimeOffset(2026, 10, 10, 12, index, 0, TimeSpan.Zero)));
+        }
+        using var factory = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.AddSingleton<IRecentPickService>(history)));
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(5, history.RequestedCount);
+        var section = Assert.IsAssignableFrom<IElement>(document.QuerySelector(".home-recent-picks"));
+        Assert.Equal("Recent Picks", section.QuerySelector("h2")?.TextContent);
+        Assert.Empty(section.QuerySelectorAll("script"));
+        var rows = section.QuerySelectorAll("li");
+        Assert.Equal(5, rows.Length);
+        for (var index = 0; index < rows.Length; index++)
+        {
+            var links = rows[index].QuerySelectorAll("a");
+            Assert.Equal(2, links.Length);
+            Assert.Equal(history.Picks[index].GameName, links[0].TextContent);
+            Assert.Equal("View on Steam", links[1].TextContent);
+            Assert.Equal($"View {history.Picks[index].GameName} on Steam", links[1].GetAttribute("aria-label"));
+            foreach (var link in links)
+            {
+                Assert.Equal($"https://store.steampowered.com/app/{index + 1}/", link.GetAttribute("href"));
+                Assert.Equal("_blank", link.GetAttribute("target"));
+                Assert.Equal("noopener noreferrer", link.GetAttribute("rel"));
+            }
+            var time = Assert.Single(rows[index].QuerySelectorAll("time"));
+            Assert.Equal(history.Picks[index].PickedAtUtc, DateTimeOffset.Parse(time.GetAttribute("datetime")!));
+            Assert.Contains("UTC", time.TextContent);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Home_EmptyOrFailedRecentPicksAreOmittedWithoutGatingPage(bool fail)
+    {
+        var failure = new SqliteException("Test history failure", 10);
+        var history = new TestRecentPickService { LoadFailure = fail ? failure : null };
+        var logger = new HomeTestLogger();
+        using var factory = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<IRecentPickService>(history);
+            services.AddSingleton<ILogger<Home>>(logger);
+        }));
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/", TestContext.Current.CancellationToken);
+        var document = await ParseHtmlAsync(response, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(5, history.RequestedCount);
+        Assert.Null(document.QuerySelector(".home-recent-picks"));
+        Assert.DoesNotContain("Recent Picks", document.Body?.TextContent);
+        Assert.NotNull(document.QuerySelector(".picker-form-loading"));
+        Assert.Equal(HomeTitle, document.Title);
+        Assert.Contains("How it works", document.Body?.TextContent);
+        if (fail)
+        {
+            var entry = Assert.Single(logger.Entries);
+            Assert.Equal(LogLevel.Warning, entry.Level);
+            Assert.Same(failure, entry.Exception);
+            Assert.Contains("recent picks", entry.Message);
+        }
+        else
+        {
+            Assert.Empty(logger.Entries);
+        }
+    }
+
     private sealed class ClearPeerStartupFilter : IStartupFilter
     {
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>

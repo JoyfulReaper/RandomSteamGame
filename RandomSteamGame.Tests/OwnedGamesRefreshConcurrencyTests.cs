@@ -214,7 +214,7 @@ public sealed class OwnedGamesRefreshConcurrencyTests
             services.AddSingleton<OwnedGamesRefreshAdmissionCoordinator>();
             services.AddScoped<IOwnedGamesCacheResetTracker, OwnedGamesCacheResetTracker>();
             services.AddScoped(provider => new GameApplicationService(new GameProviderFactory([Provider]),
-                provider.GetRequiredService<IOwnedGamesCacheResetTracker>(), null!, null!, null!,
+                provider.GetRequiredService<IOwnedGamesCacheResetTracker>(), null!, new TestRecentPickService(), null!, null!,
                 Microsoft.Extensions.Options.Options.Create(new ApplicationOptions()), NullLogger<GameApplicationService>.Instance));
             Services = services.BuildServiceProvider();
         }
