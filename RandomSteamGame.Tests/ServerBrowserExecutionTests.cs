@@ -1,4 +1,5 @@
 using JoyfulReaperLib.MissionControl;
+using AngleSharp.Html.Parser;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -138,6 +139,14 @@ public class ServerBrowserExecutionTests
         Assert.Equal(1, steam.LibraryCalls);
         Assert.Equal(0, outgoing.CallCount);
         Assert.Single(telemetry.Picks);
+        var document = new HtmlParser().ParseDocument(html);
+        var storeLink = Assert.IsAssignableFrom<AngleSharp.Dom.IElement>(
+            document.QuerySelector("a.steam-store-button"));
+        Assert.Equal("View on Steam", storeLink.TextContent.Trim());
+        Assert.Equal("https://store.steampowered.com/app/20/", storeLink.GetAttribute("href"));
+        Assert.Equal("_blank", storeLink.GetAttribute("target"));
+        Assert.Equal("noopener noreferrer", storeLink.GetAttribute("rel"));
+        Assert.Equal("steam://run/20/", document.QuerySelector("a.run-game-button")?.GetAttribute("href"));
         // Persisted prerender data remains available for InteractiveAuto hydration.
         Assert.Contains("Blazor-WebAssembly-Component-State:", html);
     }
