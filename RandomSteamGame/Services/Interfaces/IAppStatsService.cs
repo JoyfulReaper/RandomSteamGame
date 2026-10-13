@@ -5,6 +5,7 @@
  * Licensed under the MIT License.
  */
 
+using JoyfulReaperLib.JRNet;
 using RandomSteamGame.Shared.Contracts;
 
 namespace RandomSteamGame.Services.Interfaces;

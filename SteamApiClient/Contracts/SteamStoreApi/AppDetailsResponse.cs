@@ -48,7 +48,6 @@ public record AppData(
     [property: JsonPropertyName("price_overview")] PriceOverview? PriceOverview,
     [property: JsonPropertyName("packages")] int[]? Packages,
 
-    [property: JsonConverter(typeof(SteamObjectOrEmptyArrayConverter<List<PackageGroups>>))]
     [property: JsonPropertyName("package_groups")] List<PackageGroups>? PackageGroups,
 
     [property: JsonPropertyName("platforms")] Platforms? Platforms,
@@ -109,7 +108,7 @@ public record PackageGroups(
 );
 
 public record Sub(
-    int PackageId,
+    [property: JsonPropertyName("packageid")] int PackageId,
     [property: JsonPropertyName("percent_savings_text")] string? PercentSavingsText,
     [property: JsonPropertyName("percent_savings")] int PercentSavings,
     [property: JsonPropertyName("option_text")] string? OptionText,

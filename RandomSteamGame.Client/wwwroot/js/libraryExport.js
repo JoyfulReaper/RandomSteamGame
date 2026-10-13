@@ -1,7 +1,21 @@
 ﻿export async function download(url, fileName) {
-    const response = await fetch(url, {
+    const tokenResponse = await fetch("/api/antiforgery/token", {
+        mode: "same-origin",
         credentials: "same-origin",
         cache: "no-store"
+    });
+
+    if (!tokenResponse.ok) {
+        return "Unable to prepare library export. Please reload the page and try again.";
+    }
+
+    const { requestToken, headerName } = await tokenResponse.json();
+    const response = await fetch(url, {
+        method: "POST",
+        mode: "same-origin",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { [headerName]: requestToken }
     });
 
     if (!response.ok) {

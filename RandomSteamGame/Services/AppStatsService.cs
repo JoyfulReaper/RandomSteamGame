@@ -6,6 +6,7 @@
  */
 
 using JoyfulReaperLib.MissionControl;
+using JoyfulReaperLib.JRNet;
 using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.Data.Sqlite;
 using RandomSteamGame.Events;

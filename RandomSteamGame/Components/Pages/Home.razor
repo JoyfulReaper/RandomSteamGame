@@ -1,7 +1,12 @@
 @page "/"
 
 @inject IBetaAvailabilityService BetaAvailabilityService
+@using Microsoft.Extensions.Options
+@using RandomSteamGame.Options
+@inject IOptions<ApplicationOptions> ApplicationSettings
+@inject IOptions<LibraryExportOptions> ExportSettings
 @inject IAppStatsService AppStatsService
+@inject IRecentPickService RecentPickService
 @inject IHttpContextAccessor HttpContextAccessor
 @inject ILogger<Home> Logger
 @inject CanonicalUrlService CanonicalUrls
@@ -19,7 +24,7 @@
 <div class="container mt-5 home-shell">
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
-            @if (_isBetaSite)
+            @if (ShowPublicBetaLinks && _isBetaSite)
             {
                 <div class="home-beta-note-wrap mb-4">
                     <div class="home-beta-note" role="note">
@@ -35,7 +40,7 @@
                     </div>
                 </div>
             }
-            else if (_betaAvailable)
+            else if (ShowPublicBetaLinks && _betaAvailable)
             {
                 <div class="home-beta-banner-wrap mb-4">
                     <div class="home-beta-banner">
@@ -65,13 +70,38 @@
                 <SteamPickerForm @rendermode="InteractiveAuto" />
             </div>
 
-            <div class="home-info-card mt-3 text-center">
+            @if (_recentPicks.Count > 0)
+            {
+                <section class="home-info-card home-recent-picks mt-3" aria-labelledby="recent-picks-heading">
+                    <h2 id="recent-picks-heading" class="h5 mb-2">Recent Picks</h2>
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var pick in _recentPicks)
+                        {
+                            <li>
+                                <a href="https://store.steampowered.com/app/@(pick.AppId)/"
+                                   target="_blank" rel="noopener noreferrer" class="text-info">@pick.GameName</a>
+                                <div class="home-recent-pick-details">
+                                    <time datetime="@pick.PickedAtUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture)">
+                                        @pick.PickedAtUtc.ToString("MMM d, HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture)
+                                    </time>
+                                    <a href="https://store.steampowered.com/app/@(pick.AppId)/"
+                                       target="_blank" rel="noopener noreferrer"
+                                       class="home-recent-pick-store-link text-info"
+                                       aria-label="View @pick.GameName on Steam">View on Steam</a>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </section>
+            }
+
+            <div class="home-info-card home-library-export-card mt-3 text-center">
                 <h2 class="h5 mb-2">Need your whole Steam library?</h2>
 
                 <p class="small mb-3">
-                    Export your public Steam library to CSV with game names,
-                    App IDs, playtime, last-played dates, and Steam Deck
-                    compatibility.
+                    Export your public Steam library to CSV for Excel or another
+                    spreadsheet app. The file includes game names, App IDs,
+                    playtime, last-played dates, and Steam Deck compatibility.
                 </p>
 
                 <a href="/library-export"
@@ -132,12 +162,28 @@
                         <li><strong>Browser-based exclusions:</strong> block an unwanted game from future picks in this browser, then reset the list whenever you want.</li>
                         <li><strong>Fresh library data:</strong> refresh the cached Steam game list after buying new games if your picks look out of date.</li>
                         <li><strong>Launch through Steam:</strong> open the selected game directly in the Steam client.</li>
-                        <li><strong>Steam library CSV export:</strong> download your public library with game names, App IDs, playtime, last-played dates, and Steam Deck compatibility.
+                        <li><strong>Steam library CSV export:</strong> download your public library as a spreadsheet-ready CSV for Excel, LibreOffice Calc, Google Sheets, or another spreadsheet tool.
                         </li>
                     </ul>
                 </div>
             </div>
         </div>
+
+        <section class="home-info-card home-finger-card mt-4" aria-labelledby="finger-heading">
+            <div class="home-finger-copy">
+                <p class="home-eyebrow mb-2">Old-school interface</p>
+                <h2 id="finger-heading">Pick a random Steam game over Finger</h2>
+                <p class="mb-0">
+                    Use the Finger protocol as a fun alternative for choosing a game
+                    from a public Steam library. It expects a 17-digit Steam ID;
+                    vanity URLs are not supported.
+                </p>
+            </div>
+            <div class="home-finger-command-wrap">
+                <span class="home-finger-command-label">Command</span>
+                <code class="home-finger-command">finger &lt;steamId&gt;&#64;finger.kgivler.com</code>
+            </div>
+        </section>
 
         <div class="home-faq mt-4 mb-4" aria-labelledby="faq-heading">
             <h2 id="faq-heading">Frequently asked questions</h2>
@@ -187,10 +233,19 @@
                     <div class="home-faq-item h-100">
                         <h3>Can I export my Steam library?</h3>
                         <p>
-                            Yes. You can export your public Steam library as CSV with game
-                            names, App IDs, playtime, last-played dates, and Steam Deck
-                            compatibility. Exports are limited to one per IP address every
-                            72 hours.
+                            Yes. Export your public Steam library as CSV, then open it in
+                            Excel, LibreOffice Calc, Google Sheets, or another spreadsheet
+                            app. It includes game names, App IDs, playtime, last-played
+                            dates, and Steam Deck compatibility.
+                            @if (ExportSettings.Value.RateLimitMode == LibraryExportRateLimitMode.Global)
+                            {
+                                @ExportSettings.Value.RateLimitDescription
+                            }
+                            else
+                            {
+                                <text>Exports are limited to one per IP address every
+                                72 hours.</text>
+                            }
                         </p>
                     </div>
                 </div>
@@ -211,9 +266,11 @@
 
 @code {
     private const string Title = "Random Steam Game Picker – Pick From Your Library";
-    private const string Description = "Paste your Steam ID or vanity URL to pick a random game from your public Steam library, filter to unplayed games, and choose again in seconds.";
+    private const string Description = "Pick a random game from your public Steam library, filter to unplayed games, or export your Steam library to CSV for Excel and other spreadsheet apps.";
 
     private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl();
+    private bool ShowPublicBetaLinks =>
+        ApplicationSettings.Value.NetworkMode == NetworkMode.Public && ApplicationSettings.Value.BetaProbeEnabled;
     private string StructuredDataJson => System.Text.Json.JsonSerializer.Serialize(
         new Dictionary<string, object>
         {
@@ -230,8 +287,9 @@
                     "Random game selection from a public Steam library",
                     "Unplayed-only game filtering",
                     "Browser-based game exclusions",
-                    "Steam library CSV export",
-                    "Steam Deck compatibility included in library exports"
+                    "Steam library CSV export for Excel and other spreadsheet apps",
+                    "Steam Deck compatibility included in library exports",
+                    "Random Steam game selection over the Finger protocol"
                 }
         });
     private string StructuredDataScript =>
@@ -240,6 +298,7 @@
     private bool _betaAvailable;
     private bool _isBetaSite;
     private AppStatsResponse? _appStats;
+    private IReadOnlyList<RecentPick> _recentPicks = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -247,10 +306,24 @@
             HttpContextAccessor.HttpContext?.Request.Host.Host);
 
         await LoadAppStatsAsync();
+        await LoadRecentPicksAsync();
 
-        if (!_isBetaSite)
+        if (ApplicationSettings.Value.BetaProbeEnabled && !_isBetaSite)
         {
             _betaAvailable = await BetaAvailabilityService.IsBetaAvailableAsync();
+        }
+    }
+
+    private async Task LoadRecentPicksAsync()
+    {
+        try
+        {
+            _recentPicks = await RecentPickService.GetRecentAsync(5);
+        }
+        catch (Exception exception)
+        {
+            _recentPicks = [];
+            Logger.LogWarning(exception, "Failed to load recent picks for homepage.");
         }
     }
 
@@ -261,10 +334,21 @@
 
         var userAgent = httpContext?.Request.Headers["User-Agent"].ToString();
 
-        var ingressNetwork = IngressNetworkClassifier.FromHost(httpContext?.Request.Host.Host);
+        var ingressNetwork = RandomSteamIngressNetwork.FromHost(httpContext?.Request.Host.Host);
 
-        _appStats = string.IsNullOrWhiteSpace(ip)
-            ? await AppStatsService.GetStatsAsync()
-            : await AppStatsService.RecordHitAsync(ip, userAgent, ingressNetwork);
+        var recordHit = !string.IsNullOrWhiteSpace(ip);
+        try
+        {
+            _appStats = recordHit
+                ? await AppStatsService.RecordHitAsync(ip!, userAgent, ingressNetwork)
+                : await AppStatsService.GetStatsAsync();
+        }
+        catch (Exception exception)
+        {
+            _appStats = null;
+            Logger.LogWarning(exception,
+                "Failed to load homepage statistics during {StatsOperation}.",
+                recordHit ? "hit recording" : "stats retrieval");
+        }
     }
 }

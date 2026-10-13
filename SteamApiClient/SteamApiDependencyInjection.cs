@@ -9,6 +9,7 @@ using JoyfulReaperLib.Caching.Sqlite;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
@@ -21,15 +22,20 @@ public static class SteamApiDependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Cache Provider
-        var steamOptions = configuration.GetSection("Steam").Get<SteamClientApiOptions>()
-                           ?? throw new InvalidOperationException("Steam configuration is missing.");
+        var steamSection = configuration.GetSection("Steam");
+        services.AddSingleton<IValidateOptions<SteamClientApiOptions>>(new SteamClientApiOptionsValidator(steamSection));
+        services.AddOptions<SteamClientApiOptions>()
+            .Bind(steamSection)
+            .ValidateOnStart();
 
+        // Cache Provider: consume the same validated options as the HTTP clients.
         services.AddJoyfulReaperSqliteDistributedCache(options =>
         {
-            options.ConnectionString = steamOptions.ConnectionString;
             options.BasePath = Path.Combine(AppContext.BaseDirectory, "Data");
         });
+        services.AddOptions<SqliteDistributedCacheOptions>()
+            .Configure<IOptions<SteamClientApiOptions>>((options, steam) =>
+                options.ConnectionString = steam.Value.ConnectionString);
 
         // Add hybrid cache (L1 In-Memory + L2 Distributed)
         services.AddHybridCache(options =>
@@ -43,12 +49,6 @@ public static class SteamApiDependencyInjection
                 LocalCacheExpiration = TimeSpan.FromMinutes(30)
             };
         });
-
-        services.AddOptions<SteamClientApiOptions>()
-            .Bind(configuration.GetSection("Steam"))
-            .ValidateDataAnnotations()
-            .Validate(options => !string.IsNullOrEmpty(options.ApiKey), "Steam API Key is required")
-            .ValidateOnStart();
 
         services.AddHttpClient<ISteamStoreClient, SteamStoreClient>(client =>
         {

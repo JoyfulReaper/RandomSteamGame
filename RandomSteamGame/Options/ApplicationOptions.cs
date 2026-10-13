@@ -4,7 +4,26 @@ public sealed class ApplicationOptions
 {
     public const string SectionName = "Application";
 
-    public string CanonicalOrigin { get; set; } = "https://randomsteam.kgivler.com";
+    public NetworkMode NetworkMode { get; set; } = NetworkMode.Public;
+
+    public string? NetworkName { get; set; }
+
+    // Null uses the deployment mode's default; explicit values override it.
+    public bool? AllowRemoteBrowserAssets { get; set; }
+
+    public bool? EnableBetaProbe { get; set; }
+
+    public bool RemoteBrowserAssetsAllowed =>
+        AllowRemoteBrowserAssets ?? NetworkMode == NetworkMode.Public;
+
+    public bool BetaProbeEnabled =>
+        EnableBetaProbe ?? NetworkMode == NetworkMode.Public;
+
+    public string NetworkDisplayName =>
+        string.IsNullOrWhiteSpace(NetworkName) ? NetworkMode.ToString() : NetworkName.Trim();
+
+    // Public uses the existing production origin when unset; AltNet requires an explicit origin.
+    public string? CanonicalOrigin { get; set; }
 
     public string BetaHost { get; set; } = "randombeta.kgivler.com";
 

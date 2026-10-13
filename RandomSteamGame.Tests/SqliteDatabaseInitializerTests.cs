@@ -7,6 +7,7 @@
 
 using JoyfulReaperLib.Sqlite;
 using Microsoft.Data.Sqlite;
+using RandomSteamGame.Extensions;
 
 namespace RandomSteamGame.Tests;
 
@@ -32,10 +33,16 @@ public class SqliteDatabaseInitializerTests
 
         try
         {
-            var connectionString = SqliteDatabaseInitializer.Initialize(databaseFileName, schemaSql);
+            var initializedConnectionString = SqliteDatabaseInitializer.Initialize(databaseFileName, schemaSql);
+            var initializedBuilder = new SqliteConnectionStringBuilder(initializedConnectionString);
+            Assert.Equal(SqliteCacheMode.Shared, initializedBuilder.Cache);
+
+            var connectionString = ServiceExtensions.UseDefaultSqliteCache(initializedConnectionString);
             var builder = new SqliteConnectionStringBuilder(connectionString);
 
             Assert.StartsWith(expectedDirectory, builder.DataSource, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(SqliteCacheMode.Default, builder.Cache);
+            Assert.True(builder.Pooling);
             Assert.True(File.Exists(builder.DataSource));
 
             using var connection = new SqliteConnection(connectionString);

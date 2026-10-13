@@ -109,7 +109,7 @@
 
 .button-footer-main {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
     gap: 0.75rem;
 }
 
@@ -136,7 +136,9 @@
 }
 
 .run-game-button:hover,
-.run-game-button:focus-visible {
+.run-game-button:focus-visible,
+.steam-store-button:hover,
+.steam-store-button:focus-visible {
     text-decoration: none !important;
 }
 

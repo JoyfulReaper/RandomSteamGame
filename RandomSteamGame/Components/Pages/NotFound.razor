@@ -1,6 +1,7 @@
 ﻿@page "/not-found"
 @layout MainLayout
 @inject IHttpContextAccessor HttpContextAccessor
+@inject CanonicalUrlService CanonicalUrls
 
 <PageTitle>404: OBJECT NOT FOUND</PageTitle>
 <HeadContent>
@@ -21,7 +22,7 @@
 
         <div class="term-body">
             <div class="cmd-text">
-                <span class="cmd-prompt">kyle@kgivler:~$</span> curl -I https://randomsteam.kgivler.com/requested_route
+                <span class="cmd-prompt">kyle@kgivler:~$</span> curl -I @CanonicalUrls.GetCanonicalUrl("/requested_route")
             </div>
 
             <h1 class="display-1 fw-bold text-danger mt-3">404</h1>

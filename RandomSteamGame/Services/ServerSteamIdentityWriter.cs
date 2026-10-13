@@ -14,10 +14,12 @@ namespace RandomSteamGame.Services;
 public class ServerSteamIdentityWriter : ISteamIdentityWriter
 {
     private readonly IHttpContextAccessor _http;
+    private readonly DeploymentCookiePolicy _cookiePolicy;
 
-    public ServerSteamIdentityWriter(IHttpContextAccessor http)
+    public ServerSteamIdentityWriter(IHttpContextAccessor http, DeploymentCookiePolicy cookiePolicy)
     {
         _http = http;
+        _cookiePolicy = cookiePolicy;
     }
 
     public Task SetIdentityAsync(SteamIdentity identity)
@@ -54,19 +56,19 @@ public class ServerSteamIdentityWriter : ISteamIdentityWriter
         return Task.CompletedTask;
     }
 
-    private static CookieOptions CreateCookieOptions() => new()
+    private CookieOptions CreateCookieOptions() => new()
     {
         Expires = DateTimeOffset.UtcNow.AddDays(365),
         SameSite = SameSiteMode.Lax,
         HttpOnly = false,
-        Secure = true,
+        Secure = _cookiePolicy.UseSecureCookies,
         Path = "/"
     };
 
-    private static CookieOptions CreateDeleteCookieOptions() => new()
+    private CookieOptions CreateDeleteCookieOptions() => new()
     {
         SameSite = SameSiteMode.Lax,
-        Secure = true,
+        Secure = _cookiePolicy.UseSecureCookies,
         Path = "/"
     };
 }
