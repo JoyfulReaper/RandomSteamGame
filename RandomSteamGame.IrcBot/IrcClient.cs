@@ -1,4 +1,6 @@
 ﻿// TODO Clean up this file some
+// It's ugly ad hell I know
+// Maybe I'll clean it someday if anyone besides me uses it
 
 using System.Net.Security;
 using System.Net.Sockets;
@@ -102,10 +104,37 @@ public class IrcClient
                     {
                         await SendAsync(writer, "PRIVMSG #RandomSteamGame :Hello!", ct);
                     }
+
+                    if (message.StartsWith("!random ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var id = message["!random ".Length..].Trim();
+
+                        try
+                        {
+                            //TODO dont new up a client
+                            var httpClient = new HttpClient
+                            {
+                                BaseAddress = new Uri("https://randomsteam.kgivler.com/")
+                            };
+
+                            var apiclient = new RandomSteamClient(httpClient);
+
+                            var game = await apiclient.GetRandomGameAsync(id, ct);
+                            await SendAsync(
+                                writer,
+                                $"PRIVMSG #RandomSteamGame :🎲 You should play: {game?.Name} - https://store.steampowered.com/app/{game?.Id}/",
+                                ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            await SendAsync(writer, $"PRIVMSG #RandomSteamGame :Failed to pick game", ct);
+                            Console.WriteLine($"Failed to pick game: {id}\n{ex}");
+                            continue;
+                        }
+                    }
                 }
             }
         }
-
     }
     private async Task SendSaslCredentialsAsync(
         StreamWriter writer,
