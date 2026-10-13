@@ -64,6 +64,7 @@ public class IrcClient
 
             Console.WriteLine($"<< {line}");
 
+
             if (line.Contains(" CAP ") &&
                 line.Contains(" LS ") &&
                 line.Contains("sasl"))
@@ -83,6 +84,25 @@ public class IrcClient
             else if (line.Contains(" 903 "))
             {
                 await SendAsync(writer, "CAP END", ct);
+            }
+            else if (line.Contains(" 001 "))
+            {
+                await SendAsync(writer, "JOIN #randomsteamgame", ct);
+            }
+
+            if (line.Contains(" PRIVMSG "))
+            {
+                var messageIndex = line.IndexOf(" :", StringComparison.Ordinal);
+                if (messageIndex >= 0)
+                {
+                    var message = line[(messageIndex + 2)..];
+                    Console.WriteLine($"MESSAGE: {message}");
+
+                    if (message.Equals("!hello", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await SendAsync(writer, "PRIVMSG #RandomSteamGame :Hello!", ct);
+                    }
+                }
             }
         }
 

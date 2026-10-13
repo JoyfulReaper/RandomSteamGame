@@ -24,6 +24,18 @@ var realName = config["Irc:RealName"]
 var password = config["Irc:Password"]
     ?? throw new InvalidOperationException("Irc:Password missing");
 
+using var httpClient = new HttpClient
+{
+    BaseAddress = new Uri("https://randomsteam.kgivler.com/")
+};
+
+//var randomSteamClient = new RandomSteamClient(httpClient);
+//var game = await randomSteamClient.GetRandomGameAsync(
+//    "76561197988408972",
+//    CancellationToken.None);
+
+//Console.WriteLine($"{game?.Name} - {game?.Id}");
+
 var client = new IrcClient(
     server,
     port,
