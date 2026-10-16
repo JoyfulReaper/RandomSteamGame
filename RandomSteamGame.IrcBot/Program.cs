@@ -24,17 +24,14 @@ var realName = config["Irc:RealName"]
 var password = config["Irc:Password"]
     ?? throw new InvalidOperationException("Irc:Password missing");
 
+var channel = config["Irc:Channel"]
+    ?? throw new InvalidOperationException("Irc:Channel missing");
+
 using var httpClient = new HttpClient
 {
     BaseAddress = new Uri("https://randomsteam.kgivler.com/")
 };
-
-//var randomSteamClient = new RandomSteamClient(httpClient);
-//var game = await randomSteamClient.GetRandomGameAsync(
-//    "76561197988408972",
-//    CancellationToken.None);
-
-//Console.WriteLine($"{game?.Name} - {game?.Id}");
+var randomSteamClient = new RandomSteamClient(httpClient);
 
 var client = new IrcClient(
     server,
@@ -42,7 +39,9 @@ var client = new IrcClient(
     nick,
     username,
     realName,
-    password);
+    password,
+    channel,
+    randomSteamClient);
 
 var ct = new CancellationTokenSource();
 await client.RunAsync(ct.Token);

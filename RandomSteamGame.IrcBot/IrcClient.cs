@@ -16,8 +16,19 @@ public class IrcClient
     private readonly string _username;
     private readonly string _realName;
     private readonly string _password;
+    private readonly string _channel;
 
-    public IrcClient(string server, int port, string nick, string username, string realName, string password)
+    private readonly RandomSteamClient _randomSteamClient;
+
+    public IrcClient(
+        string server,
+        int port,
+        string nick,
+        string username,
+        string realName,
+        string password,
+        string channel,
+        RandomSteamClient randomSteamClient)
     {
         _server = server;
         _port = port;
@@ -25,6 +36,8 @@ public class IrcClient
         _username = username;
         _realName = realName;
         _password = password;
+        _channel = channel;
+        _randomSteamClient = randomSteamClient;
     }
 
     public async Task RunAsync(CancellationToken ct)
@@ -89,7 +102,7 @@ public class IrcClient
             }
             else if (line.Contains(" 001 "))
             {
-                await SendAsync(writer, "JOIN #randomsteamgame", ct);
+                await SendAsync(writer, $"JOIN {_channel}", ct);
             }
 
             if (line.Contains(" PRIVMSG "))
@@ -102,7 +115,7 @@ public class IrcClient
 
                     if (message.Equals("!hello", StringComparison.OrdinalIgnoreCase))
                     {
-                        await SendAsync(writer, "PRIVMSG #RandomSteamGame :Hello!", ct);
+                        await SendAsync(writer, $"PRIVMSG {_channel} :Hello!", ct);
                     }
 
                     if (message.StartsWith("!random ", StringComparison.OrdinalIgnoreCase))
@@ -111,23 +124,18 @@ public class IrcClient
 
                         try
                         {
-                            //TODO dont new up a client
-                            var httpClient = new HttpClient
-                            {
-                                BaseAddress = new Uri("https://randomsteam.kgivler.com/")
-                            };
-
-                            var apiclient = new RandomSteamClient(httpClient);
-
-                            var game = await apiclient.GetRandomGameAsync(id, ct);
+                            var game = await _randomSteamClient.GetRandomGameAsync(id, ct);
                             await SendAsync(
                                 writer,
-                                $"PRIVMSG #RandomSteamGame :🎲 You should play: {game?.Name} - https://store.steampowered.com/app/{game?.Id}/",
+                                $"PRIVMSG {_channel} :🎲 You should play: {game?.Name} - https://store.steampowered.com/app/{game?.Id}/",
                                 ct);
                         }
                         catch (Exception ex)
                         {
-                            await SendAsync(writer, $"PRIVMSG #RandomSteamGame :Failed to pick game", ct);
+                            await SendAsync(
+                                writer,
+                                $"PRIVMSG {_channel} :Failed to pick game",
+                                ct);
                             Console.WriteLine($"Failed to pick game: {id}\n{ex}");
                             continue;
                         }
