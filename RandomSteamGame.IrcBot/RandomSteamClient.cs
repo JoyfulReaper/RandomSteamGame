@@ -21,7 +21,19 @@ public sealed class RandomSteamClient
         string identifier,
         CancellationToken ct)
     {
-        string requestUri = $"api/steam/random-game/details?userId={identifier}";
+        string requestUri;
+
+        if (long.TryParse(identifier, out _))
+        {
+            requestUri =
+                $"api/steam/random-game/details?userId={Uri.EscapeDataString(identifier)}";
+        }
+        else
+        {
+            requestUri =
+                $"api/steam/random-game/details?vanityUrl={Uri.EscapeDataString(identifier)}";
+        }
+
         try
         {
             var gameDetails = await _httpClient.GetFromJsonAsync<GameDetails>(requestUri, JsonOptions, ct);

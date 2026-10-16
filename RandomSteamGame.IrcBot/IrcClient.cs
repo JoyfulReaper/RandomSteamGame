@@ -20,6 +20,10 @@ public class IrcClient
 
     private readonly RandomSteamClient _randomSteamClient;
 
+    // TODO consider putting cool down in config
+    private static readonly TimeSpan RandomCommandCooldown = TimeSpan.FromSeconds(10);
+    private readonly Dictionary<string, DateTimeOffset> _randomCommandUsage = new(StringComparer.OrdinalIgnoreCase);
+
     public IrcClient(
         string server,
         int port,
@@ -145,6 +149,33 @@ public class IrcClient
                             continue;
                         }
 
+                        var sender = GetSenderNick(line);
+
+                        if (sender is not null &&
+                            _randomCommandUsage.TryGetValue(sender, out var lastUsed))
+                        {
+                            var elapsed = DateTimeOffset.UtcNow - lastUsed;
+
+                            if (elapsed < RandomCommandCooldown)
+                            {
+                                var remaining =
+                                    (int)Math.Ceiling(
+                                        (RandomCommandCooldown - elapsed).TotalSeconds);
+
+                                await SendAsync(
+                                    writer,
+                                    $"PRIVMSG {_channel} :{sender}: please wait {remaining}s before using !random again.",
+                                    ct);
+
+                                continue;
+                            }
+                        }
+
+                        if (sender is not null)
+                        {
+                            _randomCommandUsage[sender] = DateTimeOffset.UtcNow;
+                        }
+
                         try
                         {
                             var game =
@@ -196,5 +227,18 @@ public class IrcClient
 
         if (log)
             Console.WriteLine($">> {line}");
+    }
+
+    private static string? GetSenderNick(string line)
+    {
+        if (!line.StartsWith(':'))
+            return null;
+
+        var separator = line.IndexOf('!');
+
+        if (separator <= 1)
+            return null;
+
+        return line[1..separator];
     }
 }
