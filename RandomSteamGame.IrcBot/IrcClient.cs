@@ -118,13 +118,38 @@ public class IrcClient
                         await SendAsync(writer, $"PRIVMSG {_channel} :Hello!", ct);
                     }
 
-                    if (message.StartsWith("!random ", StringComparison.OrdinalIgnoreCase))
+                    if (message.Equals("!random", StringComparison.OrdinalIgnoreCase) ||
+                        message.StartsWith("!random ", StringComparison.OrdinalIgnoreCase))
                     {
-                        var id = message["!random ".Length..].Trim();
+                        var identifier = message.Length > "!random".Length
+                            ? message["!random".Length..].Trim()
+                            : string.Empty;
+
+                        if (string.IsNullOrWhiteSpace(identifier))
+                        {
+                            await SendAsync(
+                                writer,
+                                $"PRIVMSG {_channel} :Usage: !random <SteamID or vanity name>",
+                                ct);
+
+                            continue;
+                        }
+
+                        if (identifier.Length > 100)
+                        {
+                            await SendAsync(
+                                writer,
+                                $"PRIVMSG {_channel} :That Steam ID or vanity name looks invalid.",
+                                ct);
+
+                            continue;
+                        }
 
                         try
                         {
-                            var game = await _randomSteamClient.GetRandomGameAsync(id, ct);
+                            var game =
+                                await _randomSteamClient.GetRandomGameAsync(identifier, ct);
+
                             await SendAsync(
                                 writer,
                                 $"PRIVMSG {_channel} :🎲 You should play: {game?.Name} - https://store.steampowered.com/app/{game?.Id}/",
@@ -136,8 +161,9 @@ public class IrcClient
                                 writer,
                                 $"PRIVMSG {_channel} :Failed to pick game",
                                 ct);
-                            Console.WriteLine($"Failed to pick game: {id}\n{ex}");
-                            continue;
+
+                            Console.WriteLine(
+                                $"Failed to pick game: {identifier}\n{ex}");
                         }
                     }
                 }
