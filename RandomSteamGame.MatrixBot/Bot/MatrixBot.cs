@@ -1,4 +1,5 @@
 ﻿using RandomSteamGame.MatrixBot.Matrix;
+using RandomSteamGame.SteamClient;
 using System.Text.Json;
 
 namespace RandomSteamGame.MatrixBot.Bot;
@@ -6,13 +7,15 @@ namespace RandomSteamGame.MatrixBot.Bot;
 public class MatrixBot
 {
     private readonly MatrixClient.MatrixClient _client;
+    private readonly RandomSteamClient _steamClient;
     private readonly string _roomId;
     private string? _botUserId;
 
-    public MatrixBot(MatrixClient.MatrixClient client, string roomId)
+    public MatrixBot(MatrixClient.MatrixClient client, string roomId, RandomSteamClient steamClient)
     {
         _client = client;
         _roomId = roomId;
+        _steamClient = steamClient;
     }
 
     public async Task RunAsync(CancellationToken ct = default)
@@ -74,9 +77,47 @@ public class MatrixBot
                 {
                     var identifier = body["!steam ".Length..].Trim();
 
-                    if (!string.IsNullOrWhiteSpace(identifier))
+                    if (string.IsNullOrWhiteSpace(identifier) || identifier.Length > 100)
                     {
-                        Console.WriteLine($"Steam lookup requested: {identifier}");
+                        await _client.SendMessageAsync(
+                            roomId,
+                            "Usage: !steam <SteamID or vanity name>",
+                            ct);
+
+                        continue;
+                    }
+
+                    try
+                    {
+                        var game = await _steamClient.GetRandomGameAsync(identifier, ct);
+
+                        if (game is null)
+                        {
+                            await _client.SendMessageAsync(
+                                roomId,
+                                "Couldn't find a game for that Steam account.",
+                                ct);
+
+                            continue;
+                        }
+
+                        var reply = $"🎲 You should play: {game.Name}\n" +
+                                    $"https://store.steampowered.com/app/{game.Id}/";
+
+                        await _client.SendMessageAsync(roomId, reply, ct);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Steam lookup failed: {ex}");
+
+                        await _client.SendMessageAsync(
+                            roomId,
+                            "Sorry, I couldn't pick a game right now.",
+                            ct);
                     }
                 }
 

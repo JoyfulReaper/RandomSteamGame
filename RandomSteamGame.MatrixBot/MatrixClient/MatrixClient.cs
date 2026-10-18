@@ -7,10 +7,14 @@ namespace RandomSteamGame.MatrixBot.MatrixClient;
 public class MatrixClient
 {
     private readonly HttpClient _httpClient;
+
     private readonly string _password;
     private readonly string _userName;
 
-    public MatrixClient(HttpClient httpClient, string userName, string password)
+    public MatrixClient(
+        HttpClient httpClient,
+        string userName,
+        string password)
     {
         _httpClient = httpClient;
         _password = password;
