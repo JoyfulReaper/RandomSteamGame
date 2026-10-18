@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using RandomSteamGame.MatrixBot.Bot;
 using RandomSteamGame.MatrixBot.MatrixClient;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -24,18 +25,5 @@ using var httpClient = new HttpClient
     BaseAddress = new Uri(homeserver)
 };
 
-var matrixClient = new MatrixClient(httpClient, username, password);
-await matrixClient.LoginAsync();
-var identity = await matrixClient.WhoAmIAsync();
-
-
-Console.WriteLine($"Authenticated as {identity?.UserId}");
-
-await matrixClient.JoinRoomAsync("!NTvCQirbQTeqzUiSoh:kgivler.com");
-Console.WriteLine("Joined room successfully!");
-
-var first = await matrixClient.SyncAsync(null);
-Console.WriteLine($"First sync: {first?.NextBatch}");
-
-var second = await matrixClient.SyncAsync(first?.NextBatch);
-Console.WriteLine($"Second sync: {second?.NextBatch}");
+var bot = new MatrixBot(new MatrixClient(httpClient, username, password));
+await bot.RunAsync();

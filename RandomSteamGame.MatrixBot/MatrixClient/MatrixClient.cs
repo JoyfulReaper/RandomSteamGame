@@ -47,6 +47,8 @@ public class MatrixClient
             ? $"_matrix/client/v3/sync?timeout=30000"
             : $"_matrix/client/v3/sync?since={Uri.EscapeDataString(since)}&timeout=30000";
         var syncResponse = await _httpClient.GetFromJsonAsync<SyncResponse>(url, ct);
+
+
         return syncResponse;
     }
 
