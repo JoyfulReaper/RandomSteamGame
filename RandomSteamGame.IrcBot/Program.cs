@@ -7,6 +7,7 @@ builder.Configuration.AddUserSecrets<Program>();
 
 var config = builder.Configuration;
 
+// Validate Config
 var server = config["Irc:Server"]
     ?? throw new InvalidOperationException("Irc:Server missing");
 

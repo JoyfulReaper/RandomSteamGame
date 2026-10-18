@@ -185,6 +185,28 @@
             </div>
         </section>
 
+        <section class="home-info-card home-irc-card mt-4" aria-labelledby="irc-heading">
+            <div class="home-irc-copy">
+                <p class="home-eyebrow mb-2">Chat interface</p>
+                <h2 id="irc-heading">Pick a random Steam game over IRC</h2>
+                <p class="mb-0">
+                    Join the Random Steam Game channel on Libera.Chat and ask the bot
+                    to pick a game from your public Steam library using either your
+                    17-digit Steam ID or Steam vanity name.
+                </p>
+            </div>
+
+            <div class="home-finger-command-wrap">
+                <span class="home-finger-command-label">IRC</span>
+                <code class="home-finger-command">irc.libera.chat / #randomsteamgame</code>
+            </div>
+
+            <div class="home-finger-command-wrap mt-2">
+                <span class="home-finger-command-label">Command</span>
+                <code class="home-finger-command">!random &lt;SteamID or vanity name&gt;</code>
+            </div>
+        </section>
+
         <div class="home-faq mt-4 mb-4" aria-labelledby="faq-heading">
             <h2 id="faq-heading">Frequently asked questions</h2>
 
@@ -289,7 +311,8 @@
                     "Browser-based game exclusions",
                     "Steam library CSV export for Excel and other spreadsheet apps",
                     "Steam Deck compatibility included in library exports",
-                    "Random Steam game selection over the Finger protocol"
+                    "Random Steam game selection over the Finger protocol",
+                    "Random Steam game selection through an IRC bot on Libera.Chat"
                 }
         });
     private string StructuredDataScript =>
