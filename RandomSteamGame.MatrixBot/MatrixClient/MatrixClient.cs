@@ -19,8 +19,8 @@ public class MatrixClient
 
     public async Task LoginAsync()
     {
-        var loginRequest = new LoginRequest("m.login.password", new Identifer("m.id.user", _userName), _password);
-        using var response = await _httpClient.PostAsJsonAsync("https://matrix.kgivler.com/_matrix/client/v3/login", loginRequest);
+        var loginRequest = new LoginRequest("m.login.password", new Identifier("m.id.user", _userName), _password);
+        using var response = await _httpClient.PostAsJsonAsync("_matrix/client/v3/login", loginRequest);
 
         if (response.IsSuccessStatusCode)
         {
@@ -37,16 +37,19 @@ public class MatrixClient
 
     public async Task<WhoAmIResponse?> WhoAmIAsync()
     {
-        var whoAmiResponse = await _httpClient.GetFromJsonAsync<WhoAmIResponse>("https://matrix.kgivler.com/_matrix/client/v3/account/whoami");
+        var whoAmiResponse = await _httpClient.GetFromJsonAsync<WhoAmIResponse>("_matrix/client/v3/account/whoami");
         return whoAmiResponse;
     }
 
     public async Task<SyncResponse?> SyncAsync(string? since, CancellationToken ct = default)
     {
-        var syncResponse = await _httpClient.GetFromJsonAsync<SyncResponse>("https://matrix.kgivler.com/_matrix/client/v3/sync?timeout=30000");
+        var url = since is null
+            ? "_matrix/client/v3/sync?timeout=30000"
+            : "_matrix/client/v3/sync?since={Uri.EscapeDataString(since)}&timeout=30000";
+        var syncResponse = await _httpClient.GetFromJsonAsync<SyncResponse>("_matrix/client/v3/sync?timeout=30000");
         return syncResponse;
     }
 }
 
-public record LoginRequest(string Type, Identifer Identifer, string Password);
-public record Identifer(string Type, string User);
+public record LoginRequest(string Type, Identifier Identifier, string Password);
+public record Identifier(string Type, string User);

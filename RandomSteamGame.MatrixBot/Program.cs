@@ -1,11 +1,12 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using RandomSteamGame.MatrixBot.Matrix;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using RandomSteamGame.MatrixBot.MatrixClient;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Configuration.AddUserSecrets<Program>();
+
+Console.WriteLine($"Content root: {builder.Environment.ContentRootPath}");
+Console.WriteLine($"Homeserver: {builder.Configuration["Matrix:Homeserver"] ?? "(missing)"}");
 
 var config = builder.Configuration;
 
@@ -17,31 +18,16 @@ var username = config["Matrix:Username"]
 var password = config["Matrix:Password"]
     ?? throw new InvalidOperationException("Matrix:Password missing");
 
-var loginRequest = new
+var homeserver = config["Matrix:Homeserver"]
+    ?? throw new InvalidOperationException("Matrix:Homeserver missing");
+
+// Create the http client for Matrix
+using var httpClient = new HttpClient
 {
-    type = "m.login.password",
-    identifier = new
-    {
-        type = "m.id.user",
-        user = username
-    },
-    password = password
+    BaseAddress = new Uri(homeserver)
 };
 
-using var client = new HttpClient();
-var response = await client.PostAsJsonAsync("https://matrix.kgivler.com/_matrix/client/v3/login", loginRequest);
-response.EnsureSuccessStatusCode();
-var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>()
-    ?? throw new InvalidOperationException("Failed to login");
-
-if (loginResponse.AccessToken is null)
-{
-    throw new InvalidOperationException("Access token was missing from the server response.");
-}
-
-
-client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginResponse?.AccessToken);
-var syncResponse = await client.GetFromJsonAsync<SyncResponse>("https://matrix.kgivler.com/_matrix/client/v3/sync?timeout=30000");
-
-Console.WriteLine($"Logged in as {loginResponse?.UserId}");
-Console.WriteLine($"Next Batch: {syncResponse?.NextBatch}");
+var matrixClient = new MatrixClient(httpClient, username, password);
+await matrixClient.LoginAsync();
+var identity = await matrixClient.WhoAmIAsync();
+Console.WriteLine($"Authenticated as {identity?.UserId}");
