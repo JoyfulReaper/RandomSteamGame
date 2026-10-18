@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RandomSteamGame.Shared\RandomSteamGame.Shared.csproj" />
+    <ProjectReference Include="..\RandomSteamGame.SteamClient\RandomSteamGame.SteamClient.csproj" />
   </ItemGroup>
 
   <ItemGroup>

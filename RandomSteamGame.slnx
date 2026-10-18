@@ -3,8 +3,9 @@
   <Project Path="RandomSteamGame.IrcBot/RandomSteamGame.IrcBot.csproj" />
   <Project Path="RandomSteamGame.MatrixBot/RandomSteamGame.MatrixBot.csproj" />
   <Project Path="RandomSteamGame.Shared/RandomSteamGame.Shared.csproj" Id="bf7e4a55-c895-419b-a898-3b5dd5b6d402" />
-  <Project Path="RandomSteamGame/RandomSteamGame.csproj" />
+  <Project Path="RandomSteamGame.SteamClient/RandomSteamGame.SteamClient.csproj" Id="5cb7a34c-cd19-4ff3-9172-716d12b242dd" />
   <Project Path="RandomSteamGame.Tests/RandomSteamGame.Tests.csproj" />
-  <Project Path="SteamApiClient/SteamApiClient.csproj" />
+  <Project Path="RandomSteamGame/RandomSteamGame.csproj" />
   <Project Path="SteamApiClient.Tests/SteamApiClient.Tests.csproj" />
+  <Project Path="SteamApiClient/SteamApiClient.csproj" />
 </Solution>

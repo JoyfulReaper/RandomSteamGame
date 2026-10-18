@@ -2,6 +2,7 @@
 // It's ugly ad hell I know
 // Maybe I'll clean it someday if anyone besides me uses it
 
+using RandomSteamGame.SteamClient;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;

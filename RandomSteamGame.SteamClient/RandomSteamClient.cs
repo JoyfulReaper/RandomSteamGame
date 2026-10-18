@@ -2,7 +2,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 
-namespace RandomSteamGame.IrcBot;
+namespace RandomSteamGame.SteamClient;
 
 public sealed class RandomSteamClient
 {
