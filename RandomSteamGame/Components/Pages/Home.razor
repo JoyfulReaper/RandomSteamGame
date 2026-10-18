@@ -207,6 +207,33 @@
             </div>
         </section>
 
+        
+        <section class="home-info-card home-matrix-card mt-4" aria-labelledby="matrix-heading">
+            <p class="home-eyebrow mb-2">Chat interface</p>
+            <h2 id="matrix-heading">Pick a random Steam game over Matrix</h2>
+
+            <p>
+                Join the Random Steam Game room on Matrix and ask RandomSteamBot
+                to pick a game from your public Steam library using your
+                17-digit Steam ID or Steam vanity name.
+            </p>
+
+            <p class="mb-3">
+                <a href="https://matrix.to/#/!NTvCQirbQTeqzUiSoh:kgivler.com"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="text-info">
+                    Join the Random Steam Game Matrix room
+                </a>
+            </p>
+
+            <div class="home-finger-command-wrap">
+                <span class="home-finger-command-label">Command</span>
+                <code class="home-finger-command">!steam &lt;SteamID or vanity name&gt;</code>
+            </div>
+        </section>
+
+
         <div class="home-faq mt-4 mb-4" aria-labelledby="faq-heading">
             <h2 id="faq-heading">Frequently asked questions</h2>
 
@@ -312,7 +339,8 @@
                     "Steam library CSV export for Excel and other spreadsheet apps",
                     "Steam Deck compatibility included in library exports",
                     "Random Steam game selection over the Finger protocol",
-                    "Random Steam game selection through an IRC bot on Libera.Chat"
+                    "Random Steam game selection through an IRC bot on Libera.Chat",
+                    "Random Steam game selection through a Matrix bot"
                 }
         });
     private string StructuredDataScript =>
