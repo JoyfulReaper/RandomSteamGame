@@ -63,9 +63,21 @@ public class MatrixBot
                 if (message?.Content?.MessageType != "m.text")
                     continue;
 
-                if (message?.Content?.Body == "!ping")
+
+                var body = message?.Content.Body;
+                if (body == "!ping")
                 {
                     await _client.SendMessageAsync(roomId, "pong", ct);
+                }
+
+                if (body?.StartsWith("!steam ", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    var identifier = body["!steam ".Length..].Trim();
+
+                    if (!string.IsNullOrWhiteSpace(identifier))
+                    {
+                        Console.WriteLine($"Steam lookup requested: {identifier}");
+                    }
                 }
 
                 Console.WriteLine($"{message?.Sender}: {message?.Content.Body}");
