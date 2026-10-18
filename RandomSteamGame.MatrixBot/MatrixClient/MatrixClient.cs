@@ -44,9 +44,9 @@ public class MatrixClient
     public async Task<SyncResponse?> SyncAsync(string? since, CancellationToken ct = default)
     {
         var url = since is null
-            ? "_matrix/client/v3/sync?timeout=30000"
-            : "_matrix/client/v3/sync?since={Uri.EscapeDataString(since)}&timeout=30000";
-        var syncResponse = await _httpClient.GetFromJsonAsync<SyncResponse>("_matrix/client/v3/sync?timeout=30000");
+            ? $"_matrix/client/v3/sync?timeout=30000"
+            : $"_matrix/client/v3/sync?since={Uri.EscapeDataString(since)}&timeout=30000";
+        var syncResponse = await _httpClient.GetFromJsonAsync<SyncResponse>(url);
         return syncResponse;
     }
 }

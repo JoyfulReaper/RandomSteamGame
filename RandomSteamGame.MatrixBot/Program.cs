@@ -5,9 +5,6 @@ using RandomSteamGame.MatrixBot.MatrixClient;
 var builder = Host.CreateApplicationBuilder(args);
 builder.Configuration.AddUserSecrets<Program>();
 
-Console.WriteLine($"Content root: {builder.Environment.ContentRootPath}");
-Console.WriteLine($"Homeserver: {builder.Configuration["Matrix:Homeserver"] ?? "(missing)"}");
-
 var config = builder.Configuration;
 
 // Validate Config
@@ -30,4 +27,12 @@ using var httpClient = new HttpClient
 var matrixClient = new MatrixClient(httpClient, username, password);
 await matrixClient.LoginAsync();
 var identity = await matrixClient.WhoAmIAsync();
+
+
 Console.WriteLine($"Authenticated as {identity?.UserId}");
+
+var first = await matrixClient.SyncAsync(null);
+Console.WriteLine($"First sync: {first?.NextBatch}");
+
+var second = await matrixClient.SyncAsync(first?.NextBatch);
+Console.WriteLine($"Second sync: {second?.NextBatch}");
