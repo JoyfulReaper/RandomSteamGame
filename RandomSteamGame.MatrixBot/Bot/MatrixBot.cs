@@ -6,18 +6,25 @@ namespace RandomSteamGame.MatrixBot.Bot;
 public class MatrixBot
 {
     private readonly MatrixClient.MatrixClient _client;
+    private readonly string _roomId;
+    private string? _botUserId;
 
-    public MatrixBot(MatrixClient.MatrixClient client)
+    public MatrixBot(MatrixClient.MatrixClient client, string roomId)
     {
         _client = client;
+        _roomId = roomId;
     }
 
     public async Task RunAsync(CancellationToken ct = default)
     {
         await _client.LoginAsync(ct);
 
-        await _client.JoinRoomAsync("!NTvCQirbQTeqzUiSoh:kgivler.com", ct);
+        await _client.JoinRoomAsync(_roomId, ct);
         Console.WriteLine("Joined room successfully!");
+
+        var identity = await _client.WhoAmIAsync(ct);
+        _botUserId = identity?.UserId
+            ?? throw new InvalidOperationException("Could not determine bot identity.");
 
         // Establish our starting position
         var initialSync = await _client.SyncAsync(null, ct);
@@ -50,7 +57,7 @@ public class MatrixBot
 
                 var message = evt.Deserialize<MatrixMessageEvent>();
 
-                if (message?.Sender == "@randomsteambot:kgivler.com")
+                if (message?.Sender == _botUserId)
                     continue;
 
                 if (message?.Content?.MessageType != "m.text")
