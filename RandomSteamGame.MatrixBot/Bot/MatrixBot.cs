@@ -10,6 +10,8 @@ public class MatrixBot
     private readonly RandomSteamClient _steamClient;
     private readonly string _roomId;
     private string? _botUserId;
+    private static readonly TimeSpan SteamCommandCooldown = TimeSpan.FromSeconds(10);
+    private readonly Dictionary<string, DateTimeOffset> _steamCommandUsage = new(StringComparer.Ordinal);
 
     public MatrixBot(MatrixClient.MatrixClient client, string roomId, RandomSteamClient steamClient)
     {
@@ -37,13 +39,28 @@ public class MatrixBot
 
         while (!ct.IsCancellationRequested)
         {
-            var syncResponse = await _client.SyncAsync(since, ct)
-                ?? throw new InvalidOperationException("Sync returned null.");
+            try
+            {
+                var response = await _client.SyncAsync(since, ct)
+                    ?? throw new InvalidOperationException("Sync returned null.");
 
-            await ProcessEventsAsync(syncResponse, ct);
+                await ProcessEventsAsync(response, ct);
 
-            since = syncResponse.NextBatch
-                ?? throw new InvalidOperationException("Sync returned no token.");
+                since = response.NextBatch
+                    ?? throw new InvalidOperationException("Sync returned no token.");
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (HttpRequestException ex)
+                when (ex.StatusCode is null ||
+                      (int)ex.StatusCode >= 500 ||
+                      (int)ex.StatusCode == 429)
+            {
+                Console.WriteLine($"Matrix unavailable: {ex.Message}");
+                await Task.Delay(TimeSpan.FromSeconds(10), ct);
+            }
         }
     }
 
@@ -73,7 +90,9 @@ public class MatrixBot
                     await _client.SendMessageAsync(roomId, "pong", ct);
                 }
 
-                if (body?.StartsWith("!steam ", StringComparison.OrdinalIgnoreCase) == true)
+                if (body is not null &&
+                    (body.Equals("!steam", StringComparison.OrdinalIgnoreCase) ||
+                     body.StartsWith("!steam ", StringComparison.OrdinalIgnoreCase)))
                 {
                     var identifier = body["!steam ".Length..].Trim();
 
@@ -86,6 +105,28 @@ public class MatrixBot
 
                         continue;
                     }
+
+                    var sender = message.Sender;
+
+                    if (sender is null)
+                        continue;
+
+                    var now = DateTimeOffset.UtcNow;
+
+                    if (_steamCommandUsage.TryGetValue(sender, out var lastUsed))
+                    {
+                        var elapsed = now - lastUsed;
+
+                        if (elapsed < SteamCommandCooldown)
+                        {
+                            var remaining = (int)Math.Ceiling((SteamCommandCooldown - elapsed).TotalSeconds);
+                            await _client.SendMessageAsync(roomId, $"Please wait {remaining}s before requesting another game.", ct);
+
+                            continue;
+                        }
+                    }
+
+                    _steamCommandUsage[sender] = now;
 
                     try
                     {
