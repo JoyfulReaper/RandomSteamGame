@@ -31,6 +31,9 @@ var identity = await matrixClient.WhoAmIAsync();
 
 Console.WriteLine($"Authenticated as {identity?.UserId}");
 
+await matrixClient.JoinRoomAsync("!NTvCQirbQTeqzUiSoh:kgivler.com");
+Console.WriteLine("Joined room successfully!");
+
 var first = await matrixClient.SyncAsync(null);
 Console.WriteLine($"First sync: {first?.NextBatch}");
 

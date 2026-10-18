@@ -6,4 +6,6 @@ public class SyncResponse
 {
     [JsonPropertyName("next_batch")]
     public string? NextBatch { get; set; }
+
+
 }

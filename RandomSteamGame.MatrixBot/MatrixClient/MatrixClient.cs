@@ -17,14 +17,14 @@ public class MatrixClient
         _userName = userName;
     }
 
-    public async Task LoginAsync()
+    public async Task LoginAsync(CancellationToken ct = default)
     {
         var loginRequest = new LoginRequest("m.login.password", new Identifier("m.id.user", _userName), _password);
-        using var response = await _httpClient.PostAsJsonAsync("_matrix/client/v3/login", loginRequest);
+        using var response = await _httpClient.PostAsJsonAsync("_matrix/client/v3/login", loginRequest, ct);
 
         if (response.IsSuccessStatusCode)
         {
-            var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>()
+            var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>(ct)
                 ?? throw new Exception("Failed to login");
 
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginResponse.AccessToken);
@@ -35,9 +35,9 @@ public class MatrixClient
         }
     }
 
-    public async Task<WhoAmIResponse?> WhoAmIAsync()
+    public async Task<WhoAmIResponse?> WhoAmIAsync(CancellationToken ct = default)
     {
-        var whoAmiResponse = await _httpClient.GetFromJsonAsync<WhoAmIResponse>("_matrix/client/v3/account/whoami");
+        var whoAmiResponse = await _httpClient.GetFromJsonAsync<WhoAmIResponse>("_matrix/client/v3/account/whoami", ct);
         return whoAmiResponse;
     }
 
@@ -46,8 +46,29 @@ public class MatrixClient
         var url = since is null
             ? $"_matrix/client/v3/sync?timeout=30000"
             : $"_matrix/client/v3/sync?since={Uri.EscapeDataString(since)}&timeout=30000";
-        var syncResponse = await _httpClient.GetFromJsonAsync<SyncResponse>(url);
+        var syncResponse = await _httpClient.GetFromJsonAsync<SyncResponse>(url, ct);
         return syncResponse;
+    }
+
+    public async Task JoinRoomAsync(string roomIdOrAlias, CancellationToken ct = default)
+    {
+        using var response = await _httpClient.PostAsJsonAsync($"/_matrix/client/v3/join/{Uri.EscapeDataString(roomIdOrAlias)}", new { }, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync(ct);
+            Console.WriteLine($"Join failed: HTTP {(int)response.StatusCode}");
+            Console.WriteLine(error);
+        }
+
+
+        response.EnsureSuccessStatusCode();
+
+        //var joinResponse = await response.Content.ReadFromJsonAsync<JoinResponse>(ct);
+        //if (joinResponse is null)
+        //{
+        //    throw new Exception("Failed to join room");
+        //}
     }
 }
 
