@@ -94,7 +94,7 @@ public class MatrixBot
                     (body.Equals("!steam", StringComparison.OrdinalIgnoreCase) ||
                      body.StartsWith("!steam ", StringComparison.OrdinalIgnoreCase)))
                 {
-                    var identifier = body["!steam ".Length..].Trim();
+                    var identifier = body["!steam".Length..].Trim();
 
                     if (string.IsNullOrWhiteSpace(identifier) || identifier.Length > 100)
                     {
