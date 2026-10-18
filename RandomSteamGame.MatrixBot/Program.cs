@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using RandomSteamGame.MatrixBot.Matrix;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -9,7 +11,7 @@ var config = builder.Configuration;
 
 // Validate Config
 var username = config["Matrix:Username"]
-    ?? throw new InvalidOperationException("Matric:Username missing");
+    ?? throw new InvalidOperationException("Matrix:Username missing");
 
 
 var password = config["Matrix:Password"]
@@ -28,8 +30,18 @@ var loginRequest = new
 
 using var client = new HttpClient();
 var response = await client.PostAsJsonAsync("https://matrix.kgivler.com/_matrix/client/v3/login", loginRequest);
+response.EnsureSuccessStatusCode();
+var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>()
+    ?? throw new InvalidOperationException("Failed to login");
 
-Console.WriteLine(response.StatusCode);
-Console.WriteLine(await response.Content.ReadAsStringAsync());
+if (loginResponse.AccessToken is null)
+{
+    throw new InvalidOperationException("Access token was missing from the server response.");
+}
 
 
+client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginResponse?.AccessToken);
+var whoAmiResponse = await client.GetFromJsonAsync<WhoAmIResponse>("https://matrix.kgivler.com/_matrix/client/v3/account/whoami");
+
+Console.WriteLine($"Logged in as {loginResponse?.UserId}");
+Console.WriteLine($"User ID: {whoAmiResponse?.UserId}");
