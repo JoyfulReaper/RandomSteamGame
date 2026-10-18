@@ -24,19 +24,20 @@ public class MatrixBot
         var since = initialSync?.NextBatch
             ?? throw new InvalidOperationException("Initial sync returned no token.");
 
+
         while (!ct.IsCancellationRequested)
         {
             var syncResponse = await _client.SyncAsync(since, ct)
                 ?? throw new InvalidOperationException("Sync returned null.");
 
-            ProcessEvents(syncResponse);
+            await ProcessEventsAsync(syncResponse, ct);
 
             since = syncResponse.NextBatch
                 ?? throw new InvalidOperationException("Sync returned no token.");
         }
     }
 
-    private void ProcessEvents(SyncResponse response)
+    private async Task ProcessEventsAsync(SyncResponse response, CancellationToken ct = default)
     {
         foreach (var (roomId, room) in response?.Rooms?.Join
                  ?? new Dictionary<string, JoinedRoom>())
@@ -49,10 +50,18 @@ public class MatrixBot
 
                 var message = evt.Deserialize<MatrixMessageEvent>();
 
+                if (message?.Sender == "@randomsteambot:kgivler.com")
+                    continue;
+
                 if (message?.Content?.MessageType != "m.text")
                     continue;
 
-                Console.WriteLine($"{message.Sender}: {message.Content.Body}");
+                if (message?.Content?.Body == "!ping")
+                {
+                    await _client.SendMessageAsync(roomId, "pong", ct);
+                }
+
+                Console.WriteLine($"{message?.Sender}: {message?.Content.Body}");
             }
         }
     }

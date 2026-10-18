@@ -65,12 +65,27 @@ public class MatrixClient
 
 
         response.EnsureSuccessStatusCode();
+    }
 
-        //var joinResponse = await response.Content.ReadFromJsonAsync<JoinResponse>(ct);
-        //if (joinResponse is null)
-        //{
-        //    throw new Exception("Failed to join room");
-        //}
+    public async Task SendMessageAsync(
+        string roomId,
+        string message,
+        CancellationToken ct = default)
+    {
+        var transactionId = Guid.NewGuid().ToString("N");
+
+        var url = $"_matrix/client/v3/rooms/" +
+                  $"{Uri.EscapeDataString(roomId)}/send/" +
+                  $"m.room.message/{transactionId}";
+
+        var payload = new Message
+        {
+            MsgType = "m.text",
+            Body = message
+        };
+
+        using var response = await _httpClient.PutAsJsonAsync(url, payload, ct);
+        response.EnsureSuccessStatusCode();
     }
 }
 

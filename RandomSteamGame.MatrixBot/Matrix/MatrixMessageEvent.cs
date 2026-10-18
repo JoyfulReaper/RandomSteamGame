@@ -1,4 +1,6 @@
-﻿using System.Text.Json.Serialization;
+﻿namespace RandomSteamGame.MatrixBot.Matrix;
+
+using System.Text.Json.Serialization;
 
 public class MatrixMessageEvent
 {
