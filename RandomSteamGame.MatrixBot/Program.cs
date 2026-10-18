@@ -41,7 +41,7 @@ if (loginResponse.AccessToken is null)
 
 
 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginResponse?.AccessToken);
-var whoAmiResponse = await client.GetFromJsonAsync<WhoAmIResponse>("https://matrix.kgivler.com/_matrix/client/v3/account/whoami");
+var syncResponse = await client.GetFromJsonAsync<SyncResponse>("https://matrix.kgivler.com/_matrix/client/v3/sync?timeout=30000");
 
 Console.WriteLine($"Logged in as {loginResponse?.UserId}");
-Console.WriteLine($"User ID: {whoAmiResponse?.UserId}");
+Console.WriteLine($"Next Batch: {syncResponse?.NextBatch}");
