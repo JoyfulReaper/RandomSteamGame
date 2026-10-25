@@ -355,6 +355,7 @@ These are future ideas, not currently implemented features.
 ## Additional Documentation
 
 - [Developer handoff](docs/developer-handoff.md) — deeper architecture, request flow, caching, deployment, and debugging notes
+- [Internal privacy/data inventory](docs/privacy-data-inventory.md) — collection, storage, retention/deletion behavior, and operational unknowns; not the public Privacy Policy
 - [Premium feature issues](docs/premium-feature-issues.md) — account-related roadmap and likely implementation areas
 
 ## License

@@ -97,6 +97,12 @@ Interactive components use `PersistentComponentState` to avoid unnecessary refet
 
 ## Authentication, Identity, And Storage Strategy
 
+See the [internal privacy/data inventory](privacy-data-inventory.md) for verified
+collection, cookie/storage lifetimes, cleanup/deletion limits, and operational
+questions to resolve before publishing the public Privacy Policy. In particular,
+homepage visitor statistics persist raw IPs indefinitely under current behavior;
+the separate telemetry hash and transient voting limiter do not replace those records.
+
 ### Current Authentication State
 
 There is no real authentication yet.
