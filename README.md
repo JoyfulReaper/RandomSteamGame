@@ -242,6 +242,21 @@ configurable global capacity. Export policy hints follow the selected policy.
 JavaScript cookie tests can be run with
 `node --test RandomSteamGame.Tests/cookieHelper.test.mjs` in addition to the .NET suite.
 
+## Anonymous feature-voting backend
+
+The backend foundation exposes `GET /api/features` and antiforgery-protected
+`POST /api/features/{id}/vote` with `{ "supported": true }` (or `false` to withdraw).
+It uses two additive tables in the existing `Data/kgivler_com.db`, a protected
+HttpOnly browser cookie, and separate voting rate/capacity limits. It does not seed
+proposals or change the support page; the voting UI is deferred. This is anonymous
+browser-based support, not verified one-person-one-vote.
+
+See [anonymous feature voting](docs/anonymous-feature-voting.md) for the schema,
+API contract, cookie lifecycle, `FeatureVoting:*` settings, security model, and
+Public/AltNet deployment considerations. Persist the existing Data Protection
+keys and database. IP abuse signals stay in server memory and are not stored in
+votes. No additional infrastructure or secret is required.
+
 ## Docker
 
 The repository Dockerfile builds on the .NET 10 SDK image, runs the full Release test suite as an image-build gate, publishes the application, and runs it as the image's non-root application user.

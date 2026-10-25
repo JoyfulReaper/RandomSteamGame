@@ -176,6 +176,37 @@ Production values belong in IIS app-pool environment variables, deployment secre
 
 The legacy SQLite filename `kgivler_com.db` is intentionally retained for production compatibility. Renaming it requires a separate migration that safely detects the legacy file and moves or copies it before switching filenames.
 
+## Anonymous Feature Voting Backend (Slice 1)
+
+`FeaturesController` exposes a personalized GET board and idempotent POST support
+mutations. `SqliteFeatureVotingService` adds `FeatureProposals` and `FeatureVotes`
+to `kgivler_com.db` without modifying existing records or seeding proposals. Voting
+uses separate per-operation connections, a bounded voting-only asynchronous write
+gate, short immediate transactions, and database uniqueness. It does not depend
+on the recent-pick semaphore or change journal settings.
+
+`FeatureVotingIdentity` issues a one-year protected HttpOnly browser cookie through
+GET; only SHA-256 of the random identity is persisted. POST requires both this
+cookie and the existing antiforgery token pair. Middleware explicitly rejects
+invalid antiforgery before admission/writes. `FeatureVotingRateLimits` composes
+browser, transient domain-separated keyed IP, global rate, and concurrency limits
+without sharing Steam admission. Personalized successes and failures are no-store.
+
+The support page, UI, feature curation, accounts, and payments are unchanged. Before
+rollout, retain the Data/ volume and Data Protection keys, verify trusted ingress,
+and tune `FeatureVoting:*` limits for shared-address deployments. Limits are local
+to each process and reset on restart. Anonymous browser support does not verify
+unique people. Cross-host cookies and deliberate cookie/IP rotation remain limits
+of this model. Focused service/HTTP tests exercise persistence, concurrency,
+antiforgery, cookies in Public/AltNet, trusted forwarding, admission, and database
+failure handling. See [the voting backend contract](anonymous-feature-voting.md)
+for schema, API details, test commands, and deployment requirements.
+
+Slice 1 verification: solution restore/build succeeded; all 512 application tests,
+160 Steam API tests, and six Node cookie/export tests passed. This includes 44 new
+voting tests. The build retains an existing nullable warning in
+`VisitorIdProviderTests`; no new warnings were introduced by voting.
+
 ## Known Production Risks
 
 - No authentication or entitlement enforcement exists yet, so any premium feature added at the controller level will be publicly callable until auth and checks are introduced.
