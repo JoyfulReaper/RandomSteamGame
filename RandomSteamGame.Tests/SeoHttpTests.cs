@@ -4,27 +4,24 @@ using ErrorOr;
 using JoyfulReaperLib.Caching.Sqlite;
 using JoyfulReaperLib.JRNet;
 using JoyfulReaperLib.MissionControl;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using RandomSteamGame.Components.Pages;
-using RandomSteamGame.Client.Services;
+using Microsoft.Extensions.Options;
 using RandomSteamGame.Common.Errors;
+using RandomSteamGame.Components.Pages;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Xml.Linq;
@@ -57,7 +54,19 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
             "Contributors - Random Steam Game Picker",
             $"{CanonicalOrigin}/contributors",
             "Contributors & Sponsors"
-        }
+        },
+        {
+            "/privacy",
+            "Privacy Policy - Random Steam Game Picker",
+            $"{CanonicalOrigin}/privacy",
+            "Privacy Policy"
+        },
+        {
+            "/about",
+            "About Random Steam Game Picker",
+            $"{CanonicalOrigin}/about",
+            "About Random Steam Game Picker"
+        },
     };
 
     private readonly SeoWebApplicationFactory _factory;
@@ -378,7 +387,15 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/xml", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(new[] { AltNetOrigin + "/", AltNetOrigin + "/support", AltNetOrigin + "/contributors", AltNetOrigin + "/library-export" },
+        Assert.Equal(new[]
+        {
+            AltNetOrigin + "/",
+            AltNetOrigin + "/about",
+            AltNetOrigin + "/privacy",
+            AltNetOrigin + "/support",
+            AltNetOrigin + "/contributors",
+            AltNetOrigin + "/library-export"
+        },
             sitemap.Descendants(ns + "loc").Select(element => element.Value));
         Assert.DoesNotContain("randomsteam.kgivler.com", content, StringComparison.OrdinalIgnoreCase);
     }
@@ -560,6 +577,8 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         var expectedLocations = new[]
         {
             $"{CanonicalOrigin}/",
+            $"{CanonicalOrigin}/about",
+            $"{CanonicalOrigin}/privacy",
             $"{CanonicalOrigin}/contributors",
             $"{CanonicalOrigin}/library-export",
             $"{CanonicalOrigin}/support"

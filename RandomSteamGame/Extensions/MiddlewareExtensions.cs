@@ -138,22 +138,43 @@ public static class MiddlewareExtensions
         app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
         app.UseStaticFiles();
+        // Include model-binding, antiforgery, rate-limit, and failure responses as well as success.
+        app.Use(async (context, next) =>
+        {
+            if (FeatureVotingRateLimits.AppliesTo(context))
+            {
+                context.Response.Headers.CacheControl = "private, no-store";
+                context.Response.Headers["CDN-Cache-Control"] = "no-store";
+                // Deployment mode, never Host/forwarding headers, selects availability.
+                // Reject before antiforgery, rate admission, cookie issuance, or controller DI.
+                if (settings.NetworkMode != NetworkMode.Public)
+                {
+                    await Results.Problem(statusCode: 404).ExecuteAsync(context);
+                    return;
+                }
+            }
+            await next();
+        });
         app.UseAntiforgery();
 
         app.Use(async (context, next) =>
         {
             var endpoint = context.GetEndpoint();
             // Antiforgery middleware records a verdict but continues the pipeline. Reject invalid
-            // exports before they acquire capacity or reach the action's cooldown reservation.
-            if (endpoint?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName == "library_export_limiter" &&
-                endpoint.Metadata.GetMetadata<IAntiforgeryMetadata>() is { RequiresValidation: true } &&
+            // voting/export requests before capacity admission or application writes.
+            var voting = FeatureVotingRateLimits.AppliesTo(context);
+            if ((voting || endpoint?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName == "library_export_limiter") &&
+                endpoint?.Metadata.GetMetadata<IAntiforgeryMetadata>() is { RequiresValidation: true } &&
                 context.Features.Get<IAntiforgeryValidationFeature>()?.IsValid != true)
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 context.Response.ContentType = "text/plain; charset=utf-8";
                 context.Response.Headers.CacheControl = "private, no-store";
                 context.Response.Headers["CDN-Cache-Control"] = "no-store";
-                await context.Response.WriteAsync("Library export verification failed. Please reload the page and try again.", context.RequestAborted);
+                if (voting)
+                    await Results.Problem(statusCode: 400, detail: "Voting verification failed. Please reload and try again.").ExecuteAsync(context);
+                else
+                    await context.Response.WriteAsync("Library export verification failed. Please reload the page and try again.", context.RequestAborted);
                 return;
             }
             await next();

@@ -54,7 +54,9 @@ public static class ServiceExtensions
             WHERE NOT EXISTS (SELECT 1 FROM AppStats WHERE Id = 1);
             """;
 
-        var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db", schemaSql + SqliteRecentPickService.SchemaSql);
+        var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db",
+            schemaSql + SqliteRecentPickService.SchemaSql);
+        SqliteFeatureVotingService.InitializeSchema(connectionString);
         EnsureAppStatsSchema(connectionString);
 
         services.AddOptions<LibraryExportOptions>()
@@ -92,6 +94,7 @@ public static class ServiceExtensions
         services.AddApplicationCors(config, env);
 
         services.AddSteamRateLimiting();
+        services.AddFeatureVotingRateLimits();
 
         services.AddApplicationHealthChecks();
         services.AddMemoryCache();
@@ -256,6 +259,7 @@ public static class ServiceExtensions
         services.AddScoped<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<IAppStatsService, AppStatsService>();
         services.AddScoped<IRecentPickService>(_ => new SqliteRecentPickService(recentPickConnectionString));
+        services.AddScoped<IFeatureVotingService>(_ => new SqliteFeatureVotingService(recentPickConnectionString));
         services.AddScoped<ILibraryExportCooldownTracker, LibraryExportCooldownTracker>();
         services.AddScoped<ISteamLibraryExportService, SteamLibraryExportService>();
         services.AddScoped<SqliteConnection>(_ => new SqliteConnection(connectionString));

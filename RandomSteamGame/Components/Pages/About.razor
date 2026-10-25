@@ -1,0 +1,291 @@
+﻿@page "/about"
+@inject CanonicalUrlService CanonicalUrls
+
+<PageTitle>@Title</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="@Description" />
+    <meta name="author" content="JoyfulReaper" />
+    <link rel="canonical" href="@CanonicalUrl" />
+    <SocialMetadata Title="@Title" Description="@Description" CanonicalUrl="@CanonicalUrl" />
+</HeadContent>
+
+<div class="about-page">
+    <header class="about-hero">
+        <p class="about-eyebrow">The story behind the picker</p>
+
+        <h1>About Random Steam Game Picker</h1>
+
+        <p class="about-lead">
+            Random Steam Game started as a project to help me learn .NET.
+            I wanted something practical to build while experimenting with
+            APIs, caching, error handling, and application design.
+        </p>
+
+        <p>
+            I'd tried other random Steam game pickers, but some were painfully slow.
+            Waiting several seconds between picks, sometimes as long as eight seconds,
+            wasn't unusual. Sometimes the website was slow; other times it deliberately
+            made you sit through an animation.
+        </p>
+
+        <p>
+            I wanted something simpler: press a button, get a random game from your
+            library, and immediately try again if you don't like the result.
+            No artificial waiting. No roulette animation. Just pick a game.
+        </p>
+
+        <div class="about-actions">
+            <a class="btn btn-primary" href="/">Try the picker</a>
+            <a class="btn btn-outline-light"
+               href="https://github.com/JoyfulReaper/RandomSteamGame"
+               target="_blank"
+               rel="noopener noreferrer">
+                View the source
+            </a>
+        </div>
+    </header>
+
+    <section class="about-section" aria-labelledby="history-heading">
+        <p class="about-eyebrow">A little history</p>
+        <h2 id="history-heading">From learning exercise to ongoing project</h2>
+
+        <p>
+            The first versions of Random Steam Game were written by hand, back before
+            AI coding assistants were particularly useful for this kind of work.
+            It was a place to experiment, make mistakes, learn new approaches,
+            and occasionally discover that I'd made something far more complicated
+            than it needed to be.
+        </p>
+
+        <p>
+            The website spent some time offline, but I eventually brought it back
+            and started improving it again. What began as a relatively simple
+            learning project has grown into a faster, more capable application
+            with better caching, library exports, and several alternative ways
+            to use the picker.
+        </p>
+
+        <p>
+            These days I maintain it using a mix of code I write myself and
+            AI-assisted development. The tools have changed, but the goal hasn't:
+            build something useful, keep learning, and don't make users wait
+            around for no good reason.
+        </p>
+    </section>
+
+    <div class="about-grid">
+        <section class="about-section" aria-labelledby="features-heading">
+            <h2 id="features-heading">What it does</h2>
+
+            <ul class="about-list">
+                <li>Pick a random game from your public Steam library.</li>
+                <li>Limit selections to games with no recorded playtime.</li>
+                <li>Block games you don't want to see again in the current browser.</li>
+                <li>Reroll without starting the process over.</li>
+                <li>Refresh your cached library after buying new games.</li>
+                <li>Launch a selected game through Steam.</li>
+                <li>Export your library to CSV, including playtime and Steam Deck compatibility.</li>
+            </ul>
+
+            <p class="about-muted">
+                No Steam sign-in is required. The picker reads publicly available
+                library information and doesn't modify your Steam account.
+            </p>
+        </section>
+
+        <section class="about-section" aria-labelledby="how-heading">
+            <h2 id="how-heading">How it works</h2>
+
+            <ol class="about-list">
+                <li>
+                    You provide a Steam ID or Steam vanity URL.
+                </li>
+                <li>
+                    The application retrieves your public library through the
+                    Steam Web API, using cached data when available.
+                </li>
+                <li>
+                    Games excluded by your preferences are filtered out, and
+                    the picker randomly selects an eligible game.
+                </li>
+                <li>
+                    The result is displayed with game information and the option
+                    to launch it or pick again.
+                </li>
+            </ol>
+
+            <p class="about-muted">
+                Caching makes repeated picks fast and reduces unnecessary
+                requests to Steam. A cold cache or an unavailable Steam API
+                can still slow things down.
+            </p>
+        </section>
+    </div>
+
+    <section class="about-section" aria-labelledby="technical-heading">
+        <p class="about-eyebrow">Under the hood</p>
+        <h2 id="technical-heading">Built with .NET</h2>
+
+        <p>
+            Random Steam Game is written primarily in C# and runs on .NET.
+            It's also a project where I've tried different libraries and
+            architectural patterns to understand how they work in practice.
+        </p>
+
+        <div class="about-tech-grid">
+            <div class="about-tech-item">
+                <h3>.NET 10 / ASP.NET Core</h3>
+                <p>HTTP APIs, application services, dependency injection, and server-side functionality.</p>
+            </div>
+
+            <div class="about-tech-item">
+                <h3>Blazor</h3>
+                <p>The website uses Blazor Web App with Interactive Auto components.</p>
+            </div>
+
+            <div class="about-tech-item">
+                <h3>HybridCache</h3>
+                <p>Memory and SQLite-backed caching help avoid unnecessary Steam API requests.</p>
+            </div>
+
+            <div class="about-tech-item">
+                <h3>SQLite</h3>
+                <p>Lightweight persistence for application data and caching.</p>
+            </div>
+
+            <div class="about-tech-item">
+                <h3>Steam APIs</h3>
+                <p>Public library data, game details, and Steam Deck compatibility information.</p>
+            </div>
+
+            <div class="about-tech-item">
+                <h3>ErrorOr</h3>
+                <p>Explicit error handling without turning every expected failure into an exception.</p>
+            </div>
+        </div>
+
+        <p class="about-technical-note">
+            Earlier versions also experimented with MediatR, request handlers,
+            and pipeline behaviors. I eventually removed the MediatR layer
+            because the extra complexity wasn't justified for this application.
+            Learning when <em>not</em> to use a pattern has been part of the experience.
+        </p>
+
+        <p class="about-muted">
+            The code is public if you're interested in the implementation,
+            design decisions, or how the application has evolved.
+            <a href="https://github.com/JoyfulReaper/RandomSteamGame"
+               target="_blank"
+               rel="noopener noreferrer">Browse the GitHub repository</a>.
+        </p>
+    </section>
+
+    <section class="about-section" aria-labelledby="protocols-heading">
+        <p class="about-eyebrow">Because why not?</p>
+        <h2 id="protocols-heading">More than a website</h2>
+
+        <p>
+            I also enjoy old Internet protocols and alternative networks,
+            so Random Steam Game has a few less conventional interfaces.
+            You don't need any of them to use the website, but they're fun
+            to experiment with.
+        </p>
+
+        <div class="about-protocol-grid">
+            <div class="about-protocol">
+                <h3>Finger</h3>
+                <p>Yes, the old Finger protocol can pick a Steam game.</p>
+                <code>finger &lt;steamId&gt;&#64;finger.kgivler.com</code>
+            </div>
+
+            <div class="about-protocol">
+                <h3>IRC</h3>
+                <p>Ask the bot in <strong>#randomsteamgame</strong> on Libera.Chat.</p>
+                <code>!random &lt;SteamID or vanity&gt;</code>
+            </div>
+
+            <div class="about-protocol">
+                <h3>Matrix</h3>
+                <p>RandomSteamBot can also pick games in the Matrix room.</p>
+                <code>!steam &lt;SteamID or vanity&gt;</code>
+                <a href="https://matrix.to/#/!NTvCQirbQTeqzUiSoh:kgivler.com"
+                   target="_blank"
+                   rel="noopener noreferrer">Join the Matrix room</a>
+            </div>
+        </div>
+
+        <p class="about-muted">
+            The website is also available over DN42, Yggdrasil, and experimentally
+            through I2P. Some features and externally hosted assets may behave
+            differently on those networks.
+        </p>
+    </section>
+
+    <div class="about-grid">
+        <section class="about-section" aria-labelledby="opensource-heading">
+            <h2 id="opensource-heading">Free and open source</h2>
+
+            <p>
+                Random Steam Game Picker is free to use and open source under
+                the MIT license. It's a useful little application, a learning
+                project, and a portfolio piece.
+            </p>
+
+            <p>
+                Contributions and bug reports are welcome. If you have an idea
+                for a feature, you can suggest it on GitHub or check out the
+                features currently being considered.
+            </p>
+
+            <div class="about-link-list">
+                <a href="https://github.com/JoyfulReaper/RandomSteamGame"
+                   target="_blank"
+                   rel="noopener noreferrer">Source code on GitHub</a>
+                <a href="https://github.com/JoyfulReaper/RandomSteamGame/issues"
+                   target="_blank"
+                   rel="noopener noreferrer">Report an issue</a>
+                <a href="/support">Support the project and feature ideas</a>
+            </div>
+        </section>
+
+        <section class="about-section" aria-labelledby="developer-heading">
+            <h2 id="developer-heading">Who's behind it?</h2>
+
+            <p>
+                I'm JoyfulReaper, a developer who spends a lot of time working
+                with C#, .NET, Linux, self-hosted services, networking, and
+                occasionally some wonderfully obsolete Internet protocols.
+            </p>
+
+            <p>
+                I like building practical software, understanding how things
+                work, and making existing systems better.
+                Random Steam Game is one of several projects I've built
+                along the way.
+            </p>
+
+            <div class="about-link-list">
+                <a href="https://kgivler.com/"
+                   target="_blank"
+                   rel="noopener noreferrer">My personal website</a>
+                <a href="https://dev.kgivler.com/"
+                   target="_blank"
+                   rel="noopener noreferrer">Hire me or see my developer portfolio</a>
+            </div>
+        </section>
+    </div>
+
+    <p class="about-disclaimer">
+        Random Steam Game Picker is an independent project and is not affiliated
+        with Valve or Steam.
+    </p>
+</div>
+
+@code {
+    private const string Title = "About Random Steam Game Picker";
+    private const string Description =
+        "Learn how Random Steam Game Picker started as a .NET learning project, how it works, and the technology behind this free, open-source Steam library picker.";
+
+    private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl("/about");
+}

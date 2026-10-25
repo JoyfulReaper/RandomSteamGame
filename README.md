@@ -155,7 +155,7 @@ Important operational settings include:
 
 | Configuration key | Purpose |
 | --- | --- |
-| `Application:NetworkMode` | `Public` (default) or `AltNet`; controls defaults for remote Steam browser assets and beta probing |
+| `Application:NetworkMode` | `Public` (default) or `AltNet`; voting is Public-only; also controls defaults for remote Steam browser assets and beta probing |
 | `Application:NetworkName` | Optional display name such as `I2P`, `Yggdrasil`, or `DN42`; does not select capabilities |
 | `Application:AllowRemoteBrowserAssets` | Optional override; `null` allows Steam browser assets in Public and disables them in AltNet |
 | `Application:EnableBetaProbe` | Optional override; `null` enables beta probing in Public and disables it in AltNet; public beta links are shown only in Public |
@@ -242,6 +242,40 @@ configurable global capacity. Export policy hints follow the selected policy.
 JavaScript cookie tests can be run with
 `node --test RandomSteamGame.Tests/cookieHelper.test.mjs` in addition to the .NET suite.
 
+## Support and feature voting
+
+`/support` includes optional Ko-fi/PayPal donations, curated feature voting, GitHub
+suggestions, private sponsorship inquiries, and Kyle's portfolio. Donations and
+sponsorship agreements are separate; sponsors must contact Kyle before paying.
+Existing picker support links are preserved.
+
+The InteractiveAuto voting board makes all API calls from the browser through
+same-origin fetch and the existing dynamic antiforgery token flow. The backend uses
+`GET /api/features` and `POST /api/features/{id}/vote` with a required `supported`
+boolean, a protected HttpOnly cookie, and separate rate/capacity limits. This is
+anonymous browser-based support, not verified one-person-one-vote.
+
+Startup never seeds proposals. Kyle can manually run the idempotent
+[initial proposal SQL](docs/sql/initial-feature-proposals.sql) against the initialized
+application database. See [proposal maintenance](docs/feature-proposals.md) for the
+command, rerun behavior, and adding/editing accepted proposals. No production
+database is modified automatically.
+
+Proposals support `open`, `planned`, `completed`, and `closed`. Only `open` accepts
+vote mutations; all statuses retain visible totals/selections. The new voting
+tables use additive, idempotent `CREATE TABLE IF NOT EXISTS` initialization.
+The API is enabled only with `Application:NetworkMode=Public`. Every AltNet
+deployment (DN42, I2P, Yggdrasil) returns 404 before issuing voter cookies or invoking
+voting persistence. The mode is process-wide: alternate ingress paths routed to
+one Public instance would still reach its API. Use separate configured instances
+for network isolation; this change does not modify proxies or production routing.
+
+See [anonymous feature voting](docs/anonymous-feature-voting.md) for the schema,
+API contract, cookie lifecycle, `FeatureVoting:*` settings, security model, and
+Public-only availability and deployment considerations. Persist the existing Data Protection
+keys and database. IP abuse signals stay in server memory and are not stored in
+votes. No additional infrastructure or secret is required.
+
 ## Docker
 
 The repository Dockerfile builds on the .NET 10 SDK image, runs the full Release test suite as an image-build gate, publishes the application, and runs it as the image's non-root application user.
@@ -321,6 +355,7 @@ These are future ideas, not currently implemented features.
 ## Additional Documentation
 
 - [Developer handoff](docs/developer-handoff.md) — deeper architecture, request flow, caching, deployment, and debugging notes
+- [Technical privacy/data inventory](docs/privacy-data-inventory.md) — public engineering reference for collection, storage, retention/deletion behavior, and operational unknowns; see `/privacy` for the Privacy Policy
 - [Premium feature issues](docs/premium-feature-issues.md) — account-related roadmap and likely implementation areas
 
 ## License

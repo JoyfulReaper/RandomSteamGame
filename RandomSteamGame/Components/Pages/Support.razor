@@ -1,9 +1,10 @@
-﻿@page "/support"
-
+@page "/support"
+@using Microsoft.Extensions.Options
+@using RandomSteamGame.Options
 @inject CanonicalUrlService CanonicalUrls
+@inject IOptions<ApplicationOptions> ApplicationSettings
 
 <PageTitle>@Title</PageTitle>
-
 <HeadContent>
     <meta name="description" content="@Description" />
     <link rel="canonical" href="@CanonicalUrl" />
@@ -11,307 +12,65 @@
 </HeadContent>
 
 <div class="support-page">
-    <section class="support-hero">
-        <p class="eyebrow">RSG-UTILITY SUPPORT CHANNEL</p>
-
+    <header class="support-intro">
+        <p class="support-eyebrow">Support &amp; ideas</p>
         <h1>Support the Picker</h1>
-
-        <p class="lead">
-            Random Steam Game Picker is free to use. If it helped you escape backlog paralysis,
-            you can send a one-time support payment, help sponsor future development, or reach out
-            about scoped custom work.
-        </p>
-
-        <div class="support-actions">
-            <a class="btn btn-primary btn-lg"
-               href="@SupportUrl"
-               target="_blank"
-               rel="noopener noreferrer">
-                Send $5 Support
-            </a>
-
-            <a class="btn btn-outline-light btn-lg"
-               href="@SponsorUrl"
-               target="_blank"
-               rel="noopener noreferrer">
-                Sponsor Development
-            </a>
-
-            <a class="btn btn-outline-light btn-lg"
-               href="@CustomWorkUrl"
-               target="_blank"
-               rel="noopener noreferrer">
-                Discuss Custom Work
-            </a>
+        <p class="support-lead">Random Steam Game Picker is a free hobby project.
+            If you'd like to help with hosting and development costs, donations are appreciated and optional.</p>
+        <div class="support-links">
+            <a class="btn btn-primary" href="https://ko-fi.com/joyfulreaper" target="_blank" rel="noopener noreferrer">Support on Ko-fi</a>
+            <a class="btn btn-outline-light" href="@PayPalUrl" target="_blank" rel="noopener noreferrer">Donate with PayPal</a>
         </div>
+    </header>
 
-        <p class="fine-print">
-            Support is appreciation-based. Feature sponsorship helps prioritize development,
-            but it does not buy control of the project or guarantee an exact delivery date.
-            Sponsorship and custom work inquiries currently go through GitHub.
-        </p>
-    </section>
-
-    <section class="support-panel">
-        <h2>One-Time Support</h2>
-
-        <div class="support-tier">
-            <div>
-                <h3>$5 Supporter</h3>
-                <p>
-                    A simple thank-you contribution. Supporters may optionally be listed on the
-                    contributors page.
-                </p>
-            </div>
-
-            <span class="tier-badge">Manual</span>
+    <section class="support-section" aria-labelledby="features-heading">
+        <div class="support-section-heading">
+            <p class="support-eyebrow">What comes next</p>
+            <h2 id="features-heading">Features I'm considering</h2>
+            <p>Vote for the ideas you'd use. Votes help me understand interest; they don't promise a feature or a delivery date.</p>
+            <p class="support-detail">You can support more than one feature. Votes are anonymous and saved for this browser.
+                Account-linked features would need Steam sign-in first; sign-in isn't implemented yet.</p>
         </div>
-
-        <p>
-            Include a display name if you want to be listed on the contributors page. Optional links,
-            project credits, and sponsor graphics will be managed there.
-        </p>
-
-        <pre class="support-note">@SupportNote</pre>
+        @if (ApplicationSettings.Value.NetworkMode == NetworkMode.Public)
+        {
+            <FeatureVotingBoard @rendermode="InteractiveAuto" />
+        }
+        else
+        {
+            <p class="support-unavailable" role="status">Feature voting is available on the clearnet site.
+                You can still suggest a feature or ask about sponsorship below.</p>
+        }
     </section>
 
-    <section class="support-panel">
-        <h2>Feature Sponsorship</h2>
+    <div class="support-bottom-grid">
+        <section class="support-section" aria-labelledby="suggest-heading">
+            <p class="support-eyebrow">Have another idea?</p>
+            <h2 id="suggest-heading">Suggest a feature</h2>
+            <p>If the feature you want isn't listed, open a GitHub issue. Describe what you'd like to do and how it would help.
+                Accepted proposals can be added to the voting board.</p>
+            <a class="support-text-link" href="https://github.com/JoyfulReaper/RandomSteamGame/issues/new" target="_blank" rel="noopener noreferrer">Suggest a feature on GitHub <span aria-hidden="true">↗</span></a>
+        </section>
 
-        <p>
-            Sponsorship helps fund my development time and decide what gets worked on next.
-            These are not fixed-price feature purchases unless we explicitly agree on a custom scope.
-            Public roadmap sponsorship is a priority signal, not a delivery contract.
-        </p>
+        <section class="support-section" aria-labelledby="sponsorship-heading">
+            <p class="support-eyebrow">Discuss a specific feature</p>
+            <h2 id="sponsorship-heading">Feature sponsorship</h2>
+            <p>I'm Kyle, the developer. I'm open to discussing paid development of specific features.
+                Tell me which feature you're interested in so we can discuss feasibility, scope, payment, and expectations.</p>
+            <p class="sponsorship-note">Please contact me before sending payment for feature sponsorship.
+                Tips and donations are separate from sponsorship agreements and do not guarantee development of a feature.</p>
+            <p class="support-detail">I'm open to practical payment methods I can legally receive in the United States.
+                We'll agree on the details before any money changes hands.</p>
+            <a class="support-text-link" href="https://dev.kgivler.com/#contact" target="_blank" rel="noopener noreferrer">Contact Kyle about sponsorship <span aria-hidden="true">↗</span></a>
+        </section>
+    </div>
 
-        <div class="boost-grid">
-            @foreach (var tier in SponsorTiers)
-            {
-                <div class="boost-card">
-                    <h3>@tier.Amount</h3>
-                    <p>@tier.Name</p>
-                    <span>@tier.Description</span>
-                </div>
-            }
-        </div>
-
-        <div class="notice-box">
-            <h3>Premium access note</h3>
-            <p>
-                Some sponsored features may later become premium features. If that happens,
-                sponsors of that feature will receive lifetime access to the sponsored feature,
-                or equivalent lifetime premium access once account support exists.
-            </p>
-            <p>
-                For group-sponsored features, eligible members of the sponsoring group can receive
-                access to the sponsored premium feature as well. Group eligibility and member limits
-                should be agreed on as part of the sponsorship scope and may require account support
-                or membership verification.
-            </p>
-        </div>
-
-        <p class="fine-print">
-            Custom development, guaranteed delivery, integrations, private builds, or separate-license work
-            require a custom scope and generally start at $1,000+ depending on complexity.
-        </p>
-    </section>
-
-    <section class="support-panel">
-        <h2>Custom Development</h2>
-
-        <p>
-            I am also open to scoped custom development outside of Random Steam Game Picker.
-            My strongest areas are backend .NET, ASP.NET Core APIs, caching, databases,
-            automation, developer tooling, integration work, and performance-focused debugging
-            or refactoring.
-        </p>
-
-        <p>
-            External work is handled separately from public roadmap sponsorship. Availability,
-            scope, timeline, ownership, licensing, and pricing must be agreed on before work begins.
-        </p>
-
-        <p class="fine-print">
-            Custom development generally starts at $1,000+ depending on complexity.
-            Smaller advisory, review, or debugging engagements may be considered when the scope is clear.
-        </p>
-
-        <a class="btn btn-outline-light"
-           href="@CustomWorkUrl"
-           target="_blank"
-           rel="noopener noreferrer">
-            Discuss Custom Work
-        </a>
-    </section>
-
-    <section class="support-panel">
-        <h2>Sponsor Graphics</h2>
-
-        <p>
-            Sponsor graphics may appear on the contributors page, not as intrusive ads in the picker flow.
-            Keep them small, clean, and safe for a general audience.
-        </p>
-
-        <ul class="requirements-list">
-            <li>Recommended size: <strong>600×200px</strong></li>
-            <li>Displayed max size: <strong>300×100px</strong></li>
-            <li>Preferred formats: <strong>PNG, WebP, or SVG</strong></li>
-            <li>Max file size: <strong>250 KB</strong></li>
-            <li>Transparent or dark-background-friendly graphics work best</li>
-        </ul>
-    </section>
-
-    <section class="support-panel">
-        <h2>Roadmap</h2>
-
-        <p>
-            Features marked as account-required will need Steam sign-in before they can exist as saved
-            or premium features.
-        </p>
-
-        <div class="table-responsive">
-            <table class="table table-dark table-striped align-middle roadmap-table">
-                <thead>
-                    <tr>
-                        <th>Feature</th>
-                        <th>Status</th>
-                        <th>Account</th>
-                        <th>Sponsor</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var feature in Roadmap)
-                    {
-                        <tr>
-                            <td>
-                                <strong>@feature.Name</strong>
-                                <div class="roadmap-description">@feature.Description</div>
-                            </td>
-                            <td>
-                                <span class="status-pill">@feature.Status</span>
-                            </td>
-                            <td>@(feature.RequiresAccount ? "Required" : "No")</td>
-                            <td>@feature.Sponsor</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </section>
+    <p class="support-portfolio"><a href="https://dev.kgivler.com/" target="_blank" rel="noopener noreferrer">Hire me or see my developer portfolio</a></p>
 </div>
 
 @code {
     private const string Title = "Support Random Steam Game Picker";
-    private const string Description = "Support Random Steam Game Picker with a one-time contribution, sponsor a roadmap feature, or discuss scoped custom development.";
-
+    private const string Description = "Help with hosting, vote on proposed features, suggest an idea, or contact Kyle about feature sponsorship.";
+    // Preserve the existing donation destination, including its suggested amount.
+    private const string PayPalUrl = "https://www.paypal.com/paypalme/KyleGivler/5USD";
     private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl("/support");
-
-    private const string SupportUrl = "https://www.paypal.com/paypalme/KyleGivler/5USD";
-
-    private const string SponsorUrl =
-        "https://github.com/JoyfulReaper/RandomSteamGame/issues/new?title=RSG%20Sponsorship%20Inquiry&body=I%20am%20interested%20in%20sponsoring%20Random%20Steam%20Game%20Picker.%0A%0AFeature%20or%20sponsorship%20idea%3A%0A%0ASponsor%20name%20or%20display%20name%3A%0A%0AOptional%20link%3A%0A";
-
-    private const string CustomWorkUrl =
-        "https://github.com/JoyfulReaper/RandomSteamGame/issues/new?title=Custom%20Development%20Inquiry&body=I%20am%20interested%20in%20discussing%20custom%20development.%0A%0AProject%20or%20problem%20summary%3A%0A%0ATechnology%20stack%3A%0A%0ATimeline%3A%0A%0ABudget%20range%3A%0A%0AContact%20info%3A%0A";
-
-    private const string SupportNote = "RSG Supporter - Display Name: Your Name - Optional Link: https://example.com";
-
-    private static readonly IReadOnlyList<SponsorTier> SponsorTiers =
-    [
-        new(
-            "$50",
-            "Feature Boost",
-            "Adds visible support to a roadmap item and helps prioritize it."),
-
-        new(
-            "$100",
-            "Feature Sponsor",
-            "Optional sponsor credit for a planned feature."),
-
-        new(
-            "$250",
-            "Priority Sponsor",
-            "Stronger roadmap signal and optional contributor graphic."),
-
-        new(
-            "$500+",
-            "Major Sponsor",
-            "Best for larger features, project support, or prominent credit."),
-
-        new(
-            "$1,000+",
-            "White-Glove Custom Implementation",
-            "For scoped custom development connected to Random Steam Game Picker or its underlying .NET/Steam API tooling, including integrations, guaranteed delivery, private builds, or custom licensing beyond the public MIT project.")
-    ];
-
-    private static readonly IReadOnlyList<RoadmapFeature> Roadmap =
-    [
-        new(
-            "Sign in with Steam",
-            "Planned",
-            true,
-            "Foundation for saved preferences, premium features, and account-linked data.",
-            "Available"),
-
-        new(
-            "Permanent blocked games",
-            "Planned",
-            true,
-            "Save excluded games server-side instead of relying on browser cookies.",
-            "Available"),
-
-        new(
-            "Favorites",
-            "Planned",
-            true,
-            "Mark games you might want to play later.",
-            "Available"),
-
-        new(
-            "Picker history",
-            "Planned",
-            true,
-            "Track recent picks and avoid immediate repeats.",
-            "Available"),
-
-        new(
-            "CSV export",
-            "Available",
-            false,
-            "Export your public Steam library to CSV with game names, App IDs, playtime, last-played dates, and Steam Deck compatibility.",
-            "Available"),
-
-        new(
-            "Saved game lists",
-            "Later",
-            true,
-            "Create lists like short games, co-op games, or maybe-next games.",
-            "Available"),
-
-        new(
-            "Shareable lists",
-            "Later",
-            true,
-            "Share curated game lists with other users.",
-            "Available"),
-
-        new(
-            "Custom sponsored feature",
-            "By request",
-            true,
-            "Scoped custom development, integrations, guaranteed delivery, private builds, or separate-license implementations agreed on before work begins.",
-            "Open GitHub issue")
-    ];
-
-    private sealed record SponsorTier(
-        string Amount,
-        string Name,
-        string Description);
-
-    private sealed record RoadmapFeature(
-        string Name,
-        string Status,
-        bool RequiresAccount,
-        string Description,
-        string Sponsor);
 }
