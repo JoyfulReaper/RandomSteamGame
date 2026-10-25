@@ -1,9 +1,10 @@
 # Anonymous feature voting: persistence and API
 
-This is the backend foundation only. The support page is unchanged, no voting UI
-exists yet, and no proposals are seeded. Suggestions remain GitHub issues; only
-developer-curated proposals will eventually appear on the board. No accounts,
-Steam identity associations, sponsorship terms, or payment processing are involved.
+This documents the backend used by the support page's browser voting board.
+Suggestions remain GitHub issues; only developer-curated proposals appear on the
+board. No accounts, Steam identity associations, or payment processing are involved.
+Proposals are never seeded automatically. See [the support page and proposal
+maintenance guide](feature-proposals.md) for the manual initial SQL script.
 
 ## Schema and persistence
 
@@ -36,8 +37,8 @@ SQLite remains the cross-connection/process writer authority. Duplicate support
 does not change the original creation timestamp. Withdrawal deletes only that
 browser's row. Totals are calculated from stored votes.
 
-There is no public curation API. Proposal insertion and lifecycle tooling are
-deliberately deferred; do not delete/recreate a database to populate the board.
+There is no public curation API. Proposal insertion and lifecycle edits use
+documented manual SQL; do not delete/recreate a database to populate the board.
 
 ## Browser cookie
 
@@ -118,8 +119,8 @@ successful outcome without creating additional votes.
   `Retry-After: 1`. Retry the same desired state after waiting.
 - 500: unexpected failure, with a generic ProblemDetails response.
 
-GET never changes votes. Errors do not expose internal exception text. Future
-InteractiveAuto components should make these calls through browser fetch, as the
+GET never changes votes. Errors do not expose internal exception text.
+InteractiveAuto components make these calls through browser fetch, as the
 existing library export does, so cookies, antiforgery, effective ingress IP, and
 HTTP rate limiting apply equally to Server and WebAssembly execution. Do not call
 the voting store directly from interactive components.

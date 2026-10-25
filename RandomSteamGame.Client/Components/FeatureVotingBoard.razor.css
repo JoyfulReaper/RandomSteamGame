@@ -1,0 +1,26 @@
+.feature-list { display: grid; gap: .8rem; }
+.feature-card { min-width: 0; padding: 1.25rem; border: 1px solid #334155; border-radius: .75rem; background: #0c1626; }
+.feature-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: .8rem; }
+.feature-heading h3 { font-size: 1.1rem; font-weight: 650; line-height: 1.45; margin: 0; color: #f8fafc; overflow-wrap: anywhere; }
+.feature-status { flex-shrink: 0; border: 1px solid #475569; border-radius: 1rem; padding: .15rem .6rem; color: #cbd5e1; font-size: .75rem; }
+.feature-status[data-status="open"] { color: #bae6fd; border-color: #256089; background: #12304a; }
+.feature-status[data-status="completed"] { color: #a7f3d0; border-color: #27624e; background: #113629; }
+.feature-description { margin: .65rem 0 1rem; color: #b9c7d9; font-size: .95rem; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-line; }
+.feature-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.feature-count { color: #e2e8f0; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.vote-button, .reload-button { border: 1px solid #58718d; border-radius: .45rem; padding: .45rem .8rem; min-height: 44px; background: transparent; color: #e2e8f0; font: inherit; font-size: .9rem; }
+.vote-button:hover:enabled, .reload-button:hover:enabled { border-color: #7dd3fc; background: #16314b; }
+.vote-button[aria-pressed="true"] { border-color: #7dd3fc; background: #16314b; color: #bae6fd; }
+.vote-button:disabled, .reload-button:disabled { opacity: .55; cursor: wait; }
+.feature-sponsor { color: #7dd3fc; text-decoration: underline; text-underline-offset: .2em; font-size: .85rem; margin-left: auto; }
+.board-message { color: #cbd5e1; padding: 1rem; border-radius: .5rem; background: #0b1423; }
+.board-error { border: 1px solid #ad6b46; color: #fed7aa; }
+.board-notice { color: #bae6fd; font-size: .9rem; }
+.board-notice:empty { display: none; }
+.reload-button { margin-top: 1rem; font-size: .85rem; color: #b9c7d9; }
+.feature-board button:focus-visible, .feature-board a:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 4px; }
+@media (max-width: 560px) {
+    .feature-card { padding: 1rem; }
+    .feature-heading { flex-direction: column; }
+    .feature-sponsor { flex-basis: 100%; margin-left: 0; padding-top: .25rem; }
+}
