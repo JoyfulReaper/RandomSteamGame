@@ -155,7 +155,7 @@ Important operational settings include:
 
 | Configuration key | Purpose |
 | --- | --- |
-| `Application:NetworkMode` | `Public` (default) or `AltNet`; controls defaults for remote Steam browser assets and beta probing |
+| `Application:NetworkMode` | `Public` (default) or `AltNet`; voting is Public-only; also controls defaults for remote Steam browser assets and beta probing |
 | `Application:NetworkName` | Optional display name such as `I2P`, `Yggdrasil`, or `DN42`; does not select capabilities |
 | `Application:AllowRemoteBrowserAssets` | Optional override; `null` allows Steam browser assets in Public and disables them in AltNet |
 | `Application:EnableBetaProbe` | Optional override; `null` enables beta probing in Public and disables it in AltNet; public beta links are shown only in Public |
@@ -241,6 +241,30 @@ configurable global capacity. Export policy hints follow the selected policy.
 
 JavaScript cookie tests can be run with
 `node --test RandomSteamGame.Tests/cookieHelper.test.mjs` in addition to the .NET suite.
+
+## Anonymous feature-voting backend
+
+The backend foundation exposes `GET /api/features` and antiforgery-protected
+`POST /api/features/{id}/vote` with `{ "supported": true }` (or `false` to withdraw).
+It uses two additive tables in the existing `Data/kgivler_com.db`, a protected
+HttpOnly browser cookie, and separate voting rate/capacity limits. It does not seed
+proposals or change the support page; the voting UI is deferred. This is anonymous
+browser-based support, not verified one-person-one-vote.
+
+Proposals support `open`, `planned`, `completed`, and `closed`. Only `open` accepts
+vote mutations; all statuses retain visible totals/selections. The new voting
+tables use additive, idempotent `CREATE TABLE IF NOT EXISTS` initialization.
+The API is enabled only with `Application:NetworkMode=Public`. Every AltNet
+deployment (DN42, I2P, Yggdrasil) returns 404 before issuing voter cookies or invoking
+voting persistence. The mode is process-wide: alternate ingress paths routed to
+one Public instance would still reach its API. Use separate configured instances
+for network isolation; this change does not modify proxies or production routing.
+
+See [anonymous feature voting](docs/anonymous-feature-voting.md) for the schema,
+API contract, cookie lifecycle, `FeatureVoting:*` settings, security model, and
+Public-only availability and deployment considerations. Persist the existing Data Protection
+keys and database. IP abuse signals stay in server memory and are not stored in
+votes. No additional infrastructure or secret is required.
 
 ## Docker
 
