@@ -1,6 +1,8 @@
-# Internal privacy and data-processing inventory
+# Technical privacy and data-processing inventory
 
-This is an engineering reference, **not the public Privacy Policy or legal advice**.
+This intentionally public document is an engineering reference, **not the public
+Privacy Policy or legal advice**. The [Privacy Policy](../RandomSteamGame/Components/Pages/Privacy.razor)
+is available on the site at `/privacy`.
 It records current behavior; it does not authorize changes to collection, retention,
 production configuration, or databases.
 
@@ -14,7 +16,7 @@ static content, without changing the audited persistence or voting code.
 - **Verified** means behavior found in application source or the pinned dependency
   implementations linked below. It does not prove what production is running.
 - **Configuration-dependent** means tracked defaults or explicit configuration
-  determine behavior; environment overrides and actual deployed values are unknown.
+  determine behavior; deployed values are unknown unless operator-confirmed below.
 - **Operational unknown** means source cannot establish the answer. Resolve the
   questions below before making public promises about retention or deletion.
 
@@ -22,6 +24,24 @@ Use [developer handoff](developer-handoff.md) for architecture,
 [voting backend](anonymous-feature-voting.md) for the API/security contract, and
 [proposal maintenance](feature-proposals.md) for curation. This document covers
 their data-processing implications rather than repeating implementation instructions.
+
+### Operator-confirmed production behavior
+
+Kyle confirmed the following production behavior on 2026-10-25. These are operator
+statements, not conclusions established by the tracked defaults or a live inspection:
+
+- The Public deployment sends telemetry to Mission Control.
+- The Mission Control archive currently retains events indefinitely.
+- The I2P deployment disables Mission Control telemetry.
+- I2P hides visitors' public IP addresses from the application, but local proxy
+  addresses and server logs may still exist. This does not mean the deployment has
+  no address records or diagnostics.
+
+The source-verified behavior below explains the available mechanisms. In particular,
+`NetworkMode=AltNet` alone does not disable telemetry; the I2P telemetry setting is a
+confirmed deployment choice, not a guarantee for every AltNet instance. Reconfirm
+these statements if production configuration or archive handling changes. Other
+operational details remain listed in [the open questions](#operational-questions).
 
 ## Data collected and why
 
@@ -211,7 +231,9 @@ Enablement, destination and identifier key are deployment-dependent. When enable
 the [client](https://github.com/JoyfulReaper/JoyfulReaperLib/blob/19061e93ac6d8f8f05f9adf2b9474aa04165d8b1/JoyfulReaperLib.MissionControl/MissionControlClient.cs#L26-L88)
 (pinned package 0.0.3) POSTs event envelopes with event ID, timestamp, optional
 correlation ID and payload. Failures are best-effort; no durable local event outbox
-or remote retention/deletion schedule is established here.
+or receiver retention/deletion schedule is defined by this source. The operator
+confirms Public delivery, indefinite archive retention and disabled I2P delivery
+as described above; other receiver operations still require confirmation.
 
 | Event | Relevant payload fields |
 | --- | --- |
@@ -233,8 +255,9 @@ could enter logs if the receiver echoes it (a possibility, not an observed leak)
 Tracked logging uses Information by default and Warning for Microsoft.AspNetCore;
 no dedicated HTTP-body logging middleware was found. Hosting/proxy access logs may
 still record IPs, paths, queries, user agents or other headers. No application log,
-Mission Control or infrastructure retention period should be invented from these
-settings. Separate IRC/Matrix clients also handle nicknames/senders and messages
+Mission Control or infrastructure retention period should be inferred from these
+settings; the indefinite Mission Control archive retention above is operator-confirmed.
+Separate IRC/Matrix clients also handle nicknames/senders and messages
 and print protocol/message content; they are not automatic website recipients.
 If the policy covers those integrations, review their operations separately:
 [IRC](../RandomSteamGame.IrcBot/IrcClient.cs#L156),
@@ -246,7 +269,7 @@ If the policy covers those integrations, review their operations separately:
 | --- | --- | --- |
 | Valve Steam Web API / Steam Store API | Backend requests on library, resolution or metadata operations; cache hits can avoid them | Steam ID, vanity name or game IDs go to Valve from the backend using application credentials; code does not forward browser identity cookies/IP/user-agent headers |
 | Steam/CDN artwork and resources in descriptions | Automatic browser requests while rendering games when remote assets are allowed (Public default) | Remote hosts receive the browser's ordinary request metadata, including network address. Sanitized description HTML is not necessarily free of external resource loads; actual domains/headers/cookies vary with content/browser |
-| Mission Control | Backend event delivery if enabled | Structured payloads above; operator-controlled service with separately unverified storage/access/retention |
+| Mission Control | Backend events; operator confirms Public delivery and disabled I2P delivery | Structured payloads above; archive currently retained indefinitely per operator; storage/access and other operations remain unverified |
 | Beta picker | Backend availability GET to beta `/api/stats` when probing is enabled; result cached for 30 seconds | No visitor identifiers explicitly forwarded by the probe |
 | Ko-fi / PayPal | User clicks donation link | Ordinary navigation, no payment SDK/iframe/form processing here. Provider processing and records received by Kyle require separate confirmation |
 | GitHub | User clicks source/issues/suggestion links | Issue text/account handling occurs on GitHub, not through an on-site suggestion form |
@@ -305,14 +328,17 @@ See the [existing deployment boundary](anonymous-feature-voting.md#deployment-an
   diagnostic logs or Mission Control events was found. An operator-assisted request
   process and backup exceptions must be confirmed rather than presented as implemented.
 
-## Unknowns to resolve before publishing the Privacy Policy
+## Operational questions
+
+The production facts above are confirmed. Resolve the remaining questions before
+adding or strengthening corresponding public policy claims.
 
 | Priority question for Kyle | Why it matters |
 | --- | --- |
-| What revision/configuration is actually deployed, including cache TTLs and Mission Control enablement? | Tracked defaults are not production evidence |
+| What revision, cache TTLs and other configuration are deployed? | Tracked defaults are not production evidence; Public/I2P Mission Control enablement is confirmed above |
 | What retention is intended for raw-IP Visitors records and for votes after cookie expiry/non-open status? | Current code keeps these indefinitely; a shorter promise requires a separately authorized implementation/operational process |
 | What do IIS, reverse proxy, CDN, hosting and application sinks log, who can access them, and for how long? | IPs, identifier-bearing URLs and possibly headers can exist beyond SQLite |
-| What are Mission Control's actual retention, access controls, backups and deletion procedures? | This repository specifies event delivery, not receiver operations |
+| What are Mission Control's access controls, backups and deletion procedures? | Its archive currently retains events indefinitely per the operator; the remaining receiver operations are not established here |
 | What backup/snapshot retention and database/key-directory permissions/encryption are in use? | SQL deletion/expiry is not a guarantee of physical erasure or deletion from backups |
 | Do alternative network ingress paths share a Public process, databases or key rings? | Determines actual voting/asset behavior and whether records can be correlated across deployments |
 | Which contact channel and operator procedure handle deletion requests, including identity verification and backup handling? | No comprehensive self-service deletion flow is implemented |

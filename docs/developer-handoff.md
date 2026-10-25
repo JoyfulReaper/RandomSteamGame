@@ -97,11 +97,21 @@ Interactive components use `PersistentComponentState` to avoid unnecessary refet
 
 ## Authentication, Identity, And Storage Strategy
 
-See the [internal privacy/data inventory](privacy-data-inventory.md) for verified
+See the public [technical privacy/data inventory](privacy-data-inventory.md) for verified
 collection, cookie/storage lifetimes, cleanup/deletion limits, and operational
 questions to resolve before publishing the public Privacy Policy. In particular,
 homepage visitor statistics persist raw IPs indefinitely under current behavior;
 the separate telemetry hash and transient voting limiter do not replace those records.
+
+The `/privacy` policy page has scoped CSS, a global footer link and a sitemap entry.
+`SeoHttpTests.IndexablePageCases` covers its server-rendered title, canonical URL,
+OpenGraph metadata and H1; the Public/AltNet sitemap expectations include it.
+The technical inventory separates source evidence from Kyle's confirmations about
+Public/I2P telemetry, indefinite Mission Control archive retention and I2P address
+visibility. These documentation/page changes do not alter collection or retention.
+Verification: all 63 focused `SeoHttpTests` passed, including both sitemap lists
+and Public/AltNet privacy metadata cases. The build reported an existing nullable
+warning in `VisitorIdProviderTests`.
 
 ### Current Authentication State
 
