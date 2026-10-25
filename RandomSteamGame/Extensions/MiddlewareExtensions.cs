@@ -139,14 +139,21 @@ public static class MiddlewareExtensions
 
         app.UseStaticFiles();
         // Include model-binding, antiforgery, rate-limit, and failure responses as well as success.
-        app.Use((context, next) =>
+        app.Use(async (context, next) =>
         {
             if (FeatureVotingRateLimits.AppliesTo(context))
             {
                 context.Response.Headers.CacheControl = "private, no-store";
                 context.Response.Headers["CDN-Cache-Control"] = "no-store";
+                // Deployment mode, never Host/forwarding headers, selects availability.
+                // Reject before antiforgery, rate admission, cookie issuance, or controller DI.
+                if (settings.NetworkMode != NetworkMode.Public)
+                {
+                    await Results.Problem(statusCode: 404).ExecuteAsync(context);
+                    return;
+                }
             }
-            return next();
+            await next();
         });
         app.UseAntiforgery();
 

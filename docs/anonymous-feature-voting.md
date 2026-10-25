@@ -11,9 +11,18 @@ Startup adds two tables to the existing `Data/kgivler_com.db`, beneath
 `AppContext.BaseDirectory`, using idempotent `CREATE TABLE IF NOT EXISTS` statements.
 It does not update or delete existing rows, seed proposals, or change journal mode.
 
+The original two-status constraint is upgraded once through a transactional
+copy-and-swap of the proposal table definition. Every proposal field/ID is copied
+and verified; vote rows and timestamps remain in their original table. Custom
+indexes/triggers are restored and foreign keys checked before commit. Failures
+roll back the entire upgrade; unexpected extra columns cause a safe failure rather
+than silent data loss. Foreign-key disabling is limited to a dedicated non-pooled
+startup connection. This change includes no production migration run or networking changes.
+This follows SQLite's [table schema change procedure](https://www.sqlite.org/lang_altertable.html#otheralter).
+
 - `FeatureProposals`: integer `Id` primary key; unique `Slug` (1–80 lowercase ASCII
   letters/digits/hyphens, no leading/trailing hyphen); `Title` (1–160 characters);
-  `Description` (1–4000 characters); `Status` (`open` or `closed`); nullable positive
+  `Description` (1–4000 characters); `Status` (`open`, `planned`, `completed`, or `closed`); nullable positive
   `GitHubIssueNumber`. Titles/descriptions must contain non-space content and should
   be treated as plain text by future UI. IDs and slugs are stable curation identifiers.
 - `FeatureVotes`: `FeatureProposalId` foreign key; lowercase hexadecimal SHA-256
@@ -42,9 +51,8 @@ in SQLite. Neither the identifier nor its hash appears in API responses.
 The cookie is HttpOnly, SameSite=Lax, host-only, scoped to `/api/features`, and
 expires after 365 days without sliding renewal. Public deployments use Secure
 cookies, including development, matching server-written Steam identity cookies.
-AltNet derives Secure from its configured canonical origin: HTTP permits a
-non-Secure cookie; HTTPS requires Secure even when the backend receives HTTP.
-Use HTTPS for Public local API testing.
+Use HTTPS for Public local API testing. AltNet does not issue voting cookies;
+its existing deployment-aware cookie policy remains unchanged for other features.
 
 Missing, malformed, tampered, or expired cookies are replaced by GET. POST never
 silently creates a replacement identity: it returns 400 and requires a fresh GET.
@@ -54,6 +62,14 @@ Data Protection keys creates a new identity. Existing vote rows remain. This is
 anonymous browser-based support, **not verified one-person-one-vote**.
 
 ## API contract
+
+Feature voting is available only when `Application:NetworkMode=Public`.
+`NetworkMode=AltNet` disables both GET and POST for every alternate network,
+including DN42, I2P, and Yggdrasil. Disabled endpoints return 404 before
+antiforgery validation, rate admission, voter-cookie issuance, controller
+activation, or voting-persistence access, even with valid existing credentials.
+The common startup schema initialization still runs on both deployment modes.
+No new feature-availability configuration option is introduced.
 
 All feature API responses, including validation/security failures, carry
 `Cache-Control: private, no-store` and `CDN-Cache-Control: no-store`. Feature endpoints
@@ -76,8 +92,8 @@ disable CORS; browser clients should use same-origin requests with cookies.
 ]
 ```
 
-Both open and closed proposals are returned, including retained totals/selections.
-An empty installation returns `[]`.
+All four proposal statuses are returned, including retained totals/selections.
+Only `open` proposals accept mutations. An empty Public installation returns `[]`.
 
 `POST /api/features/{id}/vote` requires a positive Int64 proposal ID, the established
 voter cookie, JSON content type, and the existing antiforgery cookie/request-token
@@ -96,8 +112,8 @@ successful outcome without creating additional votes.
 
 - 204: support/withdrawal saved, including an already-satisfied request.
 - 400: invalid input, invalid antiforgery pair, or absent/invalid voter cookie.
-- 404: proposal does not exist.
-- 409: proposal is closed; both additions and withdrawals are rejected.
+- 404: proposal does not exist, or feature voting is disabled in AltNet.
+- 409: proposal is `planned`, `completed`, or `closed`; both additions and withdrawals are rejected.
 - 413/415: oversized body/unsupported content type.
 - 429: rate/capacity limit, with `Retry-After` seconds.
 - 503: SQLite unavailable/contended or local write admission timed out, with
@@ -153,12 +169,24 @@ configuration requirement. Take the usual database backup before releasing any
 schema addition. Existing readiness checks verify the shared database and key
 directory; they do not independently inspect the voting tables.
 
-Configure limits with `FeatureVoting__*` environment variables when needed.
-Shared-address AltNet/tunnel deployments may need a higher IP request allowance;
-do not enable forwarding unless that ingress supplies trustworthy client addresses.
-Public and AltNet hosts have separate host-only voter cookies. If their backing
-database is shared, one browser can consequently appear as multiple voters across
-hosts. Decide a cross-host policy before exposing the board on multiple origins.
+Use `Application__NetworkMode=Public` for the clearnet instance and
+`Application__NetworkMode=AltNet` for all DN42/I2P/Yggdrasil instances. Public is
+the existing default, so alternative instances must set AltNet explicitly.
+Configure Public limits with `FeatureVoting__*` environment variables when needed.
+Do not enable forwarding unless that ingress supplies trustworthy client addresses.
+
+Network mode is per process, not per hostname or request. The repository uses
+`AllowedHosts=*`, advertises multiple network URLs in the Public footer, includes
+alternate origins in the general CORS configuration, and classifies telemetry by
+request host. No checked-in proxy configuration proves that ingress paths use
+separate processes. Multiple networks can therefore share a Public instance;
+voting remains enabled on every path into that instance. CORS, a canonical origin,
+network display names, and forwarded headers do not establish network isolation.
+The application cannot identify the actual ingress network from untrusted headers.
+Keep alternate-network traffic on separately configured AltNet instances to enforce
+this boundary. Existing proxy/production networking has not been changed or audited
+live. Even multiple Public origins have separate host-only cookies and may give a
+browser multiple identities; that cross-origin limitation remains.
 
 Admission and IP keys reset on restart and are process-local. Database uniqueness
 survives restart. Multiple replicas have independent request limits; this slice
@@ -168,7 +196,8 @@ does not join or expand that data.
 
 Focused coverage is in `FeatureVotingServiceTests` and `FeatureVotingHttpTests`:
 new/existing schema initialization, uniqueness, multiple proposals/browsers,
-withdrawal, concurrent requests, closed/missing proposals, antiforgery, cookies,
+withdrawal, concurrent requests, all proposal statuses, legacy schema upgrades and
+rollback, antiforgery, Public cookies, AltNet rejection before persistence,
 trusted ingress, all admission layers, contention, and controlled failures.
 
 ```powershell

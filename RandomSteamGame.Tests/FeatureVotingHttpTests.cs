@@ -162,18 +162,15 @@ public sealed class FeatureVotingHttpTests(SeoWebApplicationFactory factory) : I
         Assert.Equal(0L, _db.Scalar("SELECT COUNT(*) FROM FeatureVotes;"));
     }
 
-    [Theory]
-    [InlineData("Public", "https://randomsteam.kgivler.com", true)]
-    [InlineData("AltNet", "https://randomsteam.dn42", true)]
-    [InlineData("AltNet", "http://example.b32.i2p", false)]
-    public async Task CookieFlagsPersistenceAndInvalidCookiesFollowDeploymentPolicy(string mode, string origin, bool secure)
+    [Fact]
+    public async Task PublicCookieFlagsPersistenceAndInvalidCookiesFollowDeploymentPolicy()
     {
         _db.AddProposal(1);
-        using var app = Application(mode, origin);
-        using var client = Client(app, origin);
+        using var app = Application();
+        using var client = Client(app);
         using var first = await client.GetAsync("/api/features", Ct);
         var cookie = VotingCookie(first);
-        Assert.Equal(secure, cookie.Contains("; secure", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("; secure", cookie, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("samesite=lax", cookie, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("path=/api/features", cookie, StringComparison.OrdinalIgnoreCase);
@@ -225,8 +222,7 @@ public sealed class FeatureVotingHttpTests(SeoWebApplicationFactory factory) : I
     [Theory]
     [InlineData("Public", "198.51.100.10", null, false)]
     [InlineData("Public", "127.0.0.1", null, true)]
-    [InlineData("AltNet", "127.0.0.1", null, false)]
-    [InlineData("AltNet", "127.0.0.1", "true", true)]
+    [InlineData("Public", "127.0.0.1", "false", false)]
     public async Task IpRateLimitUsesOnlyTrustedEffectiveAddress(string mode, string peer, string? forwarding, bool distinctClients)
     {
         using var app = Application(mode, mode == "Public" ? "https://randomsteam.kgivler.com" : "http://example.b32.i2p",
@@ -315,6 +311,90 @@ public sealed class FeatureVotingHttpTests(SeoWebApplicationFactory factory) : I
         AssertNoCache(response);
         Assert.False(response.Headers.Contains("Access-Control-Allow-Origin"));
         Assert.DoesNotContain("internal-secret", await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    [Theory]
+    [InlineData("planned")]
+    [InlineData("completed")]
+    [InlineData("closed")]
+    public async Task NonOpenStatusesRemainVisibleWithHistoricalVotesButRejectAllMutations(string status)
+    {
+        _db.AddProposal(1);
+        using var app = Application();
+        using var client = Client(app);
+        var browser = await Bootstrap(client);
+        Assert.Equal(HttpStatusCode.NoContent, await Vote(client, browser, 1, true));
+        using (var connection = _db.Open())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "UPDATE FeatureProposals SET Status = $status;";
+            command.Parameters.AddWithValue("$status", status);
+            command.ExecuteNonQuery();
+        }
+        Assert.Equal(HttpStatusCode.Conflict, await Vote(client, browser, 1, true));
+        Assert.Equal(HttpStatusCode.Conflict, await Vote(client, browser, 1, false));
+        var proposal = Assert.Single(await Board(client, browser.Cookie));
+        Assert.Equal(status, proposal.Status);
+        Assert.True(proposal.Supported);
+        Assert.Equal(1, proposal.VoteCount);
+    }
+
+    [Theory]
+    [InlineData("DN42", "https://randomsteam.dn42")]
+    [InlineData("I2P", "http://example.b32.i2p")]
+    [InlineData("Yggdrasil", "http://steam.ygg.kgivler.com")]
+    [InlineData("Public", "https://randomsteam.kgivler.com")]
+    public async Task AltNetReturns404BeforeCookiesAntiforgeryRateLimitsAndPersistence(string name, string origin)
+    {
+        _db.AddProposal(1);
+        using var publicApp = Application();
+        using var publicClient = Client(publicApp);
+        var browser = await Bootstrap(publicClient);
+        Assert.Equal(HttpStatusCode.NoContent, await Vote(publicClient, browser, 1, true));
+        using var altApp = Application("AltNet", origin, settings: new()
+        {
+            ["Application:NetworkName"] = name,
+            ["FeatureVoting:GlobalPermitLimit"] = "1",
+            ["FeatureVoting:IpPermitLimit"] = "1",
+            ["Ingress:EnableForwardedHeaders"] = "true"
+        }, peer: "127.0.0.1").WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IFeatureVotingService>();
+            services.AddScoped<IFeatureVotingService>(_ => throw new InvalidOperationException("Disabled voting must not resolve persistence."));
+        }));
+        using var altClient = Client(altApp, origin);
+        // Authenticated requests carry a real voter/antiforgery pair. Unauthenticated and
+        // malformed requests must still return 404, rather than 400, 409, or rate-limit 429.
+        foreach (var authenticated in new[] { false, true })
+        foreach (var method in new[] { HttpMethod.Get, HttpMethod.Post })
+        {
+            using var request = method == HttpMethod.Get
+                ? new HttpRequestMessage(method, "/api/features") : Mutation(1, "{\"supported\":false}");
+            if (authenticated) Authenticate(request, browser);
+            request.Headers.Host = "randomsteam.kgivler.com";
+            request.Headers.Add("X-Forwarded-For", "203.0.113.1");
+            request.Headers.Add("X-Forwarded-Proto", "https");
+            using var response = await altClient.SendAsync(request, Ct);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            AssertNoCache(response);
+            Assert.False(response.Headers.Contains("Set-Cookie"));
+        }
+        Assert.Equal(1L, _db.Scalar("SELECT COUNT(*) FROM FeatureVotes;"));
+        Assert.True(Assert.Single(await Board(publicClient, browser.Cookie)).Supported);
+    }
+
+    [Theory]
+    [InlineData("https://randomsteam.dn42")]
+    [InlineData("https://steam.ygg.kgivler.com")]
+    [InlineData("https://example.b32.i2p")]
+    public async Task PublicModeIsDeploymentScopedEvenForAlternateHostnames(string origin)
+    {
+        using var app = Application(settings: new() { ["Application:NetworkName"] = "I2P" });
+        using var client = Client(app, origin);
+        using var response = await client.GetAsync("/api/features", Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotEmpty(VotingCookie(response));
+        AssertNoCache(response);
     }
 
     private WebApplicationFactory<Program> Application(string mode = "Public", string origin = "https://randomsteam.kgivler.com",

@@ -155,7 +155,7 @@ Important operational settings include:
 
 | Configuration key | Purpose |
 | --- | --- |
-| `Application:NetworkMode` | `Public` (default) or `AltNet`; controls defaults for remote Steam browser assets and beta probing |
+| `Application:NetworkMode` | `Public` (default) or `AltNet`; voting is Public-only; also controls defaults for remote Steam browser assets and beta probing |
 | `Application:NetworkName` | Optional display name such as `I2P`, `Yggdrasil`, or `DN42`; does not select capabilities |
 | `Application:AllowRemoteBrowserAssets` | Optional override; `null` allows Steam browser assets in Public and disables them in AltNet |
 | `Application:EnableBetaProbe` | Optional override; `null` enables beta probing in Public and disables it in AltNet; public beta links are shown only in Public |
@@ -251,9 +251,18 @@ HttpOnly browser cookie, and separate voting rate/capacity limits. It does not s
 proposals or change the support page; the voting UI is deferred. This is anonymous
 browser-based support, not verified one-person-one-vote.
 
+Proposals support `open`, `planned`, `completed`, and `closed`. Only `open` accepts
+vote mutations; all statuses retain visible totals/selections. Existing two-status
+tables are upgraded transactionally while preserving proposal IDs and votes.
+The API is enabled only with `Application:NetworkMode=Public`. Every AltNet
+deployment (DN42, I2P, Yggdrasil) returns 404 before issuing voter cookies or invoking
+voting persistence. The mode is process-wide: alternate ingress paths routed to
+one Public instance would still reach its API. Use separate configured instances
+for network isolation; this change does not modify proxies or production routing.
+
 See [anonymous feature voting](docs/anonymous-feature-voting.md) for the schema,
 API contract, cookie lifecycle, `FeatureVoting:*` settings, security model, and
-Public/AltNet deployment considerations. Persist the existing Data Protection
+Public-only availability and deployment considerations. Persist the existing Data Protection
 keys and database. IP abuse signals stay in server memory and are not stored in
 votes. No additional infrastructure or secret is required.
 

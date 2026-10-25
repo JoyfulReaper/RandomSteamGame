@@ -185,6 +185,13 @@ uses separate per-operation connections, a bounded voting-only asynchronous writ
 gate, short immediate transactions, and database uniqueness. It does not depend
 on the recent-pick semaphore or change journal settings.
 
+Proposal statuses are `open`, `planned`, `completed`, and `closed`. Only `open`
+allows vote mutations; every status remains visible with historical totals and
+selections. Startup recognizes the original two-status constraint and performs an
+idempotent transactional copy-and-swap, preserving all proposal fields/IDs, votes,
+timestamps, indexes/triggers, and foreign-key references. Upgrade failures roll
+back without changing existing data; custom extra columns fail safely.
+
 `FeatureVotingIdentity` issues a one-year protected HttpOnly browser cookie through
 GET; only SHA-256 of the random identity is persisted. POST requires both this
 cookie and the existing antiforgery token pair. Middleware explicitly rejects
@@ -192,20 +199,30 @@ invalid antiforgery before admission/writes. `FeatureVotingRateLimits` composes
 browser, transient domain-separated keyed IP, global rate, and concurrency limits
 without sharing Steam admission. Personalized successes and failures are no-store.
 
+The voting API is now Public-only. The middleware returns 404 on AltNet before
+antiforgery/rate checks, voter cookies, or controller/persistence activation.
+Use `Application__NetworkMode=AltNet` for DN42, I2P, and Yggdrasil instances; there
+is no extra voting-enable flag. Network mode is process-wide and cannot distinguish
+several network ingress paths into one Public instance. `AllowedHosts=*`, the
+Public footer's alternate URLs, and host-based telemetry permit that topology;
+the repository does not include live proxy configuration to verify isolation.
+Separate configured instances are required for that boundary. No networking has
+been modified, and this does not add a hostname-based trust rule.
+
 The support page, UI, feature curation, accounts, and payments are unchanged. Before
 rollout, retain the Data/ volume and Data Protection keys, verify trusted ingress,
 and tune `FeatureVoting:*` limits for shared-address deployments. Limits are local
 to each process and reset on restart. Anonymous browser support does not verify
 unique people. Cross-host cookies and deliberate cookie/IP rotation remain limits
 of this model. Focused service/HTTP tests exercise persistence, concurrency,
-antiforgery, cookies in Public/AltNet, trusted forwarding, admission, and database
+antiforgery, Public cookies/AltNet rejection, trusted forwarding, admission, and database
 failure handling. See [the voting backend contract](anonymous-feature-voting.md)
 for schema, API details, test commands, and deployment requirements.
 
-Slice 1 verification: solution restore/build succeeded; all 512 application tests,
-160 Steam API tests, and six Node cookie/export tests passed. This includes 44 new
-voting tests. The build retains an existing nullable warning in
-`VisitorIdProviderTests`; no new warnings were introduced by voting.
+Verification: all 58 focused voting tests passed, followed by all 526 application
+tests and 160 Steam API tests in the full solution suite. The solution build
+passed with existing nullable warnings in `VisitorIdProviderTests` and
+`MatrixBot`. PR #47 records the commands and results.
 
 ## Known Production Risks
 

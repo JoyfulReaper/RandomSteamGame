@@ -55,7 +55,8 @@ public static class ServiceExtensions
             """;
 
         var connectionString = SqliteDatabaseInitializer.Initialize("kgivler_com.db",
-            schemaSql + SqliteRecentPickService.SchemaSql + SqliteFeatureVotingService.SchemaSql);
+            schemaSql + SqliteRecentPickService.SchemaSql);
+        SqliteFeatureVotingService.InitializeSchema(connectionString);
         EnsureAppStatsSchema(connectionString);
 
         services.AddOptions<LibraryExportOptions>()

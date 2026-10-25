@@ -37,7 +37,7 @@ public sealed class FeaturesController(
             return result switch
             {
                 FeatureVoteResult.NotFound => Problem(statusCode: 404, detail: "Feature proposal not found."),
-                FeatureVoteResult.Closed => Problem(statusCode: 409, detail: "Voting is closed for this proposal."),
+                FeatureVoteResult.Closed => Problem(statusCode: 409, detail: "This proposal is not open for voting."),
                 _ => NoContent()
             };
         });
