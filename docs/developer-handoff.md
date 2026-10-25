@@ -210,7 +210,7 @@ the repository does not include live proxy configuration to verify isolation.
 Separate configured instances are required for that boundary. No networking has
 been modified, and this does not add a hostname-based trust rule.
 
-The support page, UI, feature curation, accounts, and payments are unchanged. Before
+The support page and browser board are described below. Accounts and payments are unchanged. Before
 rollout, retain the Data/ volume and Data Protection keys, verify trusted ingress,
 and tune `FeatureVoting:*` limits for shared-address deployments. Limits are local
 to each process and reset on restart. Anonymous browser support does not verify
@@ -224,6 +224,49 @@ Verification: all 57 focused voting tests, 525 application tests, and 160 Steam 
 tests passed. The full solution build passed with an existing nullable warning in
 `MatrixBot`. PR #47 records the commands and results, including initialization,
 persistence, concurrency, status constraints, and security coverage.
+
+## Support Page And Voting UI (Slice 2)
+
+`Support.razor` now contains optional donations, curated voting, GitHub suggestions,
+private sponsorship inquiries, and the portfolio. The existing PayPal URL and small
+picker support links are preserved. Sponsorship is explicitly separate from tips
+and requires contact/agreement before payment. No sponsor tiers, premium promises,
+advertisements, authentication, or payment processing are added.
+
+The Public page hosts `FeatureVotingBoard` with InteractiveAuto. It imports
+`featureVoting.js` after interactivity, and browser fetch owns every GET/token/POST
+regardless of Server versus WebAssembly execution. Prerender does not import JS,
+query voting persistence, or create a voter cookie. Open proposals sort by votes
+descending/ID ascending; other statuses stay visible without voting controls.
+Loading/empty/pending/error states, reload, confirmed vote feedback, and server
+count/selection refreshes are included. Uncertain writes require reload; mutations
+are never automatically retried.
+
+AltNet renders the shell normally with a quiet availability message and all
+donation/contact/portfolio/GitHub links. The API's Public-only gate is unchanged.
+Styles wrap at mobile widths; buttons have native keyboard behavior, visible
+focus, descriptive labels, pressed states, and live messages.
+
+`docs/sql/initial-feature-proposals.sql` is a manual-only, idempotent insertion of
+ten open proposals. Slug conflicts preserve existing fields and votes. It never
+runs at startup or against production through this change.
+[Proposal maintenance](feature-proposals.md) documents the CLI command, database
+path, and manual status/description/issue edits.
+
+Verification covers real component events in simulated Server/WebAssembly modes,
+browser fetch/antiforgery, safe failures, Public/AltNet HTTP pages, and temporary
+database seeding/reruns. Full solution tests remain required. Real browser checks
+should cover fresh/returning profiles, HTTPS cookies, mobile layout, keyboard
+focus, and AltNet; renderer tests do not replace WebAssembly boot testing.
+No new dependency or production infrastructure is required.
+
+Slice 2 verification: 82 focused tests passed, followed by all 550 application and
+160 Steam API tests, plus 21 Node browser/cookie/export tests. The solution build
+and an isolated Release preview publish succeeded. The preview verified empty and
+seeded lists, vote/withdrawal, reload persistence, keyboard focus, and no horizontal
+overflow at desktop/mobile widths. Screenshots are linked in the maintenance guide.
+Live HTTPS, actual AltNet ingress, and cold/cached WebAssembly boot remain release
+checks; no production database was accessed or seeded.
 
 ## Known Production Risks
 

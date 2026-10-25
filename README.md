@@ -242,14 +242,24 @@ configurable global capacity. Export policy hints follow the selected policy.
 JavaScript cookie tests can be run with
 `node --test RandomSteamGame.Tests/cookieHelper.test.mjs` in addition to the .NET suite.
 
-## Anonymous feature-voting backend
+## Support and feature voting
 
-The backend foundation exposes `GET /api/features` and antiforgery-protected
-`POST /api/features/{id}/vote` with `{ "supported": true }` (or `false` to withdraw).
-It uses two additive tables in the existing `Data/kgivler_com.db`, a protected
-HttpOnly browser cookie, and separate voting rate/capacity limits. It does not seed
-proposals or change the support page; the voting UI is deferred. This is anonymous
-browser-based support, not verified one-person-one-vote.
+`/support` includes optional Ko-fi/PayPal donations, curated feature voting, GitHub
+suggestions, private sponsorship inquiries, and Kyle's portfolio. Donations and
+sponsorship agreements are separate; sponsors must contact Kyle before paying.
+Existing picker support links are preserved.
+
+The InteractiveAuto voting board makes all API calls from the browser through
+same-origin fetch and the existing dynamic antiforgery token flow. The backend uses
+`GET /api/features` and `POST /api/features/{id}/vote` with a required `supported`
+boolean, a protected HttpOnly cookie, and separate rate/capacity limits. This is
+anonymous browser-based support, not verified one-person-one-vote.
+
+Startup never seeds proposals. Kyle can manually run the idempotent
+[initial proposal SQL](docs/sql/initial-feature-proposals.sql) against the initialized
+application database. See [proposal maintenance](docs/feature-proposals.md) for the
+command, rerun behavior, and adding/editing accepted proposals. No production
+database is modified automatically.
 
 Proposals support `open`, `planned`, `completed`, and `closed`. Only `open` accepts
 vote mutations; all statuses retain visible totals/selections. The new voting

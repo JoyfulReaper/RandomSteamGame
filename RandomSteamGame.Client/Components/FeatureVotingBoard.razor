@@ -1,0 +1,201 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ILogger<FeatureVotingBoard> Logger
+
+<div class="feature-board" aria-busy="@((_loading || _busy).ToString().ToLowerInvariant())">
+    @if (_loading)
+    {
+        <p class="board-message" role="status">Loading features…</p>
+    }
+    else if (_unavailable)
+    {
+        <p class="board-message" role="status">Feature voting isn't available on this site right now.
+            You can still suggest a feature or contact Kyle below.</p>
+    }
+    @if (_error is not null && !_unavailable)
+    {
+        <p class="board-message board-error" role="alert">@_error</p>
+    }
+    <p class="board-notice" role="status" aria-live="polite">@(_busy ? "Saving your vote…" : _notice)</p>
+    @if (!_unavailable && (!_loading || _proposals.Length > 0))
+    {
+        @if (_proposals.Length == 0 && _error is null)
+        {
+            <p class="board-message">No proposals are listed yet. You can suggest a feature below.</p>
+        }
+        <div class="feature-list">
+            @foreach (var feature in OrderedProposals)
+            {
+                <article class="feature-card" @key="feature.Id" aria-labelledby="feature-title-@feature.Id">
+                    <div class="feature-heading">
+                        <h3 id="feature-title-@feature.Id" tabindex="-1">@feature.Title</h3>
+                        <span class="feature-status" data-status="@feature.Status">@StatusLabel(feature.Status)</span>
+                    </div>
+                    <p class="feature-description">@feature.Description</p>
+                    <div class="feature-actions">
+                        <span class="feature-count">@feature.VoteCount @(feature.VoteCount == 1 ? "vote" : "votes")</span>
+                        @if (feature.Status == "open")
+                        {
+                            <button id="feature-vote-@feature.Id" type="button" class="vote-button" disabled="@(_busy || _loading || _needsReload)"
+                                    aria-pressed="@feature.Supported.ToString().ToLowerInvariant()"
+                                    aria-label="@(feature.Supported ? $"Remove vote for {feature.Title}" : $"Vote for {feature.Title}")"
+                                    @onclick="() => VoteAsync(feature)">@(feature.Supported ? "Remove vote" : "Vote")</button>
+                        }
+                        <a class="feature-sponsor" href="https://dev.kgivler.com/#contact" target="_blank" rel="noopener noreferrer"
+                           aria-label="Ask about sponsoring @feature.Title">Ask about sponsoring</a>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+    @if (!_loading)
+    {
+        <button class="reload-button" type="button" @onclick="ReloadAsync" disabled="@_busy">Reload features</button>
+    }
+    <noscript><p>Enable JavaScript to load features and vote. The links on this page work without it.</p></noscript>
+</div>
+
+@code {
+    private FeatureProposalResponse[] _proposals = [];
+    private IJSObjectReference? _module;
+    private bool _loading = true, _busy, _unavailable, _needsReload, _disposed;
+    private string? _error, _notice;
+    private long? _focusFeatureId;
+    private IEnumerable<FeatureProposalResponse> OrderedProposals => _proposals
+        .OrderBy(p => p.Status == "open" ? 0 : 1)
+        .ThenByDescending(p => p.Status == "open" ? p.VoteCount : 0)
+        .ThenBy(p => p.Id);
+
+    private static string StatusLabel(string status) => status switch
+    {
+        "open" => "Open for votes", "planned" => "Planned",
+        "completed" => "Available", "closed" => "Not planned", _ => "Not open for votes"
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!RendererInfo.IsInteractive || _disposed) return;
+        if (firstRender)
+        {
+            await ReloadAsync();
+            if (!_disposed) StateHasChanged();
+        }
+        else if (!_busy && !_loading && _focusFeatureId is { } id && _module is not null)
+        {
+            _focusFeatureId = null;
+            try { await _module.InvokeVoidAsync("focusVote", id); }
+            catch (JSException) { /* Focus is best-effort after a disconnect or navigation. */ }
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (_busy || _disposed) return;
+        _notice = null;
+        await LoadAsync();
+    }
+
+    private async Task<bool> LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            if (_module is null)
+            {
+                var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/featureVoting.js");
+                if (_disposed) { await module.DisposeAsync(); return false; }
+                _module = module;
+            }
+            var result = await _module.InvokeAsync<FeatureVotingResult>("load");
+            if (_disposed) return false;
+            _unavailable = result.Status == 404;
+            if (result.Status == 200 && result.Proposals is not null)
+            {
+                _proposals = result.Proposals;
+                _needsReload = false;
+                return true;
+            }
+            _needsReload = true;
+            _error = FailureMessage(result);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogDebug(exception, "Unable to load the browser feature board.");
+            _needsReload = true;
+            _error = "Features couldn't be loaded. Check your connection and try reloading them.";
+        }
+        finally { _loading = false; }
+        return false;
+    }
+
+    private async Task VoteAsync(FeatureProposalResponse feature)
+    {
+        if (_busy || _loading || _needsReload || _disposed || _module is null || feature.Status != "open") return;
+        _busy = true;
+        _error = _notice = null;
+        var supported = !feature.Supported;
+        try
+        {
+            var result = await _module.InvokeAsync<FeatureVotingResult>("setSupported", feature.Id, supported);
+            if (_disposed) return;
+            if (result.Status == 204)
+            {
+                // The write is confirmed even if the following refresh fails.
+                _proposals = _proposals.Select(p => p.Id == feature.Id
+                    ? p with { Supported = supported, VoteCount = Math.Max(0, p.VoteCount + (supported ? 1 : -1)) } : p).ToArray();
+                var loaded = await LoadAsync();
+                _notice = supported ? "Vote added." : "Vote removed.";
+                if (!loaded && !_unavailable)
+                    _error = "Your vote was saved, but the counts couldn't be refreshed. Reload features to see the latest totals.";
+            }
+            else
+            {
+                // Refresh stale identities/proposals without automatically retrying a write.
+                if (result.Status is 400 or 404 or 409)
+                {
+                    var loaded = await LoadAsync();
+                    if (!_unavailable) _error = !loaded
+                        ? "The features couldn't be refreshed. Reload features before trying again."
+                        : result.Status == 400 ? "Your voting session was refreshed. Please try your vote again."
+                        : FailureMessage(result);
+                }
+                else if (!_unavailable) _error = FailureMessage(result);
+                if (result.Status == 0) _needsReload = true;
+            }
+        }
+        catch (Exception exception)
+        {
+            Logger.LogDebug(exception, "Unable to confirm a browser feature vote.");
+            _needsReload = true;
+            _error = "We couldn't confirm that vote. Reload features before trying again.";
+        }
+        finally { _busy = false; _focusFeatureId = feature.Id; }
+    }
+
+    private static string FailureMessage(FeatureVotingResult result)
+    {
+        var retry = result.RetryAfterSeconds is > 0 ? $" Try again in {result.RetryAfterSeconds} seconds." : " Please try again shortly.";
+        return result.Status switch
+        {
+            400 => "Your voting session needs refreshing. Reload features, then try your vote again.",
+            404 => "That proposal is no longer available. The feature list has been refreshed.",
+            409 => "That proposal is no longer open for votes. The feature list has been refreshed.",
+            429 => "Voting is busy or you've made several requests." + retry,
+            503 => "Voting is temporarily unavailable." + retry,
+            _ => "We couldn't confirm the request. Check your connection and reload features before trying again."
+        };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        var module = _module;
+        _module = null;
+        if (module is not null)
+        {
+            try { await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+}
