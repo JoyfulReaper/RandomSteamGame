@@ -11,14 +11,12 @@ Startup adds two tables to the existing `Data/kgivler_com.db`, beneath
 `AppContext.BaseDirectory`, using idempotent `CREATE TABLE IF NOT EXISTS` statements.
 It does not update or delete existing rows, seed proposals, or change journal mode.
 
-The original two-status constraint is upgraded once through a transactional
-copy-and-swap of the proposal table definition. Every proposal field/ID is copied
-and verified; vote rows and timestamps remain in their original table. Custom
-indexes/triggers are restored and foreign keys checked before commit. Failures
-roll back the entire upgrade; unexpected extra columns cause a safe failure rather
-than silent data loss. Foreign-key disabling is limited to a dedicated non-pooled
-startup connection. This change includes no production migration run or networking changes.
-This follows SQLite's [table schema change procedure](https://www.sqlite.org/lang_altertable.html#otheralter).
+The voting tables are new, additive schema additions. Initialization works with a
+fresh database, an existing application database without voting tables, and an
+already initialized database using the four-status schema. Repeated initialization
+leaves existing tables and records unchanged. It retains the existing database
+connection string with default SQLite cache mode and no pooling for the short-lived
+startup connection; foreign-key enforcement is not disabled.
 
 - `FeatureProposals`: integer `Id` primary key; unique `Slug` (1–80 lowercase ASCII
   letters/digits/hyphens, no leading/trailing hyphen); `Title` (1–160 characters);
@@ -196,8 +194,8 @@ does not join or expand that data.
 
 Focused coverage is in `FeatureVotingServiceTests` and `FeatureVotingHttpTests`:
 new/existing schema initialization, uniqueness, multiple proposals/browsers,
-withdrawal, concurrent requests, all proposal statuses, legacy schema upgrades and
-rollback, antiforgery, Public cookies, AltNet rejection before persistence,
+withdrawal, concurrent requests, all proposal statuses, repeated initialization,
+antiforgery, Public cookies, AltNet rejection before persistence,
 trusted ingress, all admission layers, contention, and controlled failures.
 
 ```powershell

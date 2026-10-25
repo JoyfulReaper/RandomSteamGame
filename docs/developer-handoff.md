@@ -187,10 +187,11 @@ on the recent-pick semaphore or change journal settings.
 
 Proposal statuses are `open`, `planned`, `completed`, and `closed`. Only `open`
 allows vote mutations; every status remains visible with historical totals and
-selections. Startup recognizes the original two-status constraint and performs an
-idempotent transactional copy-and-swap, preserving all proposal fields/IDs, votes,
-timestamps, indexes/triggers, and foreign-key references. Upgrade failures roll
-back without changing existing data; custom extra columns fail safely.
+selections. The voting tables are new, additive schema additions, initialized with
+`CREATE TABLE IF NOT EXISTS` using the existing connection string. Initialization
+works for fresh databases, existing application databases without voting tables,
+and databases already using the final four-status schema. Repeated initialization
+preserves existing data and table definitions.
 
 `FeatureVotingIdentity` issues a one-year protected HttpOnly browser cookie through
 GET; only SHA-256 of the random identity is persisted. POST requires both this
@@ -219,10 +220,10 @@ antiforgery, Public cookies/AltNet rejection, trusted forwarding, admission, and
 failure handling. See [the voting backend contract](anonymous-feature-voting.md)
 for schema, API details, test commands, and deployment requirements.
 
-Verification: all 58 focused voting tests passed, followed by all 526 application
-tests and 160 Steam API tests in the full solution suite. The solution build
-passed with existing nullable warnings in `VisitorIdProviderTests` and
-`MatrixBot`. PR #47 records the commands and results.
+Verification: all 57 focused voting tests, 525 application tests, and 160 Steam API
+tests passed. The full solution build passed with an existing nullable warning in
+`MatrixBot`. PR #47 records the commands and results, including initialization,
+persistence, concurrency, status constraints, and security coverage.
 
 ## Known Production Risks
 

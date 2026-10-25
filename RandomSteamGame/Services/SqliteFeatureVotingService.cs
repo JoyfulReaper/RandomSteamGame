@@ -8,7 +8,7 @@ namespace RandomSteamGame.Services;
 public sealed class SqliteFeatureVotingService(string connectionString) : IFeatureVotingService
 {
     private static readonly SemaphoreSlim WriteGate = new(1, 1);
-    private const string ProposalSchemaSql = """
+    internal const string SchemaSql = """
         CREATE TABLE IF NOT EXISTS FeatureProposals (
             Id INTEGER PRIMARY KEY,
             Slug TEXT NOT NULL UNIQUE CHECK (
@@ -19,8 +19,6 @@ public sealed class SqliteFeatureVotingService(string connectionString) : IFeatu
             Status TEXT NOT NULL CHECK (Status IN ('open', 'planned', 'completed', 'closed')),
             GitHubIssueNumber INTEGER CHECK (GitHubIssueNumber > 0)
         );
-        """;
-    internal const string SchemaSql = ProposalSchemaSql + """
         CREATE TABLE IF NOT EXISTS FeatureVotes (
             FeatureProposalId INTEGER NOT NULL REFERENCES FeatureProposals(Id),
             BrowserIdentityHash TEXT NOT NULL CHECK (
@@ -32,55 +30,14 @@ public sealed class SqliteFeatureVotingService(string connectionString) : IFeatu
 
     internal static void InitializeSchema(string connectionString)
     {
-        // CHECK constraints cannot be widened with ALTER COLUMN. Upgrade only the known
-        // original constraint using a transactional copy-and-swap, never a data reset.
-        // Foreign keys are disabled only on this non-pooled startup connection so replacing
-        // the parent definition cannot delete/repoint votes. Verify references before commit.
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder(connectionString)
         {
-            Cache = SqliteCacheMode.Default, ForeignKeys = false, Pooling = false
+            Cache = SqliteCacheMode.Default, Pooling = false
         }.ToString());
         connection.Open();
-        using var transaction = connection.BeginTransaction(deferred: false);
         using var command = connection.CreateCommand();
-        command.Transaction = transaction;
         command.CommandText = SchemaSql;
         command.ExecuteNonQuery();
-        command.CommandText = "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'FeatureProposals';";
-        var schema = (string)command.ExecuteScalar()!;
-        if (schema.Contains("Status IN ('open', 'closed')", StringComparison.Ordinal))
-        {
-            // Preserve user-added indexes/triggers as well as the built-in UNIQUE constraint.
-            command.CommandText = "SELECT sql FROM sqlite_schema WHERE tbl_name = 'FeatureProposals' AND type IN ('index', 'trigger') AND sql IS NOT NULL;";
-            var objects = new List<string>();
-            using (var reader = command.ExecuteReader())
-                while (reader.Read()) objects.Add(reader.GetString(0));
-
-            command.CommandText = ProposalSchemaSql.Replace("CREATE TABLE IF NOT EXISTS FeatureProposals",
-                "CREATE TABLE FeatureProposals_StatusUpgrade", StringComparison.Ordinal);
-            command.ExecuteNonQuery();
-            // SELECT * deliberately fails rather than losing any unexpected extra columns.
-            command.CommandText = "INSERT INTO FeatureProposals_StatusUpgrade SELECT * FROM FeatureProposals;";
-            command.ExecuteNonQuery();
-            command.CommandText = "SELECT COUNT(*) FROM (SELECT * FROM FeatureProposals EXCEPT SELECT * FROM FeatureProposals_StatusUpgrade);";
-            if (Convert.ToInt64(command.ExecuteScalar()) != 0)
-                throw new InvalidOperationException("Feature proposal schema upgrade did not preserve every row.");
-            command.CommandText = """
-                DROP TABLE FeatureProposals;
-                ALTER TABLE FeatureProposals_StatusUpgrade RENAME TO FeatureProposals;
-                """;
-            command.ExecuteNonQuery();
-            foreach (var sql in objects)
-            {
-                command.CommandText = sql;
-                command.ExecuteNonQuery();
-            }
-            command.CommandText = "PRAGMA foreign_key_check;";
-            using var violations = command.ExecuteReader();
-            if (violations.Read())
-                throw new InvalidOperationException("Feature proposal schema upgrade found invalid foreign key references.");
-        }
-        transaction.Commit();
     }
 
     public async Task<IReadOnlyList<FeatureProposalResponse>> GetAsync(string browserHash, CancellationToken ct)

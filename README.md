@@ -252,8 +252,8 @@ proposals or change the support page; the voting UI is deferred. This is anonymo
 browser-based support, not verified one-person-one-vote.
 
 Proposals support `open`, `planned`, `completed`, and `closed`. Only `open` accepts
-vote mutations; all statuses retain visible totals/selections. Existing two-status
-tables are upgraded transactionally while preserving proposal IDs and votes.
+vote mutations; all statuses retain visible totals/selections. The new voting
+tables use additive, idempotent `CREATE TABLE IF NOT EXISTS` initialization.
 The API is enabled only with `Application:NetworkMode=Public`. Every AltNet
 deployment (DN42, I2P, Yggdrasil) returns 404 before issuing voter cookies or invoking
 voting persistence. The mode is process-wide: alternate ingress paths routed to
