@@ -26,7 +26,7 @@ public sealed class SeoController(
     public ContentResult Sitemap()
     {
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
-        string[] paths = ["/", "/about", "/support", "/contributors", "/library-export"];
+        string[] paths = ["/", "/about", "/privacy", "/support", "/contributors", "/library-export"];
         var sitemap = new XDocument(
             new XElement(ns + "urlset", paths.Select(path =>
                 new XElement(ns + "url", new XElement(ns + "loc",
