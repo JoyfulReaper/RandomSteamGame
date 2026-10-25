@@ -1,0 +1,445 @@
+﻿@page "/privacy"
+@inject CanonicalUrlService CanonicalUrls
+
+<PageTitle>@Title</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="@Description" />
+    <link rel="canonical" href="@CanonicalUrl" />
+    <SocialMetadata Title="@Title" Description="@Description" CanonicalUrl="@CanonicalUrl" />
+</HeadContent>
+
+<div class="privacy-page">
+    <header class="privacy-hero">
+        <p class="privacy-eyebrow">Your information</p>
+        <h1>Privacy Policy</h1>
+
+        <p class="privacy-lead">
+            Random Steam Game Picker is an independent, free, open-source project
+            operated by JoyfulReaper. This policy explains what information the
+            website collects, why it collects it, and how that information is handled.
+        </p>
+
+        <p>
+            I believe you should be able to use a simple game picker without
+            surrendering unnecessary personal information. The site does collect
+            some information to operate, remember preferences, prevent abuse,
+            and display usage statistics. The details are below.
+        </p>
+
+        <p class="privacy-updated">
+            Last updated: <time datetime="2026-10-25">October 25, 2026</time>
+        </p>
+    </header>
+
+    <nav class="privacy-toc" aria-label="Privacy policy sections">
+        <h2>On this page</h2>
+        <ul>
+            <li><a href="#information">Information collected</a></li>
+            <li><a href="#cookies">Cookies and browser storage</a></li>
+            <li><a href="#voting">Feature voting</a></li>
+            <li><a href="#retention">Data retention</a></li>
+            <li><a href="#third-parties">Third-party services</a></li>
+            <li><a href="#i2p">I2P deployment</a></li>
+            <li><a href="#choices">Your choices</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+    </nav>
+
+    <section class="privacy-section" id="information" aria-labelledby="information-heading">
+        <h2 id="information-heading">1. Information collected</h2>
+
+        <h3>Steam account and game information</h3>
+
+        <p>
+            When you use the picker or library export, you provide a Steam ID
+            or Steam vanity name. The application uses Steam's publicly available
+            APIs to retrieve information such as:
+        </p>
+
+        <ul>
+            <li>Your public Steam library and game identifiers.</li>
+            <li>Game names, playtime, and last-played information when available.</li>
+            <li>Game descriptions, artwork, and Steam Deck compatibility information.</li>
+        </ul>
+
+        <p>
+            This information is used to select games, display results, create
+            exports, and reduce unnecessary requests to Steam through caching.
+        </p>
+
+        <p>
+            <strong>Steam sign-in is not required.</strong> The application does not
+            ask for your Steam password or modify your Steam account.
+            It can only retrieve library information that Steam makes publicly available.
+        </p>
+
+        <h3>Visitor statistics</h3>
+
+        <p>
+            The application stores visitor IP addresses, visit counts, and
+            last-seen timestamps in a database. These records are used to
+            calculate website statistics, including total visits and estimated
+            unique visitors displayed on the homepage.
+        </p>
+
+        <p>
+            <strong>
+                These visitor statistics records currently have no automatic
+                expiration or deletion schedule and may be retained indefinitely.
+            </strong>
+        </p>
+
+        <h3>Operational information</h3>
+
+        <p>
+            IP addresses are also used for rate limiting and abuse prevention.
+            Some rate-limiting information is held temporarily in server memory.
+        </p>
+
+        <p>
+            The application produces diagnostic logs and sends operational events
+            to my self-hosted monitoring system, Mission Control. Depending on
+            the event, this information may include:
+        </p>
+
+        <ul>
+            <li>An IP-derived visitor identifier.</li>
+            <li>Browser user-agent information.</li>
+            <li>Requested operations, errors, and processing times.</li>
+            <li>Selected game identifiers and names.</li>
+            <li>General library-size and export statistics.</li>
+        </ul>
+
+        <p>
+            Diagnostic logs may also contain Steam identifiers or request URLs
+            when errors occur. These records are used for troubleshooting,
+            monitoring reliability, and understanding how the service is used.
+        </p>
+
+        <p>
+            Recent game picks may be displayed publicly on the homepage.
+            The recent-picks database stores the game and selection time,
+            not the visitor's Steam ID or IP address.
+        </p>
+    </section>
+
+    <section class="privacy-section" id="cookies" aria-labelledby="cookies-heading">
+        <h2 id="cookies-heading">2. Cookies and browser storage</h2>
+
+        <p>
+            The application uses first-party cookies for functionality,
+            remembered preferences, and security. They are not used by the
+            application for targeted advertising or third-party analytics.
+        </p>
+
+        <div class="privacy-table-wrap">
+            <table class="privacy-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Purpose</th>
+                        <th scope="col">What is stored</th>
+                        <th scope="col">Typical lifetime</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Remembering your Steam identity</td>
+                        <td>Your Steam ID and picker preferences</td>
+                        <td>Up to one year</td>
+                    </tr>
+                    <tr>
+                        <td>Blocked games</td>
+                        <td>Game IDs you've excluded from future picks</td>
+                        <td>Up to one year</td>
+                    </tr>
+                    <tr>
+                        <td>Library refresh</td>
+                        <td>Information used to remember a recent refresh</td>
+                        <td>Up to two days</td>
+                    </tr>
+                    <tr>
+                        <td>Feature voting</td>
+                        <td>A protected, randomly generated browser identifier</td>
+                        <td>Up to one year</td>
+                    </tr>
+                    <tr>
+                        <td>Security</td>
+                        <td>Antiforgery tokens used to protect certain requests</td>
+                        <td>Browser session</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <p>
+            Blazor may also use browser storage for application resource-version
+            information. Browsers may cache website files to improve loading performance.
+        </p>
+
+        <p>
+            You can remove browser-stored information through your browser's
+            site-data controls. Doing so may reset your saved Steam identity,
+            preferences, and voting identity.
+        </p>
+
+        <p class="privacy-note">
+            Clearing browser cookies does not automatically delete information
+            already stored in server databases.
+        </p>
+    </section>
+
+    <section class="privacy-section" id="voting" aria-labelledby="voting-heading">
+        <h2 id="voting-heading">3. Feature voting</h2>
+
+        <p>
+            The public Support page includes optional feature voting.
+            When the interactive voting board loads, the application may create
+            a persistent browser identifier, even if you do not cast a vote.
+        </p>
+
+        <p>
+            When you vote, the server records the feature proposal, a hash
+            derived from your browser's voting identifier, and the time of
+            the vote. This allows the application to remember which features
+            that browser has supported and helps prevent duplicate votes.
+        </p>
+
+        <p>
+            Voting does not require Steam sign-in, and the voting records are
+            not associated with your Steam account. However, the browser
+            identifier makes votes pseudonymous rather than completely anonymous.
+        </p>
+
+        <p>
+            You can withdraw support while a proposal remains open. After a
+            proposal is closed or moved to another status, the current interface
+            does not allow its historical votes to be withdrawn.
+        </p>
+
+        <p>
+            Votes currently have no automatic expiration period. Clearing your
+            voting cookie does not remove votes previously recorded on the server.
+        </p>
+
+        <p>
+            Feature voting is available on the main public website and may not
+            be available through alternative-network versions of the application.
+        </p>
+    </section>
+
+    <section class="privacy-section" id="retention" aria-labelledby="retention-heading">
+        <h2 id="retention-heading">4. How long information is retained</h2>
+
+        <p>
+            Different information is retained for different purposes:
+        </p>
+
+        <ul>
+            <li>
+                <strong>Steam library caches:</strong> Public library information
+                generally has a configured cache lifetime of approximately 30 days.
+            </li>
+            <li>
+                <strong>Game metadata:</strong> Store information and compatibility
+                results have their own cache periods, generally between one day
+                and 30 days.
+            </li>
+            <li>
+                <strong>Recent picks:</strong> The application keeps the latest
+                20 recent-pick records.
+            </li>
+            <li>
+                <strong>Visitor statistics:</strong> IP addresses and associated
+                statistics currently have no automatic retention limit.
+            </li>
+            <li>
+                <strong>Feature votes:</strong> Voting records currently have
+                no automatic retention limit.
+            </li>
+            <li>
+                <strong>Mission Control:</strong> Archived operational events
+                currently have no automatic retention limit. A retention policy
+                may be introduced in the future.
+            </li>
+        </ul>
+
+        <p>
+            Cache expiration means information should no longer be reused as
+            a valid cached result. It does not necessarily mean the underlying
+            database record is physically deleted at that exact moment.
+            Expired records may be removed during subsequent cache activity.
+        </p>
+
+        <p>
+            Server, hosting, and infrastructure logs may have separate retention
+            behavior. Database backups can also retain older copies of records
+            beyond their removal from an active database.
+        </p>
+
+        <p>
+            Library CSV exports are generated for download. The application
+            does not intentionally maintain a separate permanent server-side
+            copy of each generated CSV file. Files you download remain under
+            your control.
+        </p>
+    </section>
+
+    <section class="privacy-section" id="third-parties" aria-labelledby="third-parties-heading">
+        <h2 id="third-parties-heading">5. Third-party services</h2>
+
+        <h3>Steam and Valve</h3>
+
+        <p>
+            The application contacts Steam's APIs to retrieve public library
+            information and game metadata. When game artwork or other externally
+            hosted content is displayed, your browser may also request resources
+            directly from Steam or its content delivery providers.
+        </p>
+
+        <p>
+            Those external requests are subject to the providers' own
+            data-handling practices.
+        </p>
+
+        <h3>Hosting and infrastructure</h3>
+
+        <p>
+            The website uses hosting and network infrastructure, including
+            Cloudflare for parts of its public delivery. These providers may
+            process ordinary connection information, such as IP addresses,
+            when handling requests.
+        </p>
+
+        <p>
+            Mission Control is my own operational monitoring system, not a
+            third-party advertising or analytics service.
+        </p>
+
+        <h3>External links</h3>
+
+        <p>
+            The site links to services such as GitHub, Ko-fi, PayPal, and my
+            developer website. Following those links takes you to a separate
+            service with its own privacy practices.
+        </p>
+
+        <p>
+            Donations and sponsorship inquiries are handled through external
+            destinations. Random Steam Game Picker does not directly process
+            payment-card information.
+        </p>
+
+        <p>
+            The application does not currently include third-party advertising
+            scripts or third-party analytics SDKs. If that changes, this policy
+            will be updated to describe the new data processing.
+        </p>
+    </section>
+
+    <section class="privacy-section" id="i2p" aria-labelledby="i2p-heading">
+        <h2 id="i2p-heading">6. I2P deployment</h2>
+
+        <p>
+            Random Steam Game Picker is also available through the I2P anonymous network.
+            This deployment has different privacy characteristics from the public website.
+        </p>
+
+        <ul>
+            <li>
+                <strong>No visitor IP collection:</strong> I2P does not reveal visitors'
+                real IP addresses to the application. Consequently, the I2P deployment
+                does not collect or store visitors' public IP addresses.
+            </li>
+            <li>
+                <strong>No Mission Control telemetry:</strong> Application telemetry
+                reporting to Mission Control is disabled for the I2P deployment.
+            </li>
+            <li>
+                <strong>Server logs:</strong> Server and operational logs are still
+                maintained. These may include request information, timestamps, and
+                local tunnel or proxy addresses, but not visitors' real IP addresses.
+            </li>
+            <li>
+                <strong>Steam API access:</strong> The application still contacts
+                Steam's APIs when necessary to provide its functionality.
+                Steam identifiers and public library information may still be cached.
+            </li>
+        </ul>
+
+        <p>
+            These differences apply specifically to the I2P deployment.
+            Other data-handling practices described in this policy still apply
+            unless stated otherwise.
+        </p>
+    </section>
+
+    <section class="privacy-section" id="choices" aria-labelledby="choices-heading">
+        <h2 id="choices-heading">7. Your choices</h2>
+
+        <ul>
+            <li>
+                You can clear remembered Steam information and preferences
+                by removing this website's cookies and site data in your browser.
+            </li>
+            <li>
+                You can use the picker's reset control to remove your blocked-game list.
+            </li>
+            <li>
+                You can withdraw feature votes while their proposals remain open.
+            </li>
+            <li>
+                You can control what library information Steam makes public
+                using your Steam privacy settings.
+            </li>
+            <li>
+                You can contact me about information associated with your use
+                of the website or to make a privacy-related request.
+            </li>
+        </ul>
+
+        <p>
+            Some server-side records may not be directly identifiable from
+            a browser after its cookies have been cleared. Requests involving
+            personal information will be reviewed in accordance with applicable
+            requirements and the information reasonably available to identify
+            the records.
+        </p>
+    </section>
+
+    <section class="privacy-section" id="contact" aria-labelledby="contact-heading">
+        <h2 id="contact-heading">8. Contact and policy changes</h2>
+
+        <p>
+            Random Steam Game Picker is operated by JoyfulReaper.
+            For privacy questions or requests, use the contact form on my
+            developer website. You can also reach me through LinkedIn.
+        </p>
+
+        <a class="privacy-contact-link"
+           href="https://dev.kgivler.com/#contact"
+           target="_blank"
+           rel="noopener noreferrer">
+            Contact the developer
+        </a>
+
+        <p class="privacy-contact-note">
+            This policy may be updated as the application evolves, particularly
+            if account features, advertising, or additional game providers are
+            introduced. The date at the top will reflect the latest revision.
+        </p>
+    </section>
+
+    <p class="privacy-disclaimer">
+        Random Steam Game Picker is an independent project and is not affiliated
+        with Valve or Steam.
+    </p>
+</div>
+
+@code {
+    private const string Title = "Privacy Policy - Random Steam Game Picker";
+    private const string Description =
+        "Learn what data Random Steam Game Picker collects, how cookies, voting, statistics, and caching work, and how to contact the developer about privacy.";
+
+    private string CanonicalUrl => CanonicalUrls.GetCanonicalUrl("/privacy");
+}
