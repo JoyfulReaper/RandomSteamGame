@@ -56,6 +56,12 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
             "Contributors & Sponsors"
         },
         {
+            "/privacy",
+            "Privacy Policy - Random Steam Game Picker",
+            $"{CanonicalOrigin}/privacy",
+            "Privacy Policy"
+        },
+        {
             "/about",
             "About Random Steam Game Picker",
             $"{CanonicalOrigin}/about",
@@ -385,6 +391,7 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         {
             AltNetOrigin + "/",
             AltNetOrigin + "/about",
+            AltNetOrigin + "/privacy",
             AltNetOrigin + "/support",
             AltNetOrigin + "/contributors",
             AltNetOrigin + "/library-export"
@@ -571,6 +578,7 @@ public sealed class SeoHttpTests : IClassFixture<SeoWebApplicationFactory>
         {
             $"{CanonicalOrigin}/",
             $"{CanonicalOrigin}/about",
+            $"{CanonicalOrigin}/privacy",
             $"{CanonicalOrigin}/contributors",
             $"{CanonicalOrigin}/library-export",
             $"{CanonicalOrigin}/support"
