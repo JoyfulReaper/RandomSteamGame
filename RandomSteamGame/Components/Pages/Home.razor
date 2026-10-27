@@ -79,6 +79,12 @@
                     <a href="/support" class="text-info">
                         Sponsor or more support options
                     </a>
+                    @if (ApplicationSettings.Value.NetworkMode == NetworkMode.Public)
+                    {
+                        <a href="/support#feature-voting" class="text-info">
+                            Vote on features
+                        </a>
+                    }
                 </div>
             </div>
 

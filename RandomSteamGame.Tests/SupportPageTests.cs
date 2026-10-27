@@ -1,6 +1,4 @@
 using AngleSharp.Html.Parser;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +19,8 @@ public sealed class SupportPageTests(SeoWebApplicationFactory factory) : IClassF
         {
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Application:NetworkMode"] = mode, ["Application:CanonicalOrigin"] = origin
+                ["Application:NetworkMode"] = mode,
+                ["Application:CanonicalOrigin"] = origin
             }));
             builder.ConfigureTestServices(services => services.AddScoped<IFeatureVotingService>(_ =>
                 throw new InvalidOperationException("Support prerender must not access voting persistence.")));
@@ -31,6 +30,7 @@ public sealed class SupportPageTests(SeoWebApplicationFactory factory) : IClassF
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var html = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         var document = new HtmlParser().ParseDocument(html);
+        Assert.NotNull(document.QuerySelector("section#feature-voting"));
         Assert.Contains("free hobby project", document.Body!.TextContent);
         Assert.Contains("donations are appreciated and optional", document.Body.TextContent);
         Assert.Contains("Please contact me before sending payment for feature sponsorship.", document.Body.TextContent);
@@ -53,6 +53,28 @@ public sealed class SupportPageTests(SeoWebApplicationFactory factory) : IClassF
     }
 
     [Fact]
+    public async Task PickerDoesNotAdvertiseVotingOnAltNet()
+    {
+        using var app = factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, config) =>
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Application:NetworkMode"] = "AltNet",
+                    ["Application:CanonicalOrigin"] = "http://example.b32.i2p"
+                }));
+        });
+
+        using var client = app.CreateClient();
+
+        var html = await client.GetStringAsync("/", TestContext.Current.CancellationToken);
+        var document = new HtmlParser().ParseDocument(html);
+
+        Assert.Null(document.QuerySelector("a[href='/support#feature-voting']"));
+        Assert.NotNull(document.QuerySelector("a[href='/support']"));
+    }
+
+    [Fact]
     public async Task PickerSupportLinksRemainInTheInitialHtml()
     {
         using var client = factory.CreateClient();
@@ -60,5 +82,6 @@ public sealed class SupportPageTests(SeoWebApplicationFactory factory) : IClassF
         var document = new HtmlParser().ParseDocument(html);
         Assert.NotNull(document.QuerySelector(".home-card a[href='/support']"));
         Assert.NotNull(document.QuerySelector(".home-card a[href='https://ko-fi.com/joyfulreaper']"));
+        Assert.NotNull(document.QuerySelector(".home-card a[href='/support#feature-voting']"));
     }
 }
