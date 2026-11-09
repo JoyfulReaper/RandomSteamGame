@@ -51,7 +51,7 @@ else if (HomeModel is not null)
                         class="btn btn-outline-secondary btn-sm"
                         disabled="@(_isBusy || _isUsingSteamAccount)"
                         @onclick="() => UseMySteamAccountAsync()">
-                    @(_isUsingSteamAccount ? "Checking Steam account..." : "Use my Steam account")
+                    @(_isUsingSteamAccount ? "Checking Steam account..." : "Login with Steam")
                 </button>
             </div>
         </div>

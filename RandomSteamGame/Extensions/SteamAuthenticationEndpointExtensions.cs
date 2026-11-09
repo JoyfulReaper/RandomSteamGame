@@ -40,22 +40,31 @@ public static class SteamAuthenticationEndpointExtensions
                 authenticationSchemes: ["Steam"]);
         });
 
-        group.MapGet("/me", (HttpContext context) =>
+
+        group.MapGet("/me", (
+            HttpContext context,
+            IOptions<ApplicationOptions> applicationOptions) =>
         {
             context.Response.Headers.CacheControl = "private, no-store";
+
+            var loginAvailable =
+                applicationOptions.Value.NetworkMode == NetworkMode.Public &&
+                context.Request.IsHttps;
 
             var user = context.User;
 
             if (user.Identity?.IsAuthenticated != true)
-                return Results.Ok(new { Authenticated = false });
+                return Results.Ok(new { Authenticated = false, LoginAvailable = loginAvailable });
 
             return Results.Ok(new
             {
                 Authenticated = true,
+                LoginAvailable = loginAvailable,
                 NameIdentifier = user.FindFirstValue(ClaimTypes.NameIdentifier),
                 Name = user.Identity.Name
             });
         });
+
 
         group.MapPost("/logout", async (
             HttpContext context,
@@ -96,6 +105,21 @@ public static class SteamAuthenticationEndpointExtensions
                 return Results.Unauthorized();
 
             return Results.Ok(new { SteamId = steamId });
+        });
+
+
+        group.MapGet("/logout-token", (
+            HttpContext context,
+            IAntiforgery antiforgery) =>
+        {
+            context.Response.Headers.CacheControl = "private, no-store";
+
+            if (context.User.Identity?.IsAuthenticated != true)
+                return Results.Unauthorized();
+
+            var tokens = antiforgery.GetAndStoreTokens(context);
+
+            return Results.Ok(new { RequestToken = tokens.RequestToken });
         });
 
 

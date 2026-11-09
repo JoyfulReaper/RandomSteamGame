@@ -40,3 +40,54 @@ export function consumePickerLoginReturn() {
 
     return true;
 }
+
+
+export async function getSteamLoginStatus() {
+    const response = await fetch("/auth/me", {
+        credentials: "same-origin",
+        cache: "no-store"
+    });
+
+    if (!response.ok) {
+        throw new Error(`Authentication status failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return {
+        authenticated: data.authenticated === true,
+        loginAvailable: data.loginAvailable === true
+    };
+}
+
+export async function signOutOfSteam() {
+    const tokenResponse = await fetch("/auth/logout-token", {
+        credentials: "same-origin",
+        cache: "no-store"
+    });
+
+    if (!tokenResponse.ok) {
+        throw new Error(`Logout token request failed: ${tokenResponse.status}`);
+    }
+
+    const { requestToken } = await tokenResponse.json();
+
+    if (!requestToken) {
+        throw new Error("Missing logout verification token");
+    }
+
+    const response = await fetch("/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+            "RequestVerificationToken": requestToken
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Logout failed: ${response.status}`);
+    }
+
+    window.location.assign("/");
+}

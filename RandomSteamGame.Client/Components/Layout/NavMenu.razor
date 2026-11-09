@@ -1,5 +1,7 @@
 @namespace RandomSteamGame.Components.Layout
 @rendermode InteractiveAuto
+@inject IJSRuntime JS
+@inject ILogger<NavMenu> Logger
 
 <nav class="navbar navbar-expand-md navbar-dark bg-dark">
     <div class="container-fluid rsg-nav-container">
@@ -113,6 +115,33 @@
                         <span>GitHub</span>
                     </a>
                 </li>
+           
+
+            @if (_authLoaded && _loginAvailable)
+            {
+                <li class="nav-item">
+                    @if (_isSignedIn)
+                    {
+                        <span class="navbar-text small">
+                            Signed in with Steam
+                        </span>
+
+                        <button type="button"
+                                class="btn btn-outline-light btn-sm"
+                                disabled="@_isSigningOut"
+                                @onclick="SignOutAsync">
+                            @(_isSigningOut ? "Signing out..." : "Sign out")
+                        </button>
+                    }
+                    else
+                    {
+                        <a href="/auth/login"
+                           class="btn btn-outline-light btn-sm">
+                            Sign in through Steam
+                        </a>
+                    }
+                </li>
+            }
             </ul>
         </div>
     </div>
@@ -120,6 +149,66 @@
 
 @code {
     private bool collapseNavMenu = true;
+    private bool _authLoaded;
+    private bool _loginAvailable;
+    private bool _isSignedIn;
+    private bool _isSigningOut;
+
+    private sealed class SteamLoginStatus
+    {
+        public bool Authenticated { get; set; }
+        public bool LoginAvailable { get; set; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>(
+                "import", "./js/steamAuth.js");
+
+            var status = await module.InvokeAsync<SteamLoginStatus>(
+                "getSteamLoginStatus");
+
+            _isSignedIn = status.Authenticated;
+            _loginAvailable = status.LoginAvailable;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Unable to load Steam authentication status.");
+        }
+        finally
+        {
+            _authLoaded = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SignOutAsync()
+    {
+        if (_isSigningOut)
+            return;
+
+        _isSigningOut = true;
+
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>(
+                "import", "./js/steamAuth.js");
+
+            await module.InvokeVoidAsync("signOutOfSteam");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Steam sign-out failed.");
+            _isSigningOut = false;
+            StateHasChanged();
+        }
+    }
+
 
     private void ToggleNavMenu()
     {
