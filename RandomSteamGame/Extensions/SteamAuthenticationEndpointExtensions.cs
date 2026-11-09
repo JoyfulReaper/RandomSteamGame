@@ -1,5 +1,7 @@
 ﻿
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Options;
 using RandomSteamGame.Options;
 using System.Security.Claims;
@@ -50,6 +52,25 @@ public static class SteamAuthenticationEndpointExtensions
                 NameIdentifier = user.FindFirstValue(ClaimTypes.NameIdentifier),
                 Name = user.Identity.Name
             });
+        });
+
+        group.MapPost("/logout", async (
+            HttpContext context,
+            IAntiforgery antiforgery) =>
+        {
+            try
+            {
+                await antiforgery.ValidateRequestAsync(context);
+            }
+            catch (AntiforgeryValidationException)
+            {
+                return Results.BadRequest("Invalid logout request.");
+            }
+
+            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            context.Response.Headers.CacheControl = "private, no-store";
+            return Results.Redirect("/");
         });
 
         return endpoints;
