@@ -22,6 +22,7 @@ using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Events;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services;
+using RandomSteamGame.Services.Analytics;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
 using RandomSteamGame.Shared.Services;
@@ -78,6 +79,45 @@ public static class ServiceExtensions
             .Validate(options => options.TrustedProxies is null || options.TrustedProxies.All(proxy => System.Net.IPAddress.TryParse(proxy, out _)),
                 "Ingress:TrustedProxies must contain only IP addresses.")
             .ValidateOnStart();
+
+
+
+        services.AddOptions<RandomSteamAnalyticsOptions>()
+            .Bind(config.GetSection(RandomSteamAnalyticsOptions.SectionName))
+            .Validate(options =>
+            {
+                if (!options.Enabled)
+                    return true;
+
+                if (options.ApiKey is not { Length: >= 32 and <= 256 })
+                    return false;
+
+                if (!Uri.TryCreate(options.ArchiveBaseUrl, UriKind.Absolute, out var uri))
+                    return false;
+
+                return (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)
+                    && !string.IsNullOrEmpty(uri.Host)
+                    && uri.AbsolutePath == "/"
+                    && string.IsNullOrEmpty(uri.Query)
+                    && string.IsNullOrEmpty(uri.Fragment)
+                    && string.IsNullOrEmpty(uri.UserInfo);
+            }, "RandomSteamAnalytics requires a valid Archive origin and 32-256 character API key when enabled.")
+            .ValidateOnStart();
+
+
+        services.AddHttpClient<RandomSteamAnalyticsClient>((provider, client) =>
+        {
+            var options = provider
+                .GetRequiredService<IOptions<RandomSteamAnalyticsOptions>>()
+                .Value;
+
+            client.Timeout = TimeSpan.FromSeconds(5);
+
+            if (options.Enabled)
+                client.BaseAddress = new Uri(options.ArchiveBaseUrl!.TrimEnd('/') + "/");
+        });
+
+
         services.Configure<HostingOptions>(config.GetSection(HostingOptions.SectionName));
         services.Configure<TelemetryOptions>(config.GetSection(TelemetryOptions.SectionName));
         services.AddSingleton<IVisitorIdProvider, VisitorIdProvider>();
