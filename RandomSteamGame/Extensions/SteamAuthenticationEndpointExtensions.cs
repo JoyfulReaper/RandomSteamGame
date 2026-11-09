@@ -123,6 +123,17 @@ public static class SteamAuthenticationEndpointExtensions
         });
 
 
+        group.MapGet("/admin-check", () =>
+        {
+            return Results.Ok(new
+            {
+                IsAdmin = true,
+                Message = "Steam administrator authorization successful."
+            });
+        })
+        .RequireAuthorization("SteamAdmin");
+
+
         return endpoints;
     }
 }

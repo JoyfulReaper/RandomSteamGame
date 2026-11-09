@@ -26,6 +26,7 @@ using RandomSteamGame.Shared.Interfaces;
 using RandomSteamGame.Shared.Services;
 using SteamApiClient;
 using SteamApiClient.Settings;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 
 namespace RandomSteamGame.Extensions;
@@ -105,7 +106,33 @@ public static class ServiceExtensions
                 options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             });
 
-        services.AddAuthorization();
+
+        var adminSteamIds = config.GetSection("Authentication:AdminSteamIds").Get<string[]>() ?? [];
+
+        if (adminSteamIds.Any(id => id is null || id.Length != 17 || !id.All(char.IsAsciiDigit)))
+        {
+            throw new InvalidOperationException(
+                "Authentication:AdminSteamIds must contain only 17-digit SteamID64 values.");
+        }
+
+        var adminIdentities = adminSteamIds
+            .Select(id => $"https://steamcommunity.com/openid/id/{id}")
+            .ToHashSet(StringComparer.Ordinal);
+
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("SteamAdmin", policy =>
+            {
+                policy.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme);
+                policy.RequireAuthenticatedUser();
+                policy.RequireAssertion(context =>
+                {
+                    var identifier = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    return identifier is not null && adminIdentities.Contains(identifier);
+                });
+            });
+        });
+
 
         services.AddBlazorServices();
         services.AddApiServices();
