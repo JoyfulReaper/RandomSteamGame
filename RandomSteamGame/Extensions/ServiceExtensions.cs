@@ -9,6 +9,7 @@ using JoyfulReaperLib.MissionControl;
 using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
@@ -85,6 +86,27 @@ public static class ServiceExtensions
         });
 
         services.AddApplicationDataProtection(config, env);
+
+        services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(options =>
+            {
+                options.Cookie.Name = ".RandomSteamGame.Auth";
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+                options.Cookie.Path = "/";
+
+                options.LoginPath = "/auth/login";
+                options.ExpireTimeSpan = TimeSpan.FromDays(7);
+                options.SlidingExpiration = true;
+            })
+            .AddSteam(options =>
+            {
+                options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            });
+
+        services.AddAuthorization();
+
         services.AddBlazorServices();
         services.AddApiServices();
         services.AddSteamIdentityServices();

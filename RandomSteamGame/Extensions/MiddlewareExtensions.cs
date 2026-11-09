@@ -5,8 +5,8 @@
  * Licensed under the MIT License.
  */
 
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using RandomSteamGame.Options;
@@ -155,6 +155,9 @@ public static class MiddlewareExtensions
             }
             await next();
         });
+
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.UseAntiforgery();
 
         app.Use(async (context, next) =>
