@@ -10,6 +10,7 @@ using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
@@ -107,31 +108,39 @@ public static class ServiceExtensions
             });
 
 
-        var adminSteamIds = config.GetSection("Authentication:AdminSteamIds").Get<string[]>() ?? [];
 
-        if (adminSteamIds.Any(id => id is null || id.Length != 17 || !id.All(char.IsAsciiDigit)))
-        {
-            throw new InvalidOperationException(
-                "Authentication:AdminSteamIds must contain only 17-digit SteamID64 values.");
-        }
+        services.AddAuthorization();
 
-        var adminIdentities = adminSteamIds
-            .Select(id => $"https://steamcommunity.com/openid/id/{id}")
-            .ToHashSet(StringComparer.Ordinal);
-
-        services.AddAuthorization(options =>
-        {
-            options.AddPolicy("SteamAdmin", policy =>
+        services.AddOptions<AuthorizationOptions>()
+            .Configure<IConfiguration>((options, configuration) =>
             {
-                policy.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme);
-                policy.RequireAuthenticatedUser();
-                policy.RequireAssertion(context =>
+                var adminSteamIds = configuration
+                    .GetSection("Authentication:AdminSteamIds")
+                    .Get<string[]>() ?? [];
+
+                if (adminSteamIds.Any(id => id is null || id.Length != 17 || !id.All(char.IsAsciiDigit)))
                 {
-                    var identifier = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-                    return identifier is not null && adminIdentities.Contains(identifier);
+                    throw new InvalidOperationException(
+                        "Authentication:AdminSteamIds must contain only 17-digit SteamID64 values.");
+                }
+
+                var adminIdentities = adminSteamIds
+                    .Select(id => $"https://steamcommunity.com/openid/id/{id}")
+                    .ToHashSet(StringComparer.Ordinal);
+
+                options.AddPolicy("SteamAdmin", policy =>
+                {
+                    policy.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme);
+                    policy.RequireAuthenticatedUser();
+                    policy.RequireAssertion(context =>
+                    {
+                        var identifier = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                        return identifier is not null && adminIdentities.Contains(identifier);
+                    });
                 });
-            });
-        });
+            })
+            .ValidateOnStart();
+
 
 
         services.AddBlazorServices();
