@@ -5,9 +5,9 @@
  * Licensed under the MIT License.
  */
 
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using RandomSteamGame.Components;
 using RandomSteamGame.Extensions;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +27,7 @@ app.ConfigurePipeline(app.Environment);
 // ==========================================
 app.MapStaticAssets();
 app.MapControllers();
+app.MapSteamAuthenticationEndpoints();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("live")
