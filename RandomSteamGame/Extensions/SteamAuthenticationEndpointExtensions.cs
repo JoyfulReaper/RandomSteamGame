@@ -19,20 +19,23 @@ public static class SteamAuthenticationEndpointExtensions
             HttpContext context,
             IOptions<ApplicationOptions> applicationOptions) =>
         {
-            // Steam authentication is available only on the public HTTPS deployment.
             if (applicationOptions.Value.NetworkMode != NetworkMode.Public ||
                 !context.Request.IsHttps)
             {
                 return Results.NotFound();
             }
 
+            // Fixed destinations only; no user-supplied redirect URLs.
+            var forPicker = context.Request.Query["picker"] == "1";
+            var redirectUri = forPicker ? "/?useSteamAccount=1" : "/auth/me";
+
             if (context.User.Identity?.IsAuthenticated == true)
-                return Results.Redirect("/auth/me");
+                return Results.Redirect(redirectUri);
 
             return Results.Challenge(
                 new AuthenticationProperties
                 {
-                    RedirectUri = "/auth/me"
+                    RedirectUri = redirectUri
                 },
                 authenticationSchemes: ["Steam"]);
         });
@@ -72,6 +75,29 @@ public static class SteamAuthenticationEndpointExtensions
             context.Response.Headers.CacheControl = "private, no-store";
             return Results.Redirect("/");
         });
+
+
+        group.MapGet("/steam-id", (HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "private, no-store";
+
+            if (context.User.Identity?.IsAuthenticated != true)
+                return Results.Unauthorized();
+
+            const string prefix = "https://steamcommunity.com/openid/id/";
+            var identifier = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (identifier is null || !identifier.StartsWith(prefix, StringComparison.Ordinal))
+                return Results.Unauthorized();
+
+            var steamId = identifier[prefix.Length..];
+
+            if (steamId.Length != 17 || !steamId.All(char.IsAsciiDigit))
+                return Results.Unauthorized();
+
+            return Results.Ok(new { SteamId = steamId });
+        });
+
 
         return endpoints;
     }

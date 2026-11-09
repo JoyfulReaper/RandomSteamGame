@@ -7,6 +7,7 @@
 @inject ILogger<SteamPickerForm> Logger
 @inject NavigationManager NavManager
 @inject ISteamIdentityReader SteamIdentityReader
+@inject IJSRuntime JS
 
 @if (!string.IsNullOrEmpty(_errorMessage))
 {
@@ -37,13 +38,24 @@ else if (HomeModel is not null)
     <EditForm Model="HomeModel" OnValidSubmit="HandleValidSubmit" FormName="steamPickerForm">
         <DataAnnotationsValidator />
 
+        
         <div class="mb-3">
             <label for="steamIdInput" class="form-label">17 Digit Steam ID</label>
             <InputText id="steamIdInput"
                        class="form-control picker-form-input"
                        @bind-Value="HomeModel.SteamId" />
             <ValidationMessage For="() => HomeModel.SteamId" />
+
+            <div class="mt-2">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        disabled="@(_isBusy || _isUsingSteamAccount)"
+                        @onclick="() => UseMySteamAccountAsync()">
+                    @(_isUsingSteamAccount ? "Checking Steam account..." : "Use my Steam account")
+                </button>
+            </div>
         </div>
+
 
         <div class="text-center fw-bold my-2 text-muted" aria-hidden="true">OR</div>
 
@@ -120,6 +132,8 @@ else if (HomeModel is not null)
     private bool _hasAttemptedBrowserIdentityHydration;
 
     private string _selectedTagline = Taglines[0];
+
+    private bool _isUsingSteamAccount;
 
     private PersistingComponentStateSubscription _persistingSubscription;
 
@@ -205,6 +219,15 @@ else if (HomeModel is not null)
 
             if (await LoadOwnedGamesCacheResetCooldownAsync())
             {
+                stateChanged = true;
+            }
+
+            await using var authModule = await JS.InvokeAsync<IJSObjectReference>(
+                "import", "./js/steamAuth.js");
+
+            if (await authModule.InvokeAsync<bool>("consumePickerLoginReturn"))
+            {
+                await UseMySteamAccountAsync(redirectToLogin: false);
                 stateChanged = true;
             }
 
@@ -531,6 +554,51 @@ else if (HomeModel is not null)
             Logger.LogWarning(ex, "Failed to persist Steam identity to browser storage.");
         }
     }
+
+    
+    private async Task UseMySteamAccountAsync(bool redirectToLogin = true)
+    {
+        if (HomeModel is null || _isBusy || _isUsingSteamAccount)
+            return;
+
+        _errorMessage = null;
+        _isUsingSteamAccount = true;
+
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>(
+                "import", "./js/steamAuth.js");
+
+            var steamId = await module.InvokeAsync<string?>("getAuthenticatedSteamId");
+
+            if (steamId is null)
+            {
+                if (redirectToLogin)
+                {
+                    NavManager.NavigateTo("/auth/login?picker=1", forceLoad: true);
+                }
+                else
+                {
+                    _errorMessage = "Steam sign-in did not complete. Please try again.";
+                }
+
+                return;
+            }
+
+            HomeModel.SteamId = steamId;
+            HomeModel.VanityUrl = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Unable to retrieve authenticated Steam ID.");
+            _errorMessage = "Unable to retrieve your Steam account. Please try again.";
+        }
+        finally
+        {
+            _isUsingSteamAccount = false;
+        }
+    }
+
 
     public void Dispose()
     {
