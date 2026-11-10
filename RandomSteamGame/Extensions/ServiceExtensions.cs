@@ -141,6 +141,22 @@ public static class ServiceExtensions
                 options.LoginPath = "/auth/login";
                 options.ExpireTimeSpan = TimeSpan.FromDays(7);
                 options.SlidingExpiration = true;
+
+                options.Events.OnRedirectToAccessDenied = context =>
+                {
+                    if (context.Request.Path.StartsWithSegments(
+                        "/api/admin/analytics",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        context.Response.Headers.CacheControl = "private, no-store";
+                        return Task.CompletedTask;
+                    }
+
+                    context.Response.Redirect(context.RedirectUri);
+                    return Task.CompletedTask;
+                };
+
             })
             .AddSteam(options =>
             {

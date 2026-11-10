@@ -38,7 +38,7 @@ public sealed class RandomSteamAnalyticsClientTests
 
         using (http)
         {
-            var actual = await client.GetOverviewAsync(7);
+            var actual = await client.GetOverviewAsync(7, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(expected, actual);
         }
     }
@@ -55,7 +55,7 @@ public sealed class RandomSteamAnalyticsClientTests
         using (http)
         {
             await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
-                () => client.GetOverviewAsync(days));
+                () => client.GetOverviewAsync(days, cancellationToken: TestContext.Current.CancellationToken));
         }
     }
 
@@ -69,7 +69,7 @@ public sealed class RandomSteamAnalyticsClientTests
         using (http)
         {
             await Assert.ThrowsAsync<InvalidOperationException>(
-                () => client.GetOverviewAsync());
+                () => client.GetOverviewAsync(cancellationToken: TestContext.Current.CancellationToken));
         }
     }
 
@@ -84,7 +84,7 @@ public sealed class RandomSteamAnalyticsClientTests
         using (http)
         {
             var exception = await Assert.ThrowsAsync<HttpRequestException>(
-                () => client.GetOverviewAsync());
+                () => client.GetOverviewAsync(cancellationToken: TestContext.Current.CancellationToken));
 
             Assert.Equal(status, exception.StatusCode);
         }
@@ -96,13 +96,13 @@ public sealed class RandomSteamAnalyticsClientTests
         var (http, client) = CreateClient((_, _) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = JsonContent.Create<RandomSteamOverview>(null)
+                Content = JsonContent.Create<RandomSteamOverview?>(null)
             }));
 
         using (http)
         {
             await Assert.ThrowsAsync<InvalidOperationException>(
-                () => client.GetOverviewAsync());
+                () => client.GetOverviewAsync(cancellationToken: TestContext.Current.CancellationToken));
         }
     }
 
@@ -127,7 +127,7 @@ public sealed class RandomSteamAnalyticsClientTests
             var pending = client.GetOverviewAsync(
                 cancellationToken: cancellation.Token);
 
-            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken: TestContext.Current.CancellationToken);
             cancellation.Cancel();
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(

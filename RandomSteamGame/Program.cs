@@ -28,6 +28,7 @@ app.ConfigurePipeline(app.Environment);
 app.MapStaticAssets();
 app.MapControllers();
 app.MapSteamAuthenticationEndpoints();
+app.MapRandomSteamAnalyticsEndpoints();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("live")
