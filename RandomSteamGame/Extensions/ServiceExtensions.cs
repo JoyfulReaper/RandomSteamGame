@@ -9,6 +9,8 @@ using JoyfulReaperLib.MissionControl;
 using JoyfulReaperLib.Sqlite;
 using JoyfulReaperLib.WebStats.Sqlite;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
@@ -20,11 +22,13 @@ using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Events;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services;
+using RandomSteamGame.Services.Analytics;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Interfaces;
 using RandomSteamGame.Shared.Services;
 using SteamApiClient;
 using SteamApiClient.Settings;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 
 namespace RandomSteamGame.Extensions;
@@ -75,6 +79,45 @@ public static class ServiceExtensions
             .Validate(options => options.TrustedProxies is null || options.TrustedProxies.All(proxy => System.Net.IPAddress.TryParse(proxy, out _)),
                 "Ingress:TrustedProxies must contain only IP addresses.")
             .ValidateOnStart();
+
+
+
+        services.AddOptions<RandomSteamAnalyticsOptions>()
+            .Bind(config.GetSection(RandomSteamAnalyticsOptions.SectionName))
+            .Validate(options =>
+            {
+                if (!options.Enabled)
+                    return true;
+
+                if (options.ApiKey is not { Length: >= 32 and <= 256 })
+                    return false;
+
+                if (!Uri.TryCreate(options.ArchiveBaseUrl, UriKind.Absolute, out var uri))
+                    return false;
+
+                return (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)
+                    && !string.IsNullOrEmpty(uri.Host)
+                    && uri.AbsolutePath == "/"
+                    && string.IsNullOrEmpty(uri.Query)
+                    && string.IsNullOrEmpty(uri.Fragment)
+                    && string.IsNullOrEmpty(uri.UserInfo);
+            }, "RandomSteamAnalytics requires a valid Archive origin and 32-256 character API key when enabled.")
+            .ValidateOnStart();
+
+
+        services.AddHttpClient<RandomSteamAnalyticsClient>((provider, client) =>
+        {
+            var options = provider
+                .GetRequiredService<IOptions<RandomSteamAnalyticsOptions>>()
+                .Value;
+
+            client.Timeout = TimeSpan.FromSeconds(5);
+
+            if (options.Enabled)
+                client.BaseAddress = new Uri(options.ArchiveBaseUrl!.TrimEnd('/') + "/");
+        });
+
+
         services.Configure<HostingOptions>(config.GetSection(HostingOptions.SectionName));
         services.Configure<TelemetryOptions>(config.GetSection(TelemetryOptions.SectionName));
         services.AddSingleton<IVisitorIdProvider, VisitorIdProvider>();
@@ -85,6 +128,77 @@ public static class ServiceExtensions
         });
 
         services.AddApplicationDataProtection(config, env);
+
+        services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(options =>
+            {
+                options.Cookie.Name = ".RandomSteamGame.Auth";
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+                options.Cookie.Path = "/";
+
+                options.LoginPath = "/auth/login";
+                options.ExpireTimeSpan = TimeSpan.FromDays(7);
+                options.SlidingExpiration = true;
+
+                options.Events.OnRedirectToAccessDenied = context =>
+                {
+                    if (context.Request.Path.StartsWithSegments(
+                        "/api/admin/analytics",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        context.Response.Headers.CacheControl = "private, no-store";
+                        return Task.CompletedTask;
+                    }
+
+                    context.Response.Redirect(context.RedirectUri);
+                    return Task.CompletedTask;
+                };
+
+            })
+            .AddSteam(options =>
+            {
+                options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            });
+
+
+
+        services.AddAuthorization();
+
+        services.AddOptions<AuthorizationOptions>()
+            .Configure<IConfiguration>((options, configuration) =>
+            {
+                var adminSteamIds = configuration
+                    .GetSection("Authentication:AdminSteamIds")
+                    .Get<string[]>() ?? [];
+
+                if (adminSteamIds.Any(id => id is null || id.Length != 17 || !id.All(char.IsAsciiDigit)))
+                {
+                    throw new InvalidOperationException(
+                        "Authentication:AdminSteamIds must contain only 17-digit SteamID64 values.");
+                }
+
+                var adminIdentities = adminSteamIds
+                    .Select(id => $"https://steamcommunity.com/openid/id/{id}")
+                    .ToHashSet(StringComparer.Ordinal);
+
+                options.AddPolicy("SteamAdmin", policy =>
+                {
+                    policy.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme);
+                    policy.RequireAuthenticatedUser();
+                    policy.RequireAssertion(context =>
+                    {
+                        var identifier = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                        return identifier is not null && adminIdentities.Contains(identifier);
+                    });
+                });
+            })
+            .ValidateOnStart();
+
+
+
         services.AddBlazorServices();
         services.AddApiServices();
         services.AddSteamIdentityServices();

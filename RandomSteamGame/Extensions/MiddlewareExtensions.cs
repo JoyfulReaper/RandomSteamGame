@@ -5,8 +5,8 @@
  * Licensed under the MIT License.
  */
 
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using RandomSteamGame.Options;
@@ -110,6 +110,16 @@ public static class MiddlewareExtensions
         var canonicalUrls = app.ApplicationServices.GetRequiredService<CanonicalUrlService>();
         app.Use(async (context, next) =>
         {
+
+            if (context.Request.Path.StartsWithSegments(
+                "/admin",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.Headers.CacheControl = "private, no-store";
+                context.Response.Headers["CDN-Cache-Control"] = "no-store";
+                context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+            }
+
             if (canonicalUrls.IsBetaHost(context.Request.Host.Host) ||
                 context.Request.Path.StartsWithSegments(
                     "/api",
@@ -155,6 +165,9 @@ public static class MiddlewareExtensions
             }
             await next();
         });
+
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.UseAntiforgery();
 
         app.Use(async (context, next) =>
