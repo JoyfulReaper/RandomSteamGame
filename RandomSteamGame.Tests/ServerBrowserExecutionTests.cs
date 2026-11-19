@@ -1,6 +1,5 @@
-using JoyfulReaperLib.MissionControl;
 using AngleSharp.Html.Parser;
-using Microsoft.AspNetCore.Hosting;
+using JoyfulReaperLib.MissionControl;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -124,7 +123,9 @@ public class ServerBrowserExecutionTests
         using var application = CreateApplication(root, steam, store, outgoing, telemetry, origin, mode);
         using var client = application.CreateClient(new WebApplicationFactoryClientOptions
         {
-            BaseAddress = new Uri(origin), AllowAutoRedirect = false, HandleCookies = false
+            BaseAddress = new Uri(origin),
+            AllowAutoRedirect = false,
+            HandleCookies = false
         });
         using var request = new HttpRequestMessage(HttpMethod.Get, $"/random-game/steam/{SteamId}");
         request.Headers.Add("Cookie", "ExcludedGameIds=10");
@@ -166,14 +167,14 @@ public class ServerBrowserExecutionTests
             var server = scope.ServiceProvider.GetRequiredService<IRandomSteamApiClient>();
             var result = await server.GetRandomGameDetailsAsync("steam", SteamId, cancellationToken: TestContext.Current.CancellationToken);
             Assert.False(result.IsSuccess);
-            Assert.Equal(HttpStatusCode.InternalServerError, result.StatusCode);
+            Assert.Equal(HttpStatusCode.BadGateway, result.StatusCode);
             Assert.Equal(Errors.Steam.SteamApiFailed.Description, result.Problem!.Detail);
         }
         else
         {
             using var browser = application.CreateClient();
             using var response = await browser.GetAsync($"/api/steam/random-game/details?userId={SteamId}", TestContext.Current.CancellationToken);
-            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+            Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
             var problem = await response.Content.ReadFromJsonAsync<ApiProblem>(TestContext.Current.CancellationToken);
             Assert.Equal(Errors.Steam.SteamApiFailed.Description, problem!.Detail);
         }
@@ -264,7 +265,8 @@ public class ServerBrowserExecutionTests
     {
         using var limiter = new SteamApiRequestLimiter(new SteamApiClient.Settings.RateLimitingOptions
         {
-            PermitLimit = 2, WindowSeconds = 1
+            PermitLimit = 2,
+            WindowSeconds = 1
         });
         Assert.Null(limiter.IdleDuration);
         using var lease = limiter.AttemptAcquire();
@@ -277,7 +279,8 @@ public class ServerBrowserExecutionTests
     {
         await using var limiter = new SteamApiRequestLimiter(new SteamApiClient.Settings.RateLimitingOptions
         {
-            PermitLimit = 2, WindowSeconds = 1
+            PermitLimit = 2,
+            WindowSeconds = 1
         });
 
         using var lease = limiter.AttemptAcquire();
@@ -396,7 +399,8 @@ public class ServerBrowserExecutionTests
             services.RemoveAll<SteamApiRequestLimiter>();
             services.AddSingleton(_ => new SteamApiRequestLimiter(new SteamApiClient.Settings.RateLimitingOptions
             {
-                PermitLimit = permitLimit, WindowSeconds = 3600
+                PermitLimit = permitLimit,
+                WindowSeconds = 3600
             }));
             if (telemetry is not null)
             {
@@ -452,8 +456,11 @@ public class ServerBrowserExecutionTests
             }
             return Task.FromResult(JsonSerializer.Deserialize<Store.AppData>(JsonSerializer.Serialize(new
             {
-                type = "game", name = $"Game{appId}", steam_appid = appId,
-                about_the_game = "A game description.", header_image = ""
+                type = "game",
+                name = $"Game{appId}",
+                steam_appid = appId,
+                about_the_game = "A game description.",
+                header_image = ""
             })));
         }
     }

@@ -191,7 +191,8 @@ public class GameControllerTests
                 Assert.Equal(caller.Token, ct);
                 caller.Cancel();
                 return Task.FromCanceled<ErrorOr<OwnedGamesResponse>>(ct);
-            } : null,
+            }
+            : null,
             LoadDeck = phase != "library" ? ct =>
             {
                 Assert.Equal(caller.Token, ct);
@@ -199,7 +200,8 @@ public class GameControllerTests
                 return phase == "deck"
                     ? Task.FromCanceled<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>(ct)
                     : Task.FromResult<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>(new Dictionary<int, SteamDeckCompatibilityCategory>());
-            } : null
+            }
+            : null
         };
         var cooldown = new FakeLibraryExportCooldownTracker();
         var stats = new FakeAppStatsService();
@@ -756,7 +758,7 @@ public class GameControllerTests
         var result = await controller.GetRandomGameDetails("steam", 76561197960287930L, vanityUrl: null);
 
         var objectResult = Assert.IsType<ObjectResult>(result);
-        Assert.Equal(StatusCodes.Status500InternalServerError, objectResult.StatusCode);
+        Assert.Equal(StatusCodes.Status502BadGateway, objectResult.StatusCode);
         AssertGamePickEvent(
             missionControl,
             expectedProvider: "steam",

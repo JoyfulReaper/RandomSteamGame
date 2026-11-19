@@ -11,6 +11,7 @@ using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
 using SteamApiClient.Services;
+using System.Net;
 using System.Text.Json;
 
 namespace RandomSteamGame.Tests;
@@ -86,7 +87,12 @@ public class SteamProviderTests
         else
         {
             var result = await provider.GetOwnedGamesAsync(SteamId, ct);
-            Assert.Equal(Errors.Steam.SteamApiFailed, result.FirstError);
+
+            var expectedError = failure == "transport"
+                ? Errors.Steam.SteamApiFailed
+                : Errors.Steam.SteamApiUnavailable;
+
+            Assert.Equal(expectedError, result.FirstError);
         }
     }
 
@@ -314,8 +320,11 @@ public class SteamProviderTests
     private static AppData CreateAppData(int appId) => JsonSerializer.Deserialize<AppData>(
         JsonSerializer.Serialize(new
         {
-            type = "game", steam_appid = appId, name = $"Game{appId}",
-            about_the_game = "A game description.", header_image = ""
+            type = "game",
+            steam_appid = appId,
+            name = $"Game{appId}",
+            about_the_game = "A game description.",
+            header_image = ""
         }))!;
 
     private sealed class StubStoreClient(Func<int, CancellationToken, Task<AppData?>> getAppData) : ISteamStoreClient
@@ -340,7 +349,8 @@ public class SteamProviderTests
             _ => Task.FromResult(SteamId);
         public Func<CancellationToken, Task> Invalidate { get; init; } = _ => Task.CompletedTask;
         public Func<CancellationToken, Task<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>>
-            LoadDeckCompatibility { get; init; } = _ =>
+            LoadDeckCompatibility
+        { get; init; } = _ =>
                 Task.FromResult<IReadOnlyDictionary<int, SteamDeckCompatibilityCategory>>(
                     new Dictionary<int, SteamDeckCompatibilityCategory>());
 
@@ -387,5 +397,59 @@ public class SteamProviderTests
             PlaytimeLinuxForever: playtimeLinuxForever,
             RTimeLastPlayed: rTimeLastPlayed,
             Playtime2Weeks: playtime2Weeks);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest, false)]
+    [InlineData(HttpStatusCode.TooManyRequests, true)]
+    [InlineData(HttpStatusCode.ServiceUnavailable, true)]
+    [InlineData(HttpStatusCode.GatewayTimeout, true)]
+    public async Task OwnedLibrary_HttpFailure_MapsToExpectedError(
+    HttpStatusCode statusCode,
+    bool temporarilyUnavailable)
+    {
+        var exception = new HttpRequestException(
+            "Steam API request failed.",
+            inner: null,
+            statusCode: statusCode);
+
+        var steam = new StubSteamClient
+        {
+            LoadOwnedLibrary = _ => Task.FromException<OwnedGames>(exception)
+        };
+
+        var provider = CreateProvider(
+            new StubStoreClient((_, _) => throw new InvalidOperationException()),
+            steam: steam);
+
+        var result = await provider.GetOwnedGamesAsync(
+            SteamId,
+            TestContext.Current.CancellationToken);
+
+        var expectedError = temporarilyUnavailable
+            ? Errors.Steam.SteamApiUnavailable
+            : Errors.Steam.SteamApiFailed;
+
+        Assert.Equal(expectedError, result.FirstError);
+    }
+
+    [Fact]
+    public async Task OwnedLibrary_UnexpectedFailure_ReturnsInternalFailure()
+    {
+        var steam = new StubSteamClient
+        {
+            LoadOwnedLibrary = _ => Task.FromException<OwnedGames>(
+                new InvalidOperationException("Simulated internal failure."))
+        };
+
+        var provider = CreateProvider(
+            new StubStoreClient((_, _) => throw new NotSupportedException()),
+            steam: steam);
+
+        var result = await provider.GetOwnedGamesAsync(
+            SteamId,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(Errors.Steam.InternalFailure, result.FirstError);
     }
 }

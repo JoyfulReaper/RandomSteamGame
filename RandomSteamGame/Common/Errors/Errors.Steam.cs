@@ -38,9 +38,17 @@ public static partial class Errors
             code: "Steam.ApiFailed",
             description: "Steam API failed to return data. Is your Steam profile public?");
 
+        public static Error SteamApiUnavailable => Error.Failure(
+            code: "Steam.ApiUnavailable",
+            description: "Steam is temporarily unavailable. Please try again later.");
+
         public static Error SteamApiSuccessButCouldntGetAppData => Error.Failure(
             code: "Steam.ApiSuccessButCouldntGetAppData",
             description: "Steam API returned success but we were unable to get app data for any supplied AppIds after the maximum number of retries.");
+
+        public static Error InternalFailure => Error.Unexpected(
+            code: "Steam.InternalFailure",
+            description: "An unexpected error occurred while processing the Steam library.");
 
         public static Error NoSelectableGamesAfterExclusions => Error.NotFound(
             code: "Steam.NoSelectableGamesAfterExclusions",

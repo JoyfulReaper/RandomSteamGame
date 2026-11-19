@@ -238,18 +238,20 @@ public sealed class LibraryExportRateLimitHttpTests :
             secondUser.StatusCode);
     }
 
-    [Fact]
-    public async Task LibraryExportCooldown_FailedAttempt_DoesNotConsumeCooldown()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LibraryExportCooldown_FailedAttempt_DoesNotConsumeCooldown(bool temporarilyUnavailable)
     {
+        var provider = new FailingThenSuccessfulExportGameProvider(temporarilyUnavailable);
+
         using var application =
             _factory.WithWebHostBuilder(builder =>
             {
                 builder.ConfigureTestServices(services =>
                 {
                     services.RemoveAll<IGameProvider>();
-                    services.AddSingleton<
-                        IGameProvider,
-                        FailingThenSuccessfulExportGameProvider>();
+                    services.AddSingleton<IGameProvider>(provider);
                 });
             });
 
@@ -266,7 +268,7 @@ public sealed class LibraryExportRateLimitHttpTests :
             await SendExportAsync(client, clientIp);
 
         Assert.Equal(
-            HttpStatusCode.InternalServerError,
+            temporarilyUnavailable ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.BadGateway,
             failed.StatusCode);
 
         using var retry =
@@ -438,7 +440,7 @@ public sealed class LibraryExportRateLimitHttpTests :
         using var application = CreateGlobalApplication(new FailingThenSuccessfulExportGameProvider(), clock);
         using var client = application.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
         using var failed = await SendExportAsync(client, "198.51.100.90");
-        Assert.Equal(HttpStatusCode.InternalServerError, failed.StatusCode);
+        Assert.Equal(HttpStatusCode.BadGateway, failed.StatusCode);
         using var retry = await SendExportAsync(client, "198.51.100.91");
         Assert.Equal(HttpStatusCode.TooManyRequests, retry.StatusCode);
         Assert.Equal(TimeSpan.FromMinutes(20), retry.Headers.RetryAfter?.Delta);
@@ -627,6 +629,13 @@ public sealed class LibraryExportRateLimitHttpTests :
     {
         private int _ownedGamesCallCount;
 
+        private readonly bool _temporarilyUnavailable;
+
+        public FailingThenSuccessfulExportGameProvider(bool temporarilyUnavailable = false)
+        {
+            _temporarilyUnavailable = temporarilyUnavailable;
+        }
+
         public string ProviderKey => "steam";
 
         public Task<ErrorOr<OwnedGamesResponse>>
@@ -636,7 +645,9 @@ public sealed class LibraryExportRateLimitHttpTests :
                     ref _ownedGamesCallCount) == 1)
             {
                 return Task.FromResult<ErrorOr<OwnedGamesResponse>>(
-                    Errors.Steam.SteamApiFailed);
+                    _temporarilyUnavailable
+                        ? Errors.Steam.SteamApiUnavailable
+                        : Errors.Steam.SteamApiFailed);
             }
 
             OwnedGamesResponse library =

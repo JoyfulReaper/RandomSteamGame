@@ -1,5 +1,6 @@
 using ErrorOr;
 using RandomSteamGame.Client.Services;
+using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Services.Interfaces;
 using RandomSteamGame.Shared.Contracts;
 using System.Net;
@@ -73,6 +74,10 @@ public sealed class ServerRandomSteamApiClient : IRandomSteamApiClient
                 ErrorType.Validation => HttpStatusCode.BadRequest,
                 ErrorType.NotFound => HttpStatusCode.NotFound,
                 ErrorType.Conflict => HttpStatusCode.Conflict,
+                ErrorType.Failure when error.Code == Errors.Steam.SteamApiUnavailable.Code
+                    => HttpStatusCode.ServiceUnavailable,
+                ErrorType.Failure when error.Code == Errors.Steam.SteamApiFailed.Code
+                    => HttpStatusCode.BadGateway,
                 _ => HttpStatusCode.InternalServerError
             };
             var validation = result.Errors.All(item => item.Type == ErrorType.Validation);

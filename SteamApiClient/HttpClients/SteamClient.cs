@@ -99,7 +99,9 @@ public class SteamClient : ISteamClient
                     response.StatusCode);
 
                 throw new HttpRequestException(
-                    $"Steam API failed to return owned games. StatusCode={response.StatusCode}");
+                    $"Steam API failed to return owned games. StatusCode={response.StatusCode}",
+                    inner: null,
+                    statusCode: response.StatusCode);
             }
 
             var json = await response.Content.ReadAsStringAsync(token);
@@ -107,10 +109,9 @@ public class SteamClient : ISteamClient
 
             if (parsed?.Response is null)
             {
-                _logger.LogWarning(
-                    "Steam API invalid JSON (OwnedGames).");
+                _logger.LogWarning("Steam API returned an invalid owned-games response.");
 
-                throw new InvalidOperationException("Steam API returned an invalid owned-games response.");
+                throw new JsonException("Steam API returned an invalid owned-games response.");
             }
 
             return parsed.Response;

@@ -315,15 +315,19 @@ public class SteamClientTests
         Assert.Equal(220, result.Games[0].AppId);
     }
 
-    [Fact]
-    public async Task GetOwnedGames_HttpError_Throws()
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.GatewayTimeout)]
+    public async Task GetOwnedGames_HttpError_Throws(HttpStatusCode statusCode)
     {
-        // Arrange
-        var client = CreateClient(string.Empty, HttpStatusCode.InternalServerError);
+        var client = CreateClient(string.Empty, statusCode);
 
-        // Act / Assert
-        await Assert.ThrowsAsync<HttpRequestException>(
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(
             () => client.GetOwnedGames(76561197960287930L, ct: TestContext.Current.CancellationToken));
+
+        Assert.Equal(statusCode, exception.StatusCode);
     }
 
     [Fact]
@@ -334,7 +338,7 @@ public class SteamClientTests
         var client = CreateClient(invalidJson, HttpStatusCode.OK);
 
         // Act / Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<JsonException>(
             () => client.GetOwnedGames(76561197960287930L, ct: TestContext.Current.CancellationToken));
     }
 

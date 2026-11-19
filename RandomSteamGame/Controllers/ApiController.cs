@@ -8,6 +8,7 @@
 using ErrorOr;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Common.Http;
 
 namespace RandomSteamGame.Controllers;
@@ -39,6 +40,10 @@ public class ApiController : ControllerBase
             ErrorType.Conflict => StatusCodes.Status409Conflict,
             ErrorType.Validation => StatusCodes.Status400BadRequest,
             ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Failure when error.Code == Errors.Steam.SteamApiUnavailable.Code
+             => StatusCodes.Status503ServiceUnavailable,
+            ErrorType.Failure when error.Code == Errors.Steam.SteamApiFailed.Code
+             => StatusCodes.Status502BadGateway,
             _ => StatusCodes.Status500InternalServerError,
         };
 

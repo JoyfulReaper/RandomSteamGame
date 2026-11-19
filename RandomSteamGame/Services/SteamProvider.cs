@@ -7,6 +7,9 @@
 
 using ErrorOr;
 using Microsoft.Extensions.Options;
+using Polly.CircuitBreaker;
+using Polly.RateLimiting;
+using Polly.Timeout;
 using RandomSteamGame.Common.Errors;
 using RandomSteamGame.Options;
 using RandomSteamGame.Services.Interfaces;
@@ -15,6 +18,8 @@ using RandomSteamGame.Shared.Services;
 using SteamApiClient.Contracts.SteamStoreApi;
 using SteamApiClient.HttpClients;
 using System.Diagnostics;
+using System.Net;
+using System.Text.Json;
 using SteamDeckCompatibilityCategory = SteamApiClient.Contracts.SteamApi.SteamDeckCompatibilityCategory;
 
 namespace RandomSteamGame.Services;
@@ -101,12 +106,31 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (
+            ex is TimeoutRejectedException
+                or TaskCanceledException
+                or BrokenCircuitException
+                or RateLimiterRejectedException
+                or HttpRequestException
+            {
+                StatusCode: HttpStatusCode.TooManyRequests
+                        or HttpStatusCode.ServiceUnavailable
+                        or HttpStatusCode.GatewayTimeout
+            })
         {
-            _logger.LogError(ex, "Error getting owned games.");
+            _logger.LogWarning(ex, "Steam API temporarily unavailable while loading owned games.");
+            return Errors.Steam.SteamApiUnavailable;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException)
+        {
+            _logger.LogWarning(ex, "Failed to retrieve owned games from Steam.");
             return Errors.Steam.SteamApiFailed;
         }
-
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while loading owned games.");
+            return Errors.Steam.InternalFailure;
+        }
         if (ownedGames?.Games == null || ownedGames.Games.Count == 0)
         {
             return Errors.Steam.EmptyLibrary;
