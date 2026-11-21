@@ -167,10 +167,30 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         {
             return Errors.Steam.InvalidVanityUrl;
         }
+        catch (Exception ex) when (
+            ex is TimeoutRejectedException
+                or TaskCanceledException
+                or BrokenCircuitException
+                or RateLimiterRejectedException
+                or HttpRequestException
+            {
+                StatusCode: HttpStatusCode.TooManyRequests
+                        or HttpStatusCode.ServiceUnavailable
+                        or HttpStatusCode.GatewayTimeout
+            })
+        {
+            _logger.LogWarning(ex, "Steam API temporarily unavailable while resolving vanity URL.");
+            return Errors.Steam.SteamApiUnavailable;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException)
+        {
+            _logger.LogWarning(ex, "Steam API failed while resolving vanity URL.");
+            return Errors.Steam.SteamApiFailed;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception while resolving vanity URL.");
-            return Errors.Steam.VanityResolutionFailed;
+            _logger.LogError(ex, "Unexpected error while resolving vanity URL.");
+            return Errors.Steam.InternalFailure;
         }
     }
 
@@ -192,9 +212,31 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
         catch (Exception ex)
         {
             libraryLoadStopwatch.Stop();
-            _logger.LogError(ex, "Error loading owned games for random-game pick.");
+
+            var error = ex switch
+            {
+                TimeoutRejectedException or TaskCanceledException or BrokenCircuitException or RateLimiterRejectedException
+                    => Errors.Steam.SteamApiUnavailable,
+
+                HttpRequestException
+                {
+                    StatusCode: HttpStatusCode.TooManyRequests
+                        or HttpStatusCode.ServiceUnavailable
+                        or HttpStatusCode.GatewayTimeout
+                } => Errors.Steam.SteamApiUnavailable,
+
+                HttpRequestException or JsonException => Errors.Steam.SteamApiFailed,
+
+                _ => Errors.Steam.InternalFailure
+            };
+
+            if (error.Code == Errors.Steam.InternalFailure.Code)
+                _logger.LogError(ex, "Unexpected error loading owned games for random-game pick.");
+            else
+                _logger.LogWarning(ex, "Steam API failed while loading owned games for random-game pick.");
+
             return RandomGamePickAttempt.Failure(
-                [Errors.Steam.SteamApiFailed],
+                [error],
                 timings: new Events.GamePickTimings(
                     IdentifierResolutionMilliseconds: 0,
                     LibraryLoadMilliseconds: libraryLoadStopwatch.ElapsedMilliseconds,
@@ -316,9 +358,34 @@ public class SteamProvider : IGameProvider, ISteamDeckCompatibilityProvider
             }
             catch (Exception exception)
             {
-                // A failed dependency call is distinct from an unavailable candidate (null).
-                _logger.LogWarning(exception, "Failed to load Steam Store data for AppId {AppId}.", selectedAppId);
-                return SelectionAttempt.Failure([Errors.Steam.SteamApiFailed], shuffledGameIds.Count);
+                var error = exception switch
+                {
+                    TimeoutRejectedException or TaskCanceledException or TimeoutException
+                        or BrokenCircuitException or RateLimiterRejectedException
+                        => Errors.Steam.SteamApiUnavailable,
+
+                    HttpRequestException
+                    {
+                        StatusCode: HttpStatusCode.TooManyRequests
+                            or HttpStatusCode.ServiceUnavailable
+                            or HttpStatusCode.GatewayTimeout
+                    } => Errors.Steam.SteamApiUnavailable,
+
+                    HttpRequestException or JsonException => Errors.Steam.SteamApiFailed,
+
+                    _ => Errors.Steam.InternalFailure
+                };
+
+                if (error.Code == Errors.Steam.InternalFailure.Code)
+                {
+                    _logger.LogError(exception, "Unexpected error loading Steam Store data for AppId {AppId}.", selectedAppId);
+                }
+                else
+                {
+                    _logger.LogWarning(exception, "Failed to load Steam Store data for AppId {AppId}.", selectedAppId);
+                }
+
+                return SelectionAttempt.Failure([error], shuffledGameIds.Count);
             }
             ct.ThrowIfCancellationRequested();
             attempts++;

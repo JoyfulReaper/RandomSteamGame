@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using SteamApiClient.Contracts.SteamApi;
 using SteamApiClient.Services;
 using SteamApiClient.Settings;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -165,7 +166,9 @@ public class SteamClient : ISteamClient
                 response.StatusCode);
 
             throw new HttpRequestException(
-                $"Steam API failed to resolve vanity URL. StatusCode={response.StatusCode}");
+                $"Steam API failed to resolve vanity URL. StatusCode={response.StatusCode}",
+                inner: null,
+                statusCode: response.StatusCode);
         }
 
         var json = await response.Content.ReadAsStringAsync(ct);
@@ -177,7 +180,7 @@ public class SteamClient : ISteamClient
             _logger.LogWarning(
                 "Steam API invalid response (VanityUrl).");
 
-            throw new InvalidOperationException("Steam API returned an invalid vanity response.");
+            throw new JsonException("Steam API returned an invalid vanity response.");
         }
 
         if (r.Success == STEAM_VANITY_NO_MATCH)
@@ -193,11 +196,15 @@ public class SteamClient : ISteamClient
                 "Steam API failure status (VanityUrl). Success={Success}",
                 r.Success);
 
-            throw new InvalidOperationException(
+            throw new HttpRequestException(
                 $"Steam API returned vanity failure status {r.Success}.");
         }
 
-        var steamId = long.Parse(r.SteamId!);
+        if (r.SteamId is not { Length: 17 } ||
+            !long.TryParse(r.SteamId, NumberStyles.None, CultureInfo.InvariantCulture, out var steamId))
+        {
+            throw new JsonException("Steam API returned an invalid Steam ID for vanity URL.");
+        }
         await _cache.SetAsync<long?>(successCacheKey, steamId, _steamOptions.Cache.VanitySuccess, tags, ct);
         return steamId;
     }

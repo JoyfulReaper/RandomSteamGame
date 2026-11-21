@@ -147,7 +147,7 @@ public sealed class CacheMissCoalescingTests
         handler.Release();
         foreach (var request in requests)
         {
-            if (failure.StartsWith("http") || failure is "shape" or "missingSuccess" or "missingData" or "null")
+            if (failure is "shape" or "missingSuccess" or "missingData" or "null")
                 Assert.Null(await request);
             else
                 AssertDependencyFailure(failure, await Record.ExceptionAsync(async () => await request));
@@ -311,11 +311,11 @@ public sealed class CacheMissCoalescingTests
     {
         var expectedType = failure switch
         {
-            "http500" or "transport" => typeof(HttpRequestException),
+            "http500" or "http429" or "http404" or "transport" or "status" => typeof(HttpRequestException),
             "timeout" => typeof(TimeoutRejectedException),
             "circuit" => typeof(BrokenCircuitException),
             "ratelimit" => typeof(RateLimiterRejectedException),
-            "json" or "incompatible" or "array" or "malformedData" => typeof(JsonException),
+            "json" or "shape" or "incompatible" or "array" or "malformedData" => typeof(JsonException),
             _ => typeof(InvalidOperationException)
         };
         Assert.IsAssignableFrom(expectedType, exception);

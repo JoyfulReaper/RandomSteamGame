@@ -74,19 +74,19 @@ public class SteamStoreClientTests
         Assert.Equal("Portal", result.Name);
     }
 
-    [Fact]
-    public async Task GetAppData_ApiFails_ReturnsSuccessFalseResponse()
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.GatewayTimeout)]
+    public async Task GetAppData_HttpError_ThrowsWithStatusCode(HttpStatusCode statusCode)
     {
-        // Arrange
-        var client = CreateClient(string.Empty, HttpStatusCode.InternalServerError);
+        var client = CreateClient(string.Empty, statusCode);
 
-        // Act
-        var result = await client.GetAppData(
-            123,
-            ct: TestContext.Current.CancellationToken);
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            client.GetAppData(123, ct: TestContext.Current.CancellationToken));
 
-        // Assert
-        Assert.Null(result);
+        Assert.Equal(statusCode, exception.StatusCode);
     }
 
     [Fact]
@@ -110,15 +110,15 @@ public class SteamStoreClientTests
         var client = CreateClient(handler);
 
         // Act
-        var failedResult = await client.GetAppData(
-            targetAppId,
-            ct: TestContext.Current.CancellationToken);
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            client.GetAppData(targetAppId, ct: TestContext.Current.CancellationToken));
+
+        Assert.Equal(HttpStatusCode.InternalServerError, exception.StatusCode);
         var successfulResult = await client.GetAppData(
             targetAppId,
             ct: TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Null(failedResult);
         Assert.NotNull(successfulResult);
         Assert.Equal("Portal", successfulResult.Name);
         Assert.Equal(2, handler.CallCount);
@@ -136,7 +136,7 @@ public class SteamStoreClientTests
 
     [Theory]
     [InlineData("not JSON", typeof(JsonException))]
-    [InlineData("[]", typeof(InvalidOperationException))]
+    [InlineData("[]", typeof(JsonException))]
     public async Task GetAppData_InvalidPayload_PropagatesParseFailure(string json, Type exceptionType)
     {
         var client = CreateClient(json, HttpStatusCode.OK);

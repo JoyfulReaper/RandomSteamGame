@@ -82,7 +82,11 @@ public class SteamProviderTests
         if (vanity)
         {
             var result = await provider.ResolveIdentifierAsync("some_vanity", ct);
-            Assert.Equal(Errors.Steam.VanityResolutionFailed, result.FirstError);
+            var expectedError = failure == "transport"
+                ? Errors.Steam.SteamApiFailed
+                : Errors.Steam.SteamApiUnavailable;
+
+            Assert.Equal(expectedError, result.FirstError);
         }
         else
         {
@@ -177,6 +181,10 @@ public class SteamProviderTests
     [InlineData("timeout")]
     [InlineData("circuit-open")]
     [InlineData("rate-limit")]
+    [InlineData("http429")]
+    [InlineData("http503")]
+    [InlineData("http504")]
+    [InlineData("http500")]
     public async Task StoreDependencyFailure_ReturnsControlledFailureWithoutTryingAnotherCandidate(string failure)
     {
         Exception exception = failure switch
@@ -189,6 +197,10 @@ public class SteamProviderTests
             "timeout" => new TimeoutException(),
             "circuit-open" => new BrokenCircuitException(),
             "rate-limit" => new RateLimiterRejectedException(),
+            "http429" => new HttpRequestException("Rate limited.", null, HttpStatusCode.TooManyRequests),
+            "http503" => new HttpRequestException("Unavailable.", null, HttpStatusCode.ServiceUnavailable),
+            "http504" => new HttpRequestException("Gateway timeout.", null, HttpStatusCode.GatewayTimeout),
+            "http500" => new HttpRequestException("Server error.", null, HttpStatusCode.InternalServerError),
             _ => throw new ArgumentOutOfRangeException(nameof(failure))
         };
         var store = new StubStoreClient((_, _) => Task.FromException<AppData?>(exception));
@@ -198,11 +210,30 @@ public class SteamProviderTests
         var result = await provider.GetRandomGamePickAsync(SteamId, ct: TestContext.Current.CancellationToken);
 
         Assert.False(result.Succeeded);
-        Assert.Equal(Errors.Steam.SteamApiFailed, Assert.Single(result.Errors));
+        var expectedError = failure switch
+        {
+            "resilience-timeout" or "http-timeout" or "timeout"
+                or "circuit-open" or "rate-limit"
+                or "http429" or "http503" or "http504"
+                    => Errors.Steam.SteamApiUnavailable,
+
+            "response-shape" => Errors.Steam.InternalFailure,
+
+            _ => Errors.Steam.SteamApiFailed
+        };
+
+        Assert.Equal(expectedError, Assert.Single(result.Errors));
         var appId = Assert.Single(store.RequestedAppIds);
-        var log = Assert.Single(logger.Warnings);
-        Assert.Same(exception, log.Exception);
-        Assert.Contains($"AppId {appId}", log.Message);
+        if (failure == "response-shape")
+        {
+            Assert.Empty(logger.Warnings);
+        }
+        else
+        {
+            var log = Assert.Single(logger.Warnings);
+            Assert.Same(exception, log.Exception);
+            Assert.Contains($"AppId {appId}", log.Message);
+        }
         Assert.Equal(CacheInfo, result.Cache);
         Assert.Equal(2, result.EligibleGameCount);
         Assert.Equal(2, result.LibraryGameCount);
@@ -451,5 +482,67 @@ public class SteamProviderTests
             TestContext.Current.CancellationToken);
 
         Assert.Equal(Errors.Steam.InternalFailure, result.FirstError);
+    }
+
+    [Fact]
+    public async Task Vanity_NotFound_ReturnsNotFound()
+    {
+        var steam = new StubSteamClient
+        {
+            ResolveVanity = _ => Task.FromResult(0L)
+        };
+
+        var provider = CreateProvider(
+            new StubStoreClient((_, _) => throw new NotSupportedException()),
+            steam: steam);
+
+        var result = await provider.ResolveIdentifierAsync(
+            "missing_vanity",
+            TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsError);
+        Assert.Equal(Errors.Steam.VanityResolutionFailed, result.FirstError);
+    }
+
+    [Theory]
+    [InlineData("transport")]
+    [InlineData("timeout")]
+    [InlineData("http503")]
+    [InlineData("json")]
+    [InlineData("internal")]
+    public async Task RandomPick_LibraryFailure_MapsToExpectedError(string failure)
+    {
+        Exception exception = failure switch
+        {
+            "transport" => new HttpRequestException(),
+            "timeout" => new TimeoutRejectedException(),
+            "http503" => new HttpRequestException("Steam unavailable", null, HttpStatusCode.ServiceUnavailable),
+            "json" => new JsonException("Malformed Steam response."),
+            "internal" => new InvalidOperationException("Internal failure."),
+            _ => throw new ArgumentOutOfRangeException(nameof(failure))
+        };
+
+        var steam = new StubSteamClient
+        {
+            LoadLibrary = _ => Task.FromException<OwnedGamesResult>(exception)
+        };
+
+        var store = new StubStoreClient((_, _) => throw new InvalidOperationException());
+        var provider = CreateProvider(store, steam: steam);
+
+        var result = await provider.GetRandomGamePickAsync(
+            SteamId,
+            ct: TestContext.Current.CancellationToken);
+
+        var expectedError = failure switch
+        {
+            "timeout" or "http503" => Errors.Steam.SteamApiUnavailable,
+            "transport" or "json" => Errors.Steam.SteamApiFailed,
+            _ => Errors.Steam.InternalFailure
+        };
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(expectedError, Assert.Single(result.Errors));
+        Assert.Empty(store.RequestedAppIds);
     }
 }

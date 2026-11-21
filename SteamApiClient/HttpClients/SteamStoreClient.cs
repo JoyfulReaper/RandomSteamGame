@@ -82,11 +82,19 @@ public class SteamStoreClient : ISteamStoreClient
                 appId,
                 response.StatusCode);
 
-            return null;
+            throw new HttpRequestException(
+                $"Steam Store API failed to return app details for AppId {appId}. StatusCode={response.StatusCode}",
+                inner: null,
+                statusCode: response.StatusCode);
         }
 
         var json = await response.Content.ReadAsStringAsync(ct);
         using var doc = JsonDocument.Parse(json);
+
+        if (doc.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            throw new JsonException("Steam Store API returned an invalid response structure.");
+        }
 
         if (!doc.RootElement.TryGetProperty(appId.ToString(), out var root))
         {

@@ -501,7 +501,7 @@ public class SteamClientTests
         var client = CreateClient(json, HttpStatusCode.OK);
 
         // Act / Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<HttpRequestException>(
             () => client.GetSteamIdFromVanityUrl("error_route", TestContext.Current.CancellationToken));
     }
 
@@ -523,8 +523,10 @@ public class SteamClientTests
         var client = CreateClient(handler);
 
         // Act / Assert
-        await Assert.ThrowsAsync<HttpRequestException>(
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(
             () => client.GetSteamIdFromVanityUrl("gabelogannewell", TestContext.Current.CancellationToken));
+
+        Assert.Equal(HttpStatusCode.InternalServerError, exception.StatusCode);
 
         var result = await client.GetSteamIdFromVanityUrl("gabelogannewell", TestContext.Current.CancellationToken);
 
@@ -591,6 +593,29 @@ public class SteamClientTests
 
         var provider = services.BuildServiceProvider();
         return provider.GetRequiredService<ICacheService>();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not-a-number")]
+    [InlineData("123")]
+    [InlineData("999999999999999999999")]
+    public async Task GetSteamIdFromVanityUrl_InvalidSteamId_ThrowsJsonException(string? steamId)
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            response = new
+            {
+                success = 1,
+                steamid = steamId
+            }
+        });
+
+        var client = CreateClient(json, HttpStatusCode.OK);
+
+        await Assert.ThrowsAsync<JsonException>(() =>
+            client.GetSteamIdFromVanityUrl("invalid_steam_id", TestContext.Current.CancellationToken));
     }
 }
 
